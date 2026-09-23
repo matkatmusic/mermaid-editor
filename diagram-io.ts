@@ -65,6 +65,10 @@ export function restoreMainViewport(metadata: EditorMetadata | null, graph: Edit
 }
 
 export async function loadDiagram(name: string) {
+  if (state.watcher) {
+    state.watcher.close();
+    state.watcher = null;
+  }
   const text = await fetch('/api/diagrams/' + encodeURIComponent(name)).then(r => r.text());
   const { metadata } = splitEditorMetadata(text);
   restoreTypeMetadata(metadata);
