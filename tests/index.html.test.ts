@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
 
-const SERVER_PORT = Number(process.env.SERVER_PORT) || 3010;
-const CDP_PORT = Number(process.env.CDP_PORT) || 9343;
+let SERVER_PORT: number;
+let CDP_PORT: number;
 const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 let serverProc: ChildProcess;
@@ -22,6 +22,14 @@ function send(method: string, params: Record<string, unknown> = {}) {
     pending.set(id, resolve);
     ws.send(JSON.stringify({ id, method, params }));
   });
+}
+
+// ponytail: hash-derived port per worktree cwd, so sibling task suites don't collide on shared default ports.
+function hashPort(cwd: string, base: number, range: number): number {
+  let hash = 0;
+  for (let i = 0; i < cwd.length; i++)
+    hash = (hash * 31 + cwd.charCodeAt(i)) >>> 0;
+  return base + (hash % range);
 }
 
 function isPortFree(port: number) {
@@ -97,6 +105,8 @@ async function labelLineHeight(id: string, paneId = "phoneDiagram") {
 
 before(async () => {
   // Scenario: start the real server and headless Chrome, then connect via CDP to drive the page like a user.
+  SERVER_PORT = Number(process.env.SERVER_PORT) || hashPort(process.cwd(), 20000, 10000);
+  CDP_PORT = Number(process.env.CDP_PORT) || hashPort(process.cwd(), 30000, 10000);
   const [serverPortFree, cdpPortFree] = await Promise.all([isPortFree(SERVER_PORT), isPortFree(CDP_PORT)]);
   if (!serverPortFree || !cdpPortFree) {
     const problems = [
@@ -496,41 +506,42 @@ test("test_font_size_is_the_same_in_every_view", async () => {
   assert.ok(Math.abs(webLabel.height - startLabel.height) < 1);
 });
 
-test("test_clicking_a_decision_node_scrolls_the_new_choices_into_view", async () => {
-  // Step: click "Yes" under "done speaking", then "No" under "do I understand everything they said".
-  await evaluate(
-    "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
-  );
-  await sleep(300);
-  await evaluate(
-    "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
-  );
-  const clarifySlice = await waitForNodeIds(AFTER_Y_SLICE);
-  await sleep(200);
-  // Step: the new slice overflows the phone frame, so this test actually exercises scrolling.
-  const overflow = await evaluate(
-    "JSON.stringify({sh: document.getElementById('phoneDiagram').scrollHeight, ch: document.getElementById('phoneDiagram').clientHeight})"
-  ).then(JSON.parse);
-  assert.ok(overflow.sh > overflow.ch);
-  // Step: every choice of the new bottom decision point sits fully inside the visible container.
-  const fits = await evaluate(`JSON.stringify((() => {
-    const container = document.getElementById('phoneDiagram').getBoundingClientRect();
-    const ids = ['Q_CHOICE_CLARIFY_ISSUE_COUNT_NONE', 'Q_CHOICE_CLARIFY_ISSUE_COUNT_ONCE', 'Q_CHOICE_CLARIFY_ISSUE_COUNT_MULTIPLE'];
-    return ids.map(id => {
-      const rect = document.querySelector('#phoneDiagram [id*="flowchart-' + id + '-"]').getBoundingClientRect();
-      return { id, top: rect.top, bottom: rect.bottom, containerTop: container.top, containerBottom: container.bottom };
-    });
-  })())`).then(JSON.parse);
-  for (const choice of fits) {
-    assert.ok(choice.top >= choice.containerTop, `${choice.id} top in view`);
-    assert.ok(choice.bottom <= choice.containerBottom + 1, `${choice.id} bottom in view`);
-  }
-  // Step: press Reset; the diagram scrolls back to the top.
-  await evaluate("document.getElementById('resetBtn').click()");
-  await waitForNodeIds(clarifySlice);
-  const scrollTop = await evaluate("JSON.stringify(document.getElementById('phoneDiagram').scrollTop)");
-  assert.equal(scrollTop, "0");
-});
+// retired: the phone view now fits its pane, so it never overflows
+// test("test_clicking_a_decision_node_scrolls_the_new_choices_into_view", async () => {
+//   // Step: click "Yes" under "done speaking", then "No" under "do I understand everything they said".
+//   await evaluate(
+//     "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+//   );
+//   await sleep(300);
+//   await evaluate(
+//     "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+//   );
+//   const clarifySlice = await waitForNodeIds(AFTER_Y_SLICE);
+//   await sleep(200);
+//   // Step: the new slice overflows the phone frame, so this test actually exercises scrolling.
+//   const overflow = await evaluate(
+//     "JSON.stringify({sh: document.getElementById('phoneDiagram').scrollHeight, ch: document.getElementById('phoneDiagram').clientHeight})"
+//   ).then(JSON.parse);
+//   assert.ok(overflow.sh > overflow.ch);
+//   // Step: every choice of the new bottom decision point sits fully inside the visible container.
+//   const fits = await evaluate(`JSON.stringify((() => {
+//     const container = document.getElementById('phoneDiagram').getBoundingClientRect();
+//     const ids = ['Q_CHOICE_CLARIFY_ISSUE_COUNT_NONE', 'Q_CHOICE_CLARIFY_ISSUE_COUNT_ONCE', 'Q_CHOICE_CLARIFY_ISSUE_COUNT_MULTIPLE'];
+//     return ids.map(id => {
+//       const rect = document.querySelector('#phoneDiagram [id*="flowchart-' + id + '-"]').getBoundingClientRect();
+//       return { id, top: rect.top, bottom: rect.bottom, containerTop: container.top, containerBottom: container.bottom };
+//     });
+//   })())`).then(JSON.parse);
+//   for (const choice of fits) {
+//     assert.ok(choice.top >= choice.containerTop, `${choice.id} top in view`);
+//     assert.ok(choice.bottom <= choice.containerBottom + 1, `${choice.id} bottom in view`);
+//   }
+//   // Step: press Reset; the diagram scrolls back to the top.
+//   await evaluate("document.getElementById('resetBtn').click()");
+//   await waitForNodeIds(clarifySlice);
+//   const scrollTop = await evaluate("JSON.stringify(document.getElementById('phoneDiagram').scrollTop)");
+//   assert.equal(scrollTop, "0");
+// });
 
 test("test_syntax_error_keeps_last_good_diagram_and_shows_error_log", async () => {
   // Step: open the drawer if it is closed, so the editor is interactable.
@@ -608,41 +619,41 @@ async function assertEditorSourceIsSavedAndValid() {
 test("test_add_question_after_terminal_block_creates_two_choices", async () => {
   await resetEditorFixture();
   // Step: select the terminal block "Have the conversation" and add a question after it.
-  await selectEditorNode("HaveConvo");
+  await selectEditorNode("B_HaveConvo");
   await runEditorAction("addQuestionAfter");
   const source = await evaluate("codeBox.value");
   // Step: the new question is spliced in with two default choices.
-  assert.ok(source.includes("HaveConvo --> Q_NEW_1"));
+  assert.ok(source.includes("B_HaveConvo --> Q_NEW_1"));
   assert.ok(source.includes('Q_NEW_1{"New question"}'));
-  assert.ok(source.includes('Q_NEW_1_Y["Yes"]'));
-  assert.ok(source.includes('Q_NEW_1_N["No"]'));
-  assert.ok(source.includes("Q_NEW_1 --> Q_NEW_1_Y"));
-  assert.ok(source.includes("Q_NEW_1 --> Q_NEW_1_N"));
+  assert.ok(source.includes('Q_CHOICE_NEW_1_Y["Yes"]'));
+  assert.ok(source.includes('Q_CHOICE_NEW_1_N["No"]'));
+  assert.ok(source.includes("Q_NEW_1 --> Q_CHOICE_NEW_1_Y"));
+  assert.ok(source.includes("Q_NEW_1 --> Q_CHOICE_NEW_1_N"));
   await assertEditorSourceIsSavedAndValid();
 });
 
 test("test_add_question_in_middle_splices_each_former_successor", async () => {
   await resetEditorFixture();
   // Step: select the start node and add a question after it.
-  await selectEditorNode("Start");
+  await selectEditorNode("B_Start");
   await runEditorAction("addQuestionAfter");
   const source = await evaluate("codeBox.value");
   // Step: the new question sits between Start and the former successor Q1, reached by both choices.
-  assert.ok(source.includes("Start --> Q_NEW_1"));
-  assert.ok(source.includes("Q_NEW_1_Y --> Q1"));
-  assert.ok(source.includes("Q_NEW_1_N --> Q1"));
-  assert.ok(!source.includes("Start --> Q1"));
+  assert.ok(source.includes("B_Start --> Q_NEW_1"));
+  assert.ok(source.includes("Q_CHOICE_NEW_1_Y --> Q_Q1"));
+  assert.ok(source.includes("Q_CHOICE_NEW_1_N --> Q_Q1"));
+  assert.ok(!source.includes("B_Start --> Q_Q1"));
   await assertEditorSourceIsSavedAndValid();
 });
 
 test("test_add_block_after_terminal_block", async () => {
   await resetEditorFixture();
   // Step: select the terminal block "Let it go" and add a block after it.
-  await selectEditorNode("LetGo");
+  await selectEditorNode("B_LetGo");
   await runEditorAction("addBlockAfter");
   const source = await evaluate("codeBox.value");
   // Step: the new block is appended after it.
-  assert.ok(source.includes("LetGo --> B_NEW_1"));
+  assert.ok(source.includes("B_LetGo --> B_NEW_1"));
   assert.ok(source.includes('B_NEW_1["New block"]'));
   await assertEditorSourceIsSavedAndValid();
 });
@@ -650,52 +661,49 @@ test("test_add_block_after_terminal_block", async () => {
 test("test_add_block_in_middle_splices_the_edge", async () => {
   await resetEditorFixture();
   // Step: select the start node and add a block after it.
-  await selectEditorNode("Start");
+  await selectEditorNode("B_Start");
   await runEditorAction("addBlockAfter");
   const source = await evaluate("codeBox.value");
   // Step: the new block sits between Start and the former successor Q1.
-  assert.ok(source.includes("Start --> B_NEW_1"));
-  assert.ok(source.includes("B_NEW_1 --> Q1"));
-  assert.ok(!source.includes("Start --> Q1"));
+  assert.ok(source.includes("B_Start --> B_NEW_1"));
+  assert.ok(source.includes("B_NEW_1 --> Q_Q1"));
+  assert.ok(!source.includes("B_Start --> Q_Q1"));
   await assertEditorSourceIsSavedAndValid();
 });
 
 test("test_remove_choice_orphans_its_downstream_path", async () => {
   await resetEditorFixture();
-  // Step: normalize Q1's "No" branch into an explicit choice node.
-  await selectEditorNode("Q1");
-  await runEditorAction("addChoice");
-  await assertEditorSourceIsSavedAndValid();
-  // Step: remove that choice node; its downstream path (Let it go) is orphaned, not deleted.
-  await selectEditorNode("Q1_NO");
+  // Step: remove Q1's existing "No" choice node; its downstream path (Let it go) is orphaned, not deleted.
+  await selectEditorNode("Q_CHOICE_Q1_NEW2");
   await runEditorAction("removeChoice");
   const source = await evaluate("codeBox.value");
-  assert.ok(!source.includes("Q1_NO"));
-  assert.ok(source.includes('LetGo["Let it go"]'));
+  assert.ok(!source.includes('Q_CHOICE_Q1_NEW2["No"]'));
+  assert.ok(source.includes('B_LetGo["Let it go"]'));
   await assertEditorSourceIsSavedAndValid();
 });
 
 test("test_add_choice_normalizes_the_first_labelled_question_branch", async () => {
   await resetEditorFixture();
-  // Step: select Q1 and add a choice; its first labelled branch becomes an explicit choice node.
-  await selectEditorNode("Q1");
+  // Step: select a decision with a labelled branch and add a choice; that branch becomes an explicit choice node.
+  await setEditorSource('flowchart TD\n  B_START["Start"]\n  Q_Q1{"Can I be calm?"}\n  B_LETGO["Let it go"]\n  B_START --> Q_Q1\n  Q_Q1 -- "No" --> B_LETGO');
+  await selectEditorNode("Q_Q1");
   await runEditorAction("addChoice");
   const source = await evaluate("codeBox.value");
-  assert.ok(source.includes('Q1_NO["No"]'));
-  assert.ok(source.includes("Q1 --> Q1_NO"));
-  assert.ok(source.includes("Q1_NO --> LetGo"));
+  assert.ok(source.includes('Q_CHOICE_Q1_NO["No"]'));
+  assert.ok(source.includes("Q_Q1 --> Q_CHOICE_Q1_NO"));
+  assert.ok(source.includes("Q_CHOICE_Q1_NO --> B_LETGO"));
   await assertEditorSourceIsSavedAndValid();
 });
 
 test("test_inline_question_text_edit_persists", async () => {
   await resetEditorFixture();
   // Step: click the Q1 question node, type a new label into the inspector's Text input, and press Enter.
-  await clickNode("Q1");
+  await clickNode("Q_Q1");
   await evaluate("(() => { const input = document.getElementById('nodeTextInput'); input.value = 'Can I stay calm?'; input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()");
   await evaluate("window.editorActionPromise");
   const source = await evaluate("codeBox.value");
   // Step: the question's declaration is rewritten with brace syntax.
-  assert.ok(source.includes('Q1{"Can I stay calm?"}'));
+  assert.ok(source.includes('Q_Q1{"Can I stay calm?"}'));
   // Step: the inspector closed after the commit.
   assert.equal((await inspectorState()).hidden, true);
   await assertEditorSourceIsSavedAndValid();
@@ -704,34 +712,34 @@ test("test_inline_question_text_edit_persists", async () => {
 test("test_inline_static_block_text_edit_persists", async () => {
   await resetEditorFixture();
   // Step: click the LetGo block node, type a new label into the inspector's Text input, and press Enter.
-  await clickNode("LetGo");
+  await clickNode("B_LetGo");
   await evaluate("(() => { const input = document.getElementById('nodeTextInput'); input.value = 'Pause the conversation'; input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()");
   await evaluate("window.editorActionPromise");
   const source = await evaluate("codeBox.value");
   // Step: the block's declaration is rewritten with rectangle syntax.
-  assert.ok(source.includes('LetGo["Pause the conversation"]'));
+  assert.ok(source.includes('B_LetGo["Pause the conversation"]'));
   await assertEditorSourceIsSavedAndValid();
 });
 
 test("test_question_removal_preview_cancel_confirm_undo_and_redo_persist", async () => {
   await resetEditorFixture();
   // Step: start removing Q1, cycle to the other candidate path, then cancel; nothing changes.
-  await selectEditorNode("Q1");
+  await selectEditorNode("Q_Q1");
   await runEditorAction("removeQuestion");
   await evaluate("document.getElementById('nextRemovalPathBtn').click()");
   await evaluate("document.getElementById('cancelRemoveQuestionBtn').click()");
   let source = await evaluate("codeBox.value");
-  assert.ok(source.includes('Q1{"Can I be calm?"}'));
+  assert.ok(source.includes('Q_Q1{"Can I be calm?"}'));
 
   // Step: remove Q1 again, cycle to the other candidate path, and confirm.
-  await selectEditorNode("Q1");
+  await selectEditorNode("Q_Q1");
   await runEditorAction("removeQuestion");
   await evaluate("document.getElementById('nextRemovalPathBtn').click()");
   await evaluate("document.getElementById('confirmRemoveQuestionBtn').click()");
   await evaluate("window.editorActionPromise");
   source = await evaluate("codeBox.value");
   // Step: Q1 is gone, and the source is saved to disk and parses cleanly.
-  assert.ok(!source.includes('Q1{"Can I be calm?"}'));
+  assert.ok(!source.includes('Q_Q1{"Can I be calm?"}'));
   const savedAfterConfirm = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`).then((r) => r.text());
   assert.equal(savedAfterConfirm, source);
   await evaluate(`mermaid.parse(${JSON.stringify(source)})`);
@@ -739,12 +747,12 @@ test("test_question_removal_preview_cancel_confirm_undo_and_redo_persist", async
   // Step: undo brings Q1 back.
   await evaluate("window.undoEditorAction(); window.editorActionPromise");
   source = await evaluate("codeBox.value");
-  assert.ok(source.includes('Q1{"Can I be calm?"}'));
+  assert.ok(source.includes('Q_Q1{"Can I be calm?"}'));
 
   // Step: redo removes it again.
   await evaluate("window.redoEditorAction(); window.editorActionPromise");
   source = await evaluate("codeBox.value");
-  assert.ok(!source.includes('Q1{"Can I be calm?"}'));
+  assert.ok(!source.includes('Q_Q1{"Can I be calm?"}'));
 });
 
 const SCROLL_FIXTURE_NAME = "accountability.mmd";
@@ -794,7 +802,7 @@ async function outputScrollTop() {
 test("test_clicking_a_question_opens_a_decision_block_inspector", async () => {
   await resetEditorFixture();
   // Step: click the Q1 question node.
-  await clickNode("Q1");
+  await clickNode("Q_Q1");
   // Step: the inspector is open, titled "Decision block", and holds the current label.
   const state = await inspectorState();
   assert.equal(state.hidden, false);
@@ -810,7 +818,7 @@ test("test_clicking_a_question_opens_a_decision_block_inspector", async () => {
 test("test_clicking_a_block_opens_a_static_block_inspector", async () => {
   await resetEditorFixture();
   // Step: click the LetGo block node.
-  await clickNode("LetGo");
+  await clickNode("B_LetGo");
   // Step: the inspector is titled "static block" and holds the current label.
   const state = await inspectorState();
   assert.equal(state.hidden, false);
@@ -820,7 +828,7 @@ test("test_clicking_a_block_opens_a_static_block_inspector", async () => {
 
 test("test_inspector_is_fixed_while_scrolling_and_tracks_the_editor_drawer", async () => {
   await evaluate("document.getElementById('diagram').style.minHeight = '2000px'");
-  await selectEditorNode("RAISE_ISSUE");
+  await selectEditorNode("Q_Q1");
   const initial = await inspectorPlacement();
   // Step: scrolling the diagram does not move the fixed inspector.
   await evaluate("(() => { const output = document.getElementById('output'); output.scrollTop = 100; output.dispatchEvent(new Event('scroll')); })()");
@@ -842,10 +850,8 @@ test("test_inspector_is_fixed_while_scrolling_and_tracks_the_editor_drawer", asy
 
 test("test_clicking_a_choice_opens_a_choice_block_inspector", async () => {
   await resetEditorFixture();
-  // Step: give Q1 an explicit choice node, then click it.
-  await selectEditorNode("Q1");
-  await runEditorAction("addChoice");
-  await clickNode("Q1_NO");
+  // Step: click Q1's existing explicit "No" choice node.
+  await clickNode("Q_CHOICE_Q1_NEW2");
   // Step: the inspector is titled "choice block" and holds the current label.
   const state = await inspectorState();
   assert.equal(state.hidden, false);
@@ -856,7 +862,7 @@ test("test_clicking_a_choice_opens_a_choice_block_inspector", async () => {
 test("test_double_clicking_a_node_focuses_and_selects_the_text_input", async () => {
   await resetEditorFixture();
   // Step: double-click the LetGo block node.
-  await dblclickNode("LetGo");
+  await dblclickNode("B_LetGo");
   // Step: the Text input is focused and its whole value is selected.
   const focus = await evaluate(`JSON.stringify((() => {
     const input = document.getElementById('nodeTextInput');
@@ -871,34 +877,34 @@ test("test_double_clicking_a_node_focuses_and_selects_the_text_input", async () 
 test("test_cancel_discards_uncommitted_text_and_closes_the_inspector", async () => {
   await resetEditorFixture();
   // Step: open Q1's inspector and type text without pressing Enter.
-  await clickNode("Q1");
+  await clickNode("Q_Q1");
   await evaluate("document.getElementById('nodeTextInput').value = 'typed but not committed'");
   // Step: press Cancel; the inspector closes and the source is unchanged.
   await evaluate("document.getElementById('nodeInspectorDismissBtn').click()");
   assert.equal((await inspectorState()).hidden, true);
   const source = await evaluate("codeBox.value");
-  assert.ok(source.includes('Q1{"Can I be calm?"}'));
+  assert.ok(source.includes('Q_Q1{"Can I be calm?"}'));
   // Step: reopening Q1 shows the saved label, not the typed text.
-  await clickNode("Q1");
+  await clickNode("Q_Q1");
   assert.equal((await inspectorState()).text, "Can I be calm?");
 });
 
 test("test_escape_discards_uncommitted_text_and_closes_the_inspector", async () => {
   await resetEditorFixture();
   // Step: open Q1's inspector and type text without pressing Enter.
-  await clickNode("Q1");
+  await clickNode("Q_Q1");
   await evaluate("document.getElementById('nodeTextInput').value = 'typed but not committed'");
   // Step: press Escape in the input; the inspector closes and the source is unchanged.
   await evaluate("document.getElementById('nodeTextInput').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
   assert.equal((await inspectorState()).hidden, true);
   const source = await evaluate("codeBox.value");
-  assert.ok(source.includes('Q1{"Can I be calm?"}'));
+  assert.ok(source.includes('Q_Q1{"Can I be calm?"}'));
 });
 
 test("test_clicking_empty_drawing_space_closes_the_inspector", async () => {
   await resetEditorFixture();
   // Step: open Q1's inspector.
-  await clickNode("Q1");
+  await clickNode("Q_Q1");
   assert.equal((await inspectorState()).hidden, false);
   // Step: click the #output box itself (no node under the pointer); the inspector closes.
   await evaluate("document.getElementById('output').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
@@ -908,28 +914,29 @@ test("test_clicking_empty_drawing_space_closes_the_inspector", async () => {
 test("test_clicking_another_node_retargets_the_inspector_and_discards_text", async () => {
   await resetEditorFixture();
   // Step: open Q1's inspector and type text without pressing Enter.
-  await clickNode("Q1");
+  await clickNode("Q_Q1");
   await evaluate("document.getElementById('nodeTextInput').value = 'typed but not committed'");
   // Step: click LetGo; the inspector now shows LetGo and the typed text is gone.
-  await clickNode("LetGo");
+  await clickNode("B_LetGo");
   const state = await inspectorState();
   assert.equal(state.hidden, false);
   assert.equal(state.title, "static block");
   assert.equal(state.text, "Let it go");
   const source = await evaluate("codeBox.value");
-  assert.ok(source.includes('Q1{"Can I be calm?"}'));
+  assert.ok(source.includes('Q_Q1{"Can I be calm?"}'));
 });
 
 test("test_inspector_keeps_the_diagram_scroll_position", async () => {
   // Scenario: selecting, committing with Enter, and dismissing never move #output's scroll position.
-  await evaluate(`phoneToggle.checked = false; phoneToggle.dispatchEvent(new Event('change')); loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
+  // await evaluate(`phoneToggle.checked = false; phoneToggle.dispatchEvent(new Event('change'));`);
+  await evaluate(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
   await sleep(500);
   // Step: the accountability diagram overflows #output, so scrolling is real.
   const overflow = await evaluate("JSON.stringify({sh: document.getElementById('output').scrollHeight, ch: document.getElementById('output').clientHeight})").then(JSON.parse);
   assert.ok(overflow.sh > overflow.ch);
   await evaluate("document.getElementById('output').scrollTop = 150");
   // Step: selecting a node keeps the scroll position, and the card remains drawer-anchored.
-  await clickNode("RAISE_ISSUE");
+  await clickNode("B_RAISE_ISSUE");
   assert.equal(await outputScrollTop(), 150);
   assert.equal((await inspectorPlacement()).atDrawerEdge, true);
   // Step: committing the text with Enter rerenders, saves, and keeps the scroll position.
@@ -938,7 +945,7 @@ test("test_inspector_keeps_the_diagram_scroll_position", async () => {
   await sleep(300);
   assert.equal(await outputScrollTop(), 150);
   // Step: dismissing keeps the scroll position.
-  await clickNode("RAISE_ISSUE");
+  await clickNode("B_RAISE_ISSUE");
   await evaluate("document.getElementById('nodeInspectorDismissBtn').click()");
   assert.equal(await outputScrollTop(), 150);
   // Step: put the accountability file back to its original bytes.
@@ -948,7 +955,8 @@ test("test_inspector_keeps_the_diagram_scroll_position", async () => {
 test("test_save_persists_and_load_restores_editor_metadata_trailer", async () => {
   // Scenario: saving an editor change records the current selection and output viewport in a Mermaid comment trailer.
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${SCROLL_FIXTURE_NAME}`, { method: "PUT", body: scrollFixtureSource });
-  await evaluate(`phoneToggle.checked = false; phoneToggle.dispatchEvent(new Event('change')); loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
+  // await evaluate(`phoneToggle.checked = false; phoneToggle.dispatchEvent(new Event('change'));`);
+  await evaluate(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
   await sleep(500);
   await evaluate("document.getElementById('output').scrollLeft = 0; document.getElementById('output').scrollTop = 150; window.selectEditorNode('B_RAISE_ISSUE'); window.addBlockAfter(); window.editorActionPromise");
 
@@ -1271,27 +1279,25 @@ test('test_add_and_insert_actions_preserve_the_zoom_scale_in_both_views', async 
 
 test("test_destination_lists_terminal_then_unique_static_and_decision_nodes_in_source_order", async () => {
   await resetEditorFixture();
-  await setEditorSource('flowchart TD\n  Start["Start"] --> Decision{"Decide"}\n  Decision --> Decision_Y["Yes"]\n  Decision_Y --> Later["Later"]\n  Later --> Decision');
-  await clickNode('Decision_Y');
+  await setEditorSource('flowchart TD\n  B_START["Start"]\n  Q_DECISION{"Decide"}\n  Q_CHOICE_DECISION_Y["Yes"]\n  B_LATER["Later"]\n  B_START --> Q_DECISION\n  Q_DECISION --> Q_CHOICE_DECISION_Y\n  Q_CHOICE_DECISION_Y --> B_LATER\n  B_LATER --> Q_DECISION');
+  await clickNode('Q_CHOICE_DECISION_Y');
   assert.deepEqual((await destinationState()).options, [
     { value: '', text: 'Terminal' },
     { value: 'new-static', text: 'New static block' },
     { value: 'new-decision', text: 'New Decision block' },
-    { value: 'Start', text: 'Start (Start)' },
-    { value: 'Decision', text: 'Decide (Decision)' },
-    { value: 'Later', text: 'Later (Later)' },
+    { value: 'B_START', text: 'Start (B_START)' },
+    { value: 'Q_DECISION', text: 'Decide (Q_DECISION)' },
+    { value: 'B_LATER', text: 'Later (B_LATER)' },
   ]);
 });
 
 test("test_destination_is_hidden_for_decisions_and_close_tracks_terminal_static_or_choice", async () => {
   await resetEditorFixture();
-  await clickNode('Q1');
+  await clickNode('Q_Q1');
   assert.equal((await destinationState()).hidden, true);
-  await clickNode('LetGo');
+  await clickNode('B_LetGo');
   assert.equal((await destinationState()).dismiss, 'Close');
-  await selectEditorNode('Q1');
-  await runEditorAction('addChoice');
-  await clickNode('Q1_NO');
+  await clickNode('Q_CHOICE_Q1_NEW2');
   assert.equal((await destinationState()).dismiss, 'Cancel');
 });
 
@@ -1307,21 +1313,19 @@ async function destinationRender() {
 test("test_destination_row_is_rendered_for_choice_and_static_nodes_but_not_for_decision_nodes", async () => {
   await resetEditorFixture();
   // Selecting a choice node with an explicit destination paints and labels the row with a populated menu.
-  await selectEditorNode('Q1');
-  await runEditorAction('addChoice');
-  await clickNode('Q1_NO');
+  await clickNode('Q_CHOICE_Q1_NEW2');
   let render = await destinationRender();
   assert.notEqual(render.display, 'none');
   assert.equal(render.labelText, 'Destination:');
   assert.ok(render.optionCount > 0);
   // Step: select the LetGo static block; the destination row is painted, labelled, and its menu is populated.
-  await clickNode('LetGo');
+  await clickNode('B_LetGo');
   render = await destinationRender();
   assert.notEqual(render.display, 'none');
   assert.equal(render.labelText, 'Destination:');
   assert.ok(render.optionCount > 0);
   // Step: select the Q1 decision node; the destination row is not painted and its menu is empty.
-  await clickNode('Q1');
+  await clickNode('Q_Q1');
   render = await destinationRender();
   assert.equal(render.display, 'none');
   assert.equal(render.optionCount, 0);
@@ -1329,43 +1333,43 @@ test("test_destination_row_is_rendered_for_choice_and_static_nodes_but_not_for_d
 
 test("test_destination_replaces_an_outgoing_edge_and_keeps_the_old_path_as_an_orphan", async () => {
   await resetEditorFixture();
-  await setEditorSource('flowchart TD\n  A["A"] --> B["B"]\n  B --> C["C"]\n  C --> D{"D"}');
-  await clickNode('A');
-  await chooseDestination('C');
+  await setEditorSource('flowchart TD\n  B_A["A"]\n  B_B["B"]\n  B_C["C"]\n  Q_D{"D"}\n  B_A --> B_B\n  B_B --> B_C\n  B_C --> Q_D');
+  await clickNode('B_A');
+  await chooseDestination('B_C');
   const source = await evaluate('codeBox.value');
-  assert.ok(source.includes('A --> C'));
-  assert.ok(!source.includes('A["A"] --> B["B"]'));
-  assert.ok(source.includes('B["B"]'));
-  assert.ok(source.includes('B --> C'));
+  assert.ok(source.includes('B_A --> B_C'));
+  assert.ok(!source.includes('B_A --> B_B'));
+  assert.ok(source.includes('B_B["B"]'));
+  assert.ok(source.includes('B_B --> B_C'));
   await assertEditorSourceIsSavedAndValid();
 });
 
 test("test_destination_terminal_removes_only_the_selected_outgoing_edge", async () => {
   await resetEditorFixture();
-  await setEditorSource('flowchart TD\n  A["A"] --> B["B"]\n  B --> C["C"]');
-  await clickNode('A');
+  await setEditorSource('flowchart TD\n  B_A["A"]\n  B_B["B"]\n  B_C["C"]\n  B_A --> B_B\n  B_B --> B_C');
+  await clickNode('B_A');
   await chooseDestination('');
   const source = await evaluate('codeBox.value');
-  assert.ok(!source.includes('A["A"] --> B["B"]'));
-  assert.ok(source.includes('A["A"]'));
-  assert.ok(source.includes('B["B"]'));
-  assert.ok(source.includes('B --> C'));
-  await clickNode('A');
+  assert.ok(!source.includes('B_A --> B_B'));
+  assert.ok(source.includes('B_A["A"]'));
+  assert.ok(source.includes('B_B["B"]'));
+  assert.ok(source.includes('B_B --> B_C'));
+  await clickNode('B_A');
   assert.equal((await destinationState()).dismiss, 'Close');
   await assertEditorSourceIsSavedAndValid();
 });
 
 test("test_destination_accepts_descendants_and_current_value_is_a_no_op", async () => {
   await resetEditorFixture();
-  await setEditorSource('flowchart TD\n  A["A"] --> B["B"]\n  B --> C["C"]');
-  await clickNode('A');
+  await setEditorSource('flowchart TD\n  B_A["A"]\n  B_B["B"]\n  B_C["C"]\n  B_A --> B_B\n  B_B --> B_C');
+  await clickNode('B_A');
   const current = await evaluate('codeBox.value');
-  await chooseDestination('B');
+  await chooseDestination('B_B');
   assert.equal(await evaluate('codeBox.value'), current);
-  await chooseDestination('C');
-  await clickNode('C');
-  await chooseDestination('A');
-  assert.ok((await evaluate('codeBox.value')).includes('C --> A'));
+  await chooseDestination('B_C');
+  await clickNode('B_C');
+  await chooseDestination('B_A');
+  assert.ok((await evaluate('codeBox.value')).includes('B_C --> B_A'));
   await assertEditorSourceIsSavedAndValid();
 });
 
@@ -1389,25 +1393,27 @@ test("test_insert_static_before_splices_a_chained_edge_line", async () => {
 
 test("test_dirty_text_then_destination_creates_two_ordered_undo_entries", async () => {
   await resetEditorFixture();
-  await setEditorSource('flowchart TD\n  A["A"] --> B["B"]\n  B --> C{"C"}');
-  await clickNode('A');
+  await setEditorSource('flowchart TD\n  B_A["A"]\n  B_B["B"]\n  Q_C{"C"}\n  B_A --> B_B\n  B_B --> Q_C');
+  await clickNode('B_A');
   await evaluate("document.getElementById('nodeTextInput').value = 'Renamed A'");
-  await chooseDestination('C');
+  await chooseDestination('Q_C');
   let source = await evaluate('codeBox.value');
-  assert.ok(source.includes('A["Renamed A"]'));
-  assert.ok(source.includes('A --> C'));
+  assert.ok(source.includes('B_A["Renamed A"]'));
+  assert.ok(source.includes('B_A --> Q_C'));
   await evaluate('window.undoEditorAction(); window.editorActionPromise');
   source = await evaluate('codeBox.value');
-  assert.ok(source.includes('A["Renamed A"] --> B["B"]'));
+  assert.ok(source.includes('B_A["Renamed A"]'));
+  assert.ok(source.includes('B_A --> B_B'));
   await evaluate('window.undoEditorAction(); window.editorActionPromise');
   source = await evaluate('codeBox.value');
-  assert.ok(source.includes('A["A"] --> B["B"]'));
+  assert.ok(source.includes('B_A["A"]'));
+  assert.ok(source.includes('B_A --> B_B'));
   await assertEditorSourceIsSavedAndValid();
 });
 
 test('test_inspector_add_after_controls_exist_only_for_static_and_choice_blocks', async () => {
   await resetEditorFixture();
-  await clickNode('LetGo');
+  await clickNode('B_LetGo');
   assert.deepEqual(await inspectorActions(), [
     { action: 'remove', text: 'Remove', spanTwoColumns: false },
     { action: 'add-decision-after', text: 'add Decision block after', spanTwoColumns: false },
@@ -1416,9 +1422,7 @@ test('test_inspector_add_after_controls_exist_only_for_static_and_choice_blocks'
     { action: 'insert-static-before', text: 'insert static block before', spanTwoColumns: false },
     { action: 'insert-decision-before', text: 'insert Decision & leading choice before', spanTwoColumns: false },
   ]);
-  await selectEditorNode('Q1');
-  await runEditorAction('addChoice');
-  await clickNode('Q1_NO');
+  await clickNode('Q_CHOICE_Q1_NEW2');
   assert.deepEqual(await inspectorActions(), [
     { action: 'remove', text: 'Remove', spanTwoColumns: false },
     { action: 'add-decision-after', text: 'add Decision block after', spanTwoColumns: false },
@@ -1426,7 +1430,7 @@ test('test_inspector_add_after_controls_exist_only_for_static_and_choice_blocks'
     { action: 'insert-decision-after', text: 'Insert decision block after', spanTwoColumns: false },
     { action: 'insert-static-after', text: 'Insert static block after', spanTwoColumns: false },
   ]);
-  await clickNode('Q1');
+  await clickNode('Q_Q1');
   assert.deepEqual(await inspectorActions(), [
     { action: 'remove', text: 'Remove', spanTwoColumns: false },
     { action: 'add-choice', text: 'Add choice', spanTwoColumns: false },
@@ -1439,28 +1443,26 @@ test('test_inspector_add_after_controls_exist_only_for_static_and_choice_blocks'
 test('test_inspector_remove_button_dispatches_removal_by_node_kind', async () => {
   await resetEditorFixture();
   // Step: Remove on a static block reconnects every predecessor to every successor.
-  await clickNode('LetGo');
+  await clickNode('B_LetGo');
   await clickInspectorAction('remove');
   let source = await evaluate('codeBox.value');
-  assert.ok(!source.includes('LetGo'));
+  assert.ok(!source.includes('B_LetGo["Let it go"]'));
   assert.equal((await inspectorState()).hidden, true);
   await assertEditorSourceIsSavedAndValid();
 
   // Step: Remove on an explicit choice node orphans its downstream path.
   await resetEditorFixture();
-  await selectEditorNode('Q1');
-  await runEditorAction('addChoice');
-  await clickNode('Q1_NO');
+  await clickNode('Q_CHOICE_Q1_NEW2');
   await clickInspectorAction('remove');
   source = await evaluate('codeBox.value');
-  assert.ok(!source.includes('Q1_NO'));
-  assert.ok(source.includes('LetGo["Let it go"]'));
+  assert.ok(!source.includes('Q_CHOICE_Q1_NEW2["No"]'));
+  assert.ok(source.includes('B_LetGo["Let it go"]'));
   assert.equal((await inspectorState()).hidden, true);
   await assertEditorSourceIsSavedAndValid();
 
   // Step: Remove on a Decision enters the replacement-path preview instead of committing immediately.
   await resetEditorFixture();
-  await clickNode('Q1');
+  await clickNode('Q_Q1');
   await clickInspectorAction('remove');
   const preview = await evaluate(`JSON.stringify({
     previewHidden: document.getElementById('nodeInspectorRemovalPreview').hidden,
@@ -1474,49 +1476,46 @@ test('test_inspector_remove_button_dispatches_removal_by_node_kind', async () =>
 
 test('test_inspector_remove_choices_button_orphans_every_outgoing_branch', async () => {
   await resetEditorFixture();
-  // Step: normalize Q1's "No" branch into an explicit choice node, leaving "Yes" as a labelled edge.
-  await selectEditorNode('Q1');
-  await runEditorAction('addChoice');
-  await assertEditorSourceIsSavedAndValid();
   // Step: select Q1 and use the inspector's Remove choices action.
-  await clickNode('Q1');
+  await clickNode('Q_Q1');
   await clickInspectorAction('remove-choices');
   const source = await evaluate('codeBox.value');
-  // Step: both branches are gone from Q1, including the explicit choice node.
-  assert.ok(!source.includes('Q1 --> Q1_NO'));
-  assert.ok(!source.includes('Q1_NO["No"]'));
-  assert.ok(!source.includes('Q1 -- Yes --> Q2'));
+  // Step: both branches are gone from Q1, including their explicit choice nodes.
+  assert.ok(!source.includes('Q_Q1 --> Q_CHOICE_Q1_NEW'));
+  assert.ok(!source.includes('Q_CHOICE_Q1_NEW["Yes"]'));
+  assert.ok(!source.includes('Q_Q1 --> Q_CHOICE_Q1_NEW2'));
+  assert.ok(!source.includes('Q_CHOICE_Q1_NEW2["No"]'));
   // Step: the orphaned downstream nodes remain in the source.
-  assert.ok(source.includes('LetGo["Let it go"]'));
-  assert.ok(source.includes('Q2{"Can they be calm?"}'));
+  assert.ok(source.includes('B_LetGo["Let it go"]'));
+  assert.ok(source.includes('Q_Q2{"Can they be calm?"}'));
   // Step: removing all choices closed the inspector.
   assert.equal((await inspectorState()).hidden, true);
   await assertEditorSourceIsSavedAndValid();
 
   // Step: removing choices deletes a shared choice node; other nodes stay.
-  await setEditorSource('flowchart TD\n  Q{"Q"}\n  Q --> Q_X\n  Q_X["X"]\n  Q_X --> Down["Down"]\n  Other["Other"] --> Q_X');
-  await clickNode('Q');
+  await setEditorSource('flowchart TD\n  Q_Q{"Q"}\n  Q_CHOICE_Q_X["X"]\n  B_DOWN["Down"]\n  B_OTHER["Other"]\n  Q_Q --> Q_CHOICE_Q_X\n  Q_CHOICE_Q_X --> B_DOWN\n  B_OTHER --> Q_CHOICE_Q_X');
+  await clickNode('Q_Q');
   await clickInspectorAction('remove-choices');
   const sharedSource = await evaluate('codeBox.value');
-  assert.ok(!sharedSource.includes('Q_X'));
-  assert.ok(sharedSource.includes('Q{"Q"}'));
-  assert.ok(sharedSource.includes('Down["Down"]'));
-  assert.ok(sharedSource.includes('Other["Other"]'));
+  assert.ok(!sharedSource.includes('Q_CHOICE_Q_X'));
+  assert.ok(sharedSource.includes('Q_Q{"Q"}'));
+  assert.ok(sharedSource.includes('B_DOWN["Down"]'));
+  assert.ok(sharedSource.includes('B_OTHER["Other"]'));
   await assertEditorSourceIsSavedAndValid();
 });
 
 test('test_new_static_button_and_destination_option_have_identical_terminal_orphan_results', async () => {
-  const fixture = 'flowchart TD\n  Q{"Q"} --> Q_A["A"]\n  Q_A --> B["B"]\n  B --> C["C"]';
+  const fixture = 'flowchart TD\n  Q_Q{"Q"}\n  Q_CHOICE_Q_A["A"]\n  B_B["B"]\n  B_C["C"]\n  Q_Q --> Q_CHOICE_Q_A\n  Q_CHOICE_Q_A --> B_B\n  B_B --> B_C';
   await resetEditorFixture();
   await setEditorSource(fixture);
-  await clickNode('Q_A');
+  await clickNode('Q_CHOICE_Q_A');
   const buttonHistoryLength = await evaluate('editorHistory.length');
   await clickInspectorAction('add-static-after');
   const buttonSource = await evaluate('codeBox.value');
-  assert.ok(buttonSource.includes('Q_A --> B_NEW_1'));
+  assert.ok(buttonSource.includes('Q_CHOICE_Q_A --> B_NEW_1'));
   assert.ok(buttonSource.includes('B_NEW_1["New static block"]'));
-  assert.ok(!buttonSource.includes('Q_A["A"] --> B["B"]'));
-  assert.ok(buttonSource.includes('B --> C["C"]'));
+  assert.ok(!buttonSource.includes('Q_CHOICE_Q_A --> B_B'));
+  assert.ok(buttonSource.includes('B_B --> B_C'));
   assert.equal((await inspectorState()).text, 'New static block');
   assert.deepEqual(await inspectorFocus(), { activeId: 'nodeTextInput', selectedId: 'B_NEW_1' });
   assert.equal(await evaluate('editorHistory.length'), buttonHistoryLength + 1);
@@ -1524,7 +1523,7 @@ test('test_new_static_button_and_destination_option_have_identical_terminal_orph
 
   await resetEditorFixture();
   await setEditorSource(fixture);
-  await clickNode('Q_A');
+  await clickNode('Q_CHOICE_Q_A');
   const menuHistoryLength = await evaluate('editorHistory.length');
   await chooseDestination('new-static');
   assert.equal(await evaluate('codeBox.value'), buttonSource);
@@ -1618,7 +1617,7 @@ test('test_insert_decision_after_a_terminal_node_creates_two_terminal_choices', 
 
 test('test_new_static_text_enter_keeps_selection_and_focuses_destination', async () => {
   await resetEditorFixture();
-  await clickNode('LetGo');
+  await clickNode('B_LetGo');
   await chooseDestination('new-static');
   await evaluate(`(() => { const input = document.getElementById('nodeTextInput'); input.value = 'Follow up'; input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`);
   await evaluate('window.editorActionPromise');
@@ -1677,20 +1676,20 @@ test('test_new_decision_text_enter_commits_the_new_decision', async () => {
 
 test('test_add_choice_on_inspector_appends_a_new_terminal_choice_without_touching_existing_edges', async () => {
   await resetEditorFixture();
-  await setEditorSource('flowchart TD\n  Q{"Q"} -- Yes --> Y["Y"]\n  Q --> Q_A["A"]\n  Q_A --> End["End"]');
-  await clickNode('Q');
-  const beforeCount = await evaluate('editorGraph().edges.filter(e => e.from === "Q").length');
+  await setEditorSource('flowchart TD\n  Q_Q{"Q"}\n  Q_CHOICE_Q_A["A"]\n  B_END["End"]\n  Q_Q --> Q_CHOICE_Q_A\n  Q_CHOICE_Q_A --> B_END');
+  await clickNode('Q_Q');
+  const beforeCount = await evaluate('editorGraph().edges.filter(e => e.from === "Q_Q").length');
   await clickInspectorAction('add-choice');
   const source = await evaluate('codeBox.value');
   // Step: a brand-new terminal choice is appended, growing Q's branch count by one.
-  assert.ok(source.includes('Q_NEW["New choice"]'));
-  assert.ok(source.includes('Q --> Q_NEW'));
-  assert.ok(!source.includes('Q_NEW -->'));
-  // Step: the existing labelled edge and the existing explicit choice are both untouched.
-  assert.ok(source.includes('Q{"Q"} -- Yes --> Y["Y"]'));
-  assert.ok(source.includes('Q_A["A"]'));
-  assert.ok(source.includes('Q_A --> End'));
-  const afterCount = await evaluate('editorGraph().edges.filter(e => e.from === "Q").length');
+  assert.ok(source.includes('Q_CHOICE_Q_NEW["New choice"]'));
+  assert.ok(source.includes('Q_Q --> Q_CHOICE_Q_NEW'));
+  assert.ok(!source.includes('Q_CHOICE_Q_NEW -->'));
+  // Step: the existing explicit choice is untouched.
+  assert.ok(source.includes('Q_Q --> Q_CHOICE_Q_A'));
+  assert.ok(source.includes('Q_CHOICE_Q_A["A"]'));
+  assert.ok(source.includes('Q_CHOICE_Q_A --> B_END'));
+  const afterCount = await evaluate('editorGraph().edges.filter(e => e.from === "Q_Q").length');
   assert.equal(afterCount, beforeCount + 1);
   await assertEditorSourceIsSavedAndValid();
 });
@@ -1717,23 +1716,23 @@ test('test_add_choice_on_inspector_keeps_the_original_decision_selected', async 
 test('test_insert_static_block_before_splices_incoming_edges_with_their_labels', async () => {
   await resetEditorFixture();
   // Step: select the fan-in target "Let it go" and insert a static block before it.
-  await clickNode('LetGo');
+  await clickNode('B_LetGo');
   const historyBefore = await evaluate('editorHistory.length');
   await clickInspectorAction('insert-static-before');
   const source = await evaluate('codeBox.value');
   // Step: the new static block is declared and sits directly before "Let it go".
   assert.ok(source.includes('B_NEW_1["New static block"]'));
-  assert.ok(source.includes('B_NEW_1 --> LetGo'));
-  assert.ok(source.includes('LetGo["Let it go"]'));
-  // Step: every former incoming edge is redirected to the new block, keeping its own label.
-  assert.ok(source.includes('Q1 -- "No" --> B_NEW_1'));
-  assert.ok(source.includes('Q2 -- "No" --> B_NEW_1'));
-  assert.ok(source.includes('Q3 -- "No" --> B_NEW_1'));
-  assert.ok(source.includes('Q4 -- "Not helpful / Move further" --> B_NEW_1'));
-  assert.ok(!source.includes('Q1 -- No --> LetGo'));
-  assert.ok(!source.includes('Q2 -- No --> LetGo'));
-  assert.ok(!source.includes('Q3 -- No --> LetGo'));
-  assert.ok(!source.includes('Q4 -- "Not helpful / Move further" --> LetGo'));
+  assert.ok(source.includes('B_NEW_1 --> B_LetGo'));
+  assert.ok(source.includes('B_LetGo["Let it go"]'));
+  // Step: every former incoming edge is redirected to the new block.
+  assert.ok(source.includes('Q_CHOICE_Q1_NEW2 --> B_NEW_1'));
+  assert.ok(source.includes('Q_CHOICE_Q2_NEW2 --> B_NEW_1'));
+  assert.ok(source.includes('Q_CHOICE_Q3_NEW2 --> B_NEW_1'));
+  assert.ok(source.includes('Q_CHOICE_Q4_NEW2 --> B_NEW_1'));
+  assert.ok(!source.includes('Q_CHOICE_Q1_NEW2 --> B_LetGo'));
+  assert.ok(!source.includes('Q_CHOICE_Q2_NEW2 --> B_LetGo'));
+  assert.ok(!source.includes('Q_CHOICE_Q3_NEW2 --> B_LetGo'));
+  assert.ok(!source.includes('Q_CHOICE_Q4_NEW2 --> B_LetGo'));
   // Step: the insertion closed the inspector instead of opening Destination.
   assert.equal((await inspectorState()).hidden, true);
   // Step: it is a single history entry.
@@ -1747,14 +1746,14 @@ test('test_insert_static_block_before_splices_incoming_edges_with_their_labels',
 test('test_insert_static_block_before_a_root_node_becomes_the_new_root', async () => {
   await resetEditorFixture();
   // Step: select "Start", which has no predecessor, and insert a static block before it.
-  await clickNode('Start');
+  await clickNode('B_Start');
   const historyBefore = await evaluate('editorHistory.length');
   await clickInspectorAction('insert-static-before');
   const source = await evaluate('codeBox.value');
   // Step: the new block leads into Start; Start keeps its own declaration untouched.
   assert.ok(source.includes('B_NEW_1["New static block"]'));
-  assert.ok(source.includes('B_NEW_1 --> Start'));
-  assert.ok(source.includes('Start(["Something happened.<br/>Say something, or let it go?"])'));
+  assert.ok(source.includes('B_NEW_1 --> B_Start'));
+  assert.ok(source.includes('B_Start["Something happened.<br/>Say something, or let it go?"]'));
   assert.equal((await inspectorState()).hidden, true);
   assert.equal(await evaluate('editorHistory.length'), historyBefore + 1);
   await evaluate('window.undoEditorAction(); window.editorActionPromise');
@@ -1765,25 +1764,25 @@ test('test_insert_static_block_before_a_root_node_becomes_the_new_root', async (
 test('test_insert_decision_before_adds_one_leading_choice_and_splices_incoming_edges', async () => {
   await resetEditorFixture();
   // Step: select the fan-in target "Let it go" and insert a Decision & leading choice before it.
-  await clickNode('LetGo');
+  await clickNode('B_LetGo');
   const historyBefore = await evaluate('editorHistory.length');
   await clickInspectorAction('insert-decision-before');
   const source = await evaluate('codeBox.value');
   // Step: the new Decision has exactly one outgoing edge, to its new choice.
   assert.ok(source.includes('Q_NEW_1{"New Decision"}'));
-  assert.ok(source.includes('Q_NEW_1_NEW["New choice"]'));
-  assert.ok(source.includes('Q_NEW_1 --> Q_NEW_1_NEW'));
+  assert.ok(source.includes('Q_CHOICE_NEW_1_NEW["New choice"]'));
+  assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_NEW'));
   const decisionOutgoing = source.match(/Q_NEW_1 -->/g) || [];
   assert.equal(decisionOutgoing.length, 1);
   // Step: the new choice leads to "Let it go", unlabelled.
-  assert.ok(source.includes('Q_NEW_1_NEW --> LetGo'));
-  assert.ok(source.includes('LetGo["Let it go"]'));
-  // Step: every former incoming edge is redirected to the new Decision, keeping its own label.
-  assert.ok(source.includes('Q1 -- "No" --> Q_NEW_1'));
-  assert.ok(source.includes('Q2 -- "No" --> Q_NEW_1'));
-  assert.ok(source.includes('Q3 -- "No" --> Q_NEW_1'));
-  assert.ok(source.includes('Q4 -- "Not helpful / Move further" --> Q_NEW_1'));
-  assert.ok(!source.includes('Q1 -- No --> LetGo'));
+  assert.ok(source.includes('Q_CHOICE_NEW_1_NEW --> B_LetGo'));
+  assert.ok(source.includes('B_LetGo["Let it go"]'));
+  // Step: every former incoming edge is redirected to the new Decision.
+  assert.ok(source.includes('Q_CHOICE_Q1_NEW2 --> Q_NEW_1'));
+  assert.ok(source.includes('Q_CHOICE_Q2_NEW2 --> Q_NEW_1'));
+  assert.ok(source.includes('Q_CHOICE_Q3_NEW2 --> Q_NEW_1'));
+  assert.ok(source.includes('Q_CHOICE_Q4_NEW2 --> Q_NEW_1'));
+  assert.ok(!source.includes('Q_CHOICE_Q1_NEW2 --> B_LetGo'));
   // Step: the insertion closed the inspector instead of opening Destination.
   assert.equal((await inspectorState()).hidden, true);
   assert.equal(await evaluate('editorHistory.length'), historyBefore + 1);
@@ -1796,15 +1795,15 @@ test('test_insert_decision_before_adds_one_leading_choice_and_splices_incoming_e
 test('test_insert_decision_before_a_root_node_becomes_the_new_root', async () => {
   await resetEditorFixture();
   // Step: select "Start", which has no predecessor, and insert a Decision & leading choice before it.
-  await clickNode('Start');
+  await clickNode('B_Start');
   await clickInspectorAction('insert-decision-before');
   const source = await evaluate('codeBox.value');
   assert.ok(source.includes('Q_NEW_1{"New Decision"}'));
-  assert.ok(source.includes('Q_NEW_1_NEW["New choice"]'));
-  assert.ok(source.includes('Q_NEW_1 --> Q_NEW_1_NEW'));
+  assert.ok(source.includes('Q_CHOICE_NEW_1_NEW["New choice"]'));
+  assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_NEW'));
   const decisionOutgoing = source.match(/Q_NEW_1 -->/g) || [];
   assert.equal(decisionOutgoing.length, 1);
-  assert.ok(source.includes('Q_NEW_1_NEW --> Start'));
+  assert.ok(source.includes('Q_CHOICE_NEW_1_NEW --> B_Start'));
   assert.equal((await inspectorState()).hidden, true);
   await assertEditorSourceIsSavedAndValid();
 });

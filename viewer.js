@@ -735,7 +735,14 @@ function contextualDecisionSliceIds(decisionId, edges) {
   const visited = new Set(reversed);
   let node = decisionId;
   for (;; ) {
-    const incoming = edges.find(([, to]) => to === node);
+    let incoming;
+    for (const edge of edges) {
+      const isMatch = edge[1] === node;
+      if (isMatch) {
+        incoming = edge;
+        break;
+      }
+    }
     if (!incoming)
       break;
     const predecessor = incoming[0];
@@ -756,11 +763,14 @@ function contextualDecisionSliceIds(decisionId, edges) {
   return ids;
 }
 function sliceIds(edges) {
-  if (state.phoneFocusNodeId && state.phoneFocusUsesDecisionContext)
-    return contextualDecisionSliceIds(state.phoneFocusNodeId, edges);
+  const focusNodeId = state.phoneFocusNodeId;
+  const hasFocusedDecisionContext = focusNodeId !== null && state.phoneFocusUsesDecisionContext;
+  if (hasFocusedDecisionContext)
+    return contextualDecisionSliceIds(focusNodeId, edges);
   const last = state.phonePreviewChoiceId ?? phonePath[phonePath.length - 1];
   const ids = state.phoneFocusNodeId ? [state.phoneFocusNodeId] : last ? [parentOf(last, edges), last] : [edges[0][0]];
   let node = ids[ids.length - 1];
+  const visited = new Set(ids);
   for (;; ) {
     const next = [];
     for (const [from, to] of edges) {
@@ -772,7 +782,10 @@ function sliceIds(edges) {
     if (next.length > 1)
       return ids.concat(next);
     node = next[0];
+    if (visited.has(node))
+      return ids;
     ids.push(node);
+    visited.add(node);
   }
 }
 function leadInIds(ids, siblings, edges) {
@@ -861,20 +874,31 @@ function applyMainZoom(preserveViewportCenter = true) {
   zoomOutBtn.disabled = state.mainZoomPercent <= MIN_MAIN_ZOOM;
   zoomResetBtn.disabled = state.mainZoomPercent === 100;
   const svg = diagramBox.querySelector("svg");
-  if (!svg || state.diagramScale === null)
+  const scale = state.diagramScale;
+  const hasSvg = svg !== null;
+  const hasScale = scale !== null;
+  if (!hasSvg)
+    return;
+  if (!hasScale)
     return;
   const oldWidth = Number.parseFloat(svg.style.width);
   const oldHeight = Number.parseFloat(svg.style.height);
   const centerX = outputBox.scrollLeft + outputBox.clientWidth / 2;
   const centerY = outputBox.scrollTop + outputBox.clientHeight / 2;
   const zoom = state.mainZoomPercent / 100;
-  const newWidth = svg.viewBox.baseVal.width * state.diagramScale * zoom;
-  const newHeight = svg.viewBox.baseVal.height * state.diagramScale * zoom;
+  const newWidth = svg.viewBox.baseVal.width * scale * zoom;
+  const newHeight = svg.viewBox.baseVal.height * scale * zoom;
   svg.style.width = newWidth + "px";
   svg.style.height = newHeight + "px";
-  if (preserveViewportCenter && oldWidth > 0 && oldHeight > 0) {
-    outputBox.scrollLeft = centerX * newWidth / oldWidth - outputBox.clientWidth / 2;
-    outputBox.scrollTop = centerY * newHeight / oldHeight - outputBox.clientHeight / 2;
+  const hadWidth = oldWidth > 0;
+  const hadHeight = oldHeight > 0;
+  if (preserveViewportCenter) {
+    if (hadWidth) {
+      if (hadHeight) {
+        outputBox.scrollLeft = centerX * newWidth / oldWidth - outputBox.clientWidth / 2;
+        outputBox.scrollTop = centerY * newHeight / oldHeight - outputBox.clientHeight / 2;
+      }
+    }
   }
 }
 function setMainZoomPercent(percent) {
@@ -936,6 +960,10 @@ function restoreMainViewport(metadata, graph) {
     outputBox.scrollTop = Math.max(0, nodeTop - 12);
 }
 async function loadDiagram(name) {
+  if (state.watcher) {
+    state.watcher.close();
+    state.watcher = null;
+  }
   const text = await fetch("/api/diagrams/" + encodeURIComponent(name)).then((r) => r.text());
   const { metadata } = splitEditorMetadata(text);
   restoreTypeMetadata(metadata);
@@ -1103,6 +1131,8 @@ async function navigateDecision(step) {
   selectEditorNode(decision.id);
   updateDecisionCounter(graph);
   await render();
+  selectEditorNode(decision.id);
+  updateDecisionCounter(graph);
   centerNodeInViewport(outputBox, diagramBox, decision.id);
 }
 
@@ -1248,6 +1278,20 @@ async function render() {
     discardInvalidPhonePreview(graph);
     updateDecisionCounter(graph);
     const edges = parseEdges(codeBox.value);
+    let phonePathIsStale = false;
+    for (const id of phonePath) {
+      let idIsInDiagram = false;
+      for (const [, to] of edges) {
+        const isTarget = to === id;
+        if (isTarget)
+          idIsInDiagram = true;
+      }
+      if (!idIsInDiagram)
+        phonePathIsStale = true;
+    }
+    if (phonePathIsStale)
+      phonePath.length = 0;
+    renderLog(edges);
     const ids = edges.length > 0 ? sliceIds(edges) : [];
     const siblings = siblingIds(ids, edges);
     const leadIns = leadInIds(ids, siblings, edges);
@@ -1303,7 +1347,6 @@ async function render() {
     outputBox.scrollTop = regularViewport.top;
     phoneDiagramBox.scrollLeft = phoneViewport.left;
     phoneDiagramBox.scrollTop = phoneViewport.top;
-    renderLog(edges);
     const hasContextualPreviousDecision = state.phoneFocusUsesDecisionContext && ids[0] !== state.phoneFocusNodeId && graph.nodes.get(ids[0])?.kind === "question";
     const shouldDrawLastDecision = edges.length > 0 && (phonePath.length > 0 || state.phonePreviewChoiceId || hasContextualPreviousDecision);
     if (shouldDrawLastDecision)
