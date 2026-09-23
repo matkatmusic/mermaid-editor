@@ -82,6 +82,7 @@ export function sliceIds(edges: Edge[]) {
       ? [parentOf(last, edges), last]
       : [edges[0][0]];
   let node = ids[ids.length - 1];
+  const visited = new Set(ids);
   for (;;) {
     const next = [];
     for (const [from, to] of edges) {
@@ -93,7 +94,10 @@ export function sliceIds(edges: Edge[]) {
     if (next.length > 1)
       return ids.concat(next);
     node = next[0];
+    if (visited.has(node))
+      return ids;
     ids.push(node);
+    visited.add(node);
   }
 }
 
