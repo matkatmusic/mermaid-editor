@@ -121,6 +121,9 @@ export async function navigateDecision(step: 1 | -1) {
   selectEditorNode(decision.id);
   updateDecisionCounter(graph);
   await render();
+  // A slow render can let another change clobber selection mid-await, so reassert it after.
+  selectEditorNode(decision.id);
+  updateDecisionCounter(graph);
   centerNodeInViewport(outputBox, diagramBox, decision.id);
 }
 
