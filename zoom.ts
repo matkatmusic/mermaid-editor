@@ -1,7 +1,7 @@
 declare const mermaid: any;
 import { diagramBox, outputBox, phoneDiagramBox, zoomInBtn, zoomLevel, zoomOutBtn, zoomResetBtn } from './dom.ts';
 import type { Edge } from './dom.ts';
-import { MAX_MAIN_ZOOM, MIN_MAIN_ZOOM, PHONE_INNER, phonePath, state } from './state.ts';
+import { MAX_MAIN_ZOOM, MIN_MAIN_ZOOM, /* PHONE_INNER, */ phonePath, state } from './state.ts';
 import { sliceIds } from './graph-slice.ts';
 import { chunkSource } from './diagram-source.ts';
 
@@ -30,20 +30,31 @@ export function applyMainZoom(preserveViewportCenter = true) {
   zoomOutBtn.disabled = state.mainZoomPercent <= MIN_MAIN_ZOOM;
   zoomResetBtn.disabled = state.mainZoomPercent === 100;
   const svg = diagramBox.querySelector('svg') as SVGSVGElement | null;
-  if (!svg || state.diagramScale === null)
+  const scale = state.diagramScale;
+  const hasSvg = svg !== null;
+  const hasScale = scale !== null;
+  if (!hasSvg)
+    return;
+  if (!hasScale)
     return;
   const oldWidth = Number.parseFloat(svg.style.width);
   const oldHeight = Number.parseFloat(svg.style.height);
   const centerX = outputBox.scrollLeft + outputBox.clientWidth / 2;
   const centerY = outputBox.scrollTop + outputBox.clientHeight / 2;
   const zoom = state.mainZoomPercent / 100;
-  const newWidth = svg.viewBox.baseVal.width * state.diagramScale * zoom;
-  const newHeight = svg.viewBox.baseVal.height * state.diagramScale * zoom;
+  const newWidth = svg.viewBox.baseVal.width * scale * zoom;
+  const newHeight = svg.viewBox.baseVal.height * scale * zoom;
   svg.style.width = newWidth + 'px';
   svg.style.height = newHeight + 'px';
-  if (preserveViewportCenter && oldWidth > 0 && oldHeight > 0) {
-    outputBox.scrollLeft = centerX * newWidth / oldWidth - outputBox.clientWidth / 2;
-    outputBox.scrollTop = centerY * newHeight / oldHeight - outputBox.clientHeight / 2;
+  const hadWidth = oldWidth > 0;
+  const hadHeight = oldHeight > 0;
+  if (preserveViewportCenter) {
+    if (hadWidth) {
+      if (hadHeight) {
+        outputBox.scrollLeft = centerX * newWidth / oldWidth - outputBox.clientWidth / 2;
+        outputBox.scrollTop = centerY * newHeight / oldHeight - outputBox.clientHeight / 2;
+      }
+    }
   }
 }
 
