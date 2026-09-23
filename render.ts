@@ -20,6 +20,8 @@ export async function render() {
     discardInvalidPhonePreview(graph);
     updateDecisionCounter(graph);
     const edges = parseEdges(codeBox.value);
+    // render the log before the await so undo callers see it fresh
+    renderLog(edges);
     const ids = edges.length > 0 ? sliceIds(edges) : [];
     const siblings = siblingIds(ids, edges);
     const leadIns = leadInIds(ids, siblings, edges);
@@ -78,7 +80,6 @@ export async function render() {
     outputBox.scrollTop = regularViewport.top;
     phoneDiagramBox.scrollLeft = phoneViewport.left;
     phoneDiagramBox.scrollTop = phoneViewport.top;
-    renderLog(edges);
     const hasContextualPreviousDecision = state.phoneFocusUsesDecisionContext
       && ids[0] !== state.phoneFocusNodeId
       && graph.nodes.get(ids[0])?.kind === 'question';
