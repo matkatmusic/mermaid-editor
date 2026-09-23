@@ -20,6 +20,17 @@ export async function render() {
     discardInvalidPhonePreview(graph);
     updateDecisionCounter(graph);
     const edges = parseEdges(codeBox.value);
+    // drop a phonePath that no longer matches the diagram, like resetBtn does
+    let phonePathIsStale = false;
+    for (const id of phonePath) {
+      let idIsInDiagram = false;
+      for (const [, to] of edges) {
+        const isTarget = to === id;
+        if (isTarget) idIsInDiagram = true;
+      }
+      if (!idIsInDiagram) phonePathIsStale = true;
+    }
+    if (phonePathIsStale) phonePath.length = 0;
     // render the log before the await so undo callers see it fresh
     renderLog(edges);
     const ids = edges.length > 0 ? sliceIds(edges) : [];
