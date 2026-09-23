@@ -51,7 +51,14 @@ export function contextualDecisionSliceIds(decisionId: string, edges: Edge[]) {
   const visited = new Set(reversed);
   let node = decisionId;
   for (;;) {
-    const incoming = edges.find(([, to]) => to === node);
+    let incoming: Edge | undefined;
+    for (const edge of edges) {
+      const isMatch = edge[1] === node;
+      if (isMatch) {
+        incoming = edge;
+        break;
+      }
+    }
     if (!incoming)
       break;
     const predecessor = incoming[0];
@@ -73,8 +80,10 @@ export function contextualDecisionSliceIds(decisionId: string, edges: Edge[]) {
 }
 
 export function sliceIds(edges: Edge[]) {
-  if (state.phoneFocusNodeId && state.phoneFocusUsesDecisionContext)
-    return contextualDecisionSliceIds(state.phoneFocusNodeId, edges);
+  const focusNodeId = state.phoneFocusNodeId;
+  const hasFocusedDecisionContext = focusNodeId !== null && state.phoneFocusUsesDecisionContext;
+  if (hasFocusedDecisionContext)
+    return contextualDecisionSliceIds(focusNodeId, edges);
   const last = state.phonePreviewChoiceId ?? phonePath[phonePath.length - 1];
   const ids = state.phoneFocusNodeId
     ? [state.phoneFocusNodeId]
