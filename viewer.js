@@ -967,6 +967,7 @@ async function loadDiagram(name) {
     state.watcher = null;
   }
   const text = await fetch("/api/diagrams/" + encodeURIComponent(name)).then((r) => r.text());
+  lastSavedDiagramText = text;
   const { metadata } = splitEditorMetadata(text);
   restoreTypeMetadata(metadata);
   state.currentName = name;

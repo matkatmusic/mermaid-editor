@@ -17,9 +17,14 @@ let nextId = 1;
 const pending = new Map<number, (value: any) => void>();
 
 function send(method: string, params: Record<string, unknown> = {}) {
-  return new Promise<any>((resolve) => {
+  return new Promise<any>((resolve, reject) => {
     const id = nextId++;
     pending.set(id, resolve);
+    setTimeout(() => {
+      const stillPending = pending.delete(id);
+      if (stillPending)
+        reject(new Error(`CDP ${method} got no reply within 15000ms`));
+    }, 15000).unref();
     ws.send(JSON.stringify({ id, method, params }));
   });
 }
@@ -103,7 +108,7 @@ async function labelLineHeight(id: string, paneId = "phoneDiagram") {
   return JSON.parse(json);
 }
 
-before(async () => {
+async function setup() {
   // Scenario: start the real server and headless Chrome, then connect via CDP to drive the page like a user.
   SERVER_PORT = Number(process.env.SERVER_PORT) || hashPort(process.cwd(), 20000, 10000);
   CDP_PORT = Number(process.env.CDP_PORT) || hashPort(process.cwd(), 30000, 10000);
@@ -130,7 +135,10 @@ before(async () => {
 
   const target = await fetch(`http://localhost:${CDP_PORT}/json/new?about:blank`, { method: "PUT" }).then((r) => r.json());
   ws = new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((resolve) => ws.addEventListener("open", resolve, { once: true }));
+  await new Promise((resolve, reject) => {
+    ws.addEventListener("open", resolve, { once: true });
+    ws.addEventListener("error", reject, { once: true });
+  });
   ws.addEventListener("message", (event) => {
     const message = JSON.parse(event.data as string);
     if (message.id && pending.has(message.id)) {
@@ -154,12 +162,16 @@ before(async () => {
   assert.ok(codeValue.includes("RAISE_ISSUE"));
   await evaluate("loadDiagram('accountability.mmd')");
   await sleep(300);
-});
+}
+let setupDone: Promise<void> = Promise.resolve();
+before(() => (setupDone = setup()), { timeout: 60_000 });
 
 after(async () => {
-  await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: "PUT", body: editorFixtureSource });
+  await setupDone.catch(() => {}); // after() can run before before() finishes when no test matches
+  if (serverProc)
+    await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: "PUT", body: editorFixtureSource, signal: AbortSignal.timeout(2000) }).catch(() => {});
   ws?.close();
-  chromeProc?.kill();
+  chromeProc?.kill("SIGKILL");
   serverProc?.kill();
 });
 
