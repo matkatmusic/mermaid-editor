@@ -942,8 +942,10 @@ function restoreMainViewport(metadata, graph) {
     outputBox.scrollLeft = metadata.outputScrollLeft;
   if (hasSavedTop)
     outputBox.scrollTop = metadata.outputScrollTop;
-  if (hasSavedLeft && hasSavedTop)
-    return;
+  if (hasSavedLeft) {
+    if (hasSavedTop)
+      return;
+  }
   const firstNode = graph.nodes.values().next().value;
   if (!firstNode)
     return;
@@ -984,7 +986,8 @@ async function loadDiagram(name) {
     graph = editorGraph();
   } catch {}
   if (metadata) {
-    if (graph?.nodes.has(metadata.lastSelectedNodeId ?? ""))
+    const hasSavedSelection = graph?.nodes.has(metadata.lastSelectedNodeId ?? "");
+    if (hasSavedSelection)
       selectEditorNode(metadata.lastSelectedNodeId);
   }
   if (graph)
@@ -1011,7 +1014,9 @@ function watchDiagram(name) {
       return;
     if (saveInFlightAtFetchStart)
       return;
-    if (pendingSaveCount > 0 || saveVersion !== versionAtFetchStart)
+    if (pendingSaveCount > 0)
+      return;
+    if (saveVersion !== versionAtFetchStart)
       return;
     if (text === lastSavedDiagramText)
       return;
@@ -1029,7 +1034,8 @@ async function saveDiagram() {
     name = prompt("Name this diagram (letters, numbers, - and _ only):");
     if (!name)
       return;
-    if (!name.endsWith(".mmd"))
+    const hasMmdExtension = name.endsWith(".mmd");
+    if (!hasMmdExtension)
       name += ".mmd";
   }
   lastSavedDiagramText = codeBox.value;

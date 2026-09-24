@@ -46,8 +46,10 @@ export function restoreMainViewport(metadata: EditorMetadata | null, graph: Edit
     outputBox.scrollLeft = metadata.outputScrollLeft!;
   if (hasSavedTop)
     outputBox.scrollTop = metadata.outputScrollTop!;
-  if (hasSavedLeft && hasSavedTop)
-    return;
+  if (hasSavedLeft) {
+    if (hasSavedTop)
+      return;
+  }
   const firstNode = graph.nodes.values().next().value as EditorNode | undefined;
   if (!firstNode)
     return;
@@ -92,7 +94,8 @@ export async function loadDiagram(name: string) {
     // render() has already surfaced the validation failure.
   }
   if (metadata) {
-    if (graph?.nodes.has(metadata.lastSelectedNodeId ?? ''))
+    const hasSavedSelection = graph?.nodes.has(metadata.lastSelectedNodeId ?? '');
+    if (hasSavedSelection)
       selectEditorNode(metadata.lastSelectedNodeId);
   }
   if (graph)
@@ -123,7 +126,9 @@ export function watchDiagram(name: string) {
     if (saveInFlightAtFetchStart)
       return;
     // A save, not an external edit, triggered this notification.
-    if (pendingSaveCount > 0 || saveVersion !== versionAtFetchStart)
+    if (pendingSaveCount > 0)
+      return;
+    if (saveVersion !== versionAtFetchStart)
       return;
     if (text === lastSavedDiagramText)
       return;
@@ -142,7 +147,8 @@ export async function saveDiagram() {
     name = prompt('Name this diagram (letters, numbers, - and _ only):');
     if (!name)
       return;
-    if (!name.endsWith('.mmd'))
+    const hasMmdExtension = name.endsWith('.mmd');
+    if (!hasMmdExtension)
       name += '.mmd';
   }
   lastSavedDiagramText = codeBox.value;
