@@ -1851,6 +1851,16 @@ test('test_insert_decision_before_a_root_node_becomes_the_new_root', async () =>
   await assertEditorSourceIsSavedAndValid();
 });
 
+test('test_functions_only_toggle_exists_and_is_unchecked_by_default', async () => {
+  // Step: the checkbox is in the page and unchecked.
+  assert.equal(await evaluate("document.getElementById('functionsOnlyToggle').type"), 'checkbox');
+  assert.equal(await evaluate("document.getElementById('functionsOnlyToggle').checked"), false);
+  // Step: dom.ts exports it as a typed constant.
+  assert.ok(readFileSync(join(process.cwd(), 'dom.ts'), 'utf8').includes("export const functionsOnlyToggle = document.getElementById('functionsOnlyToggle') as HTMLInputElement;"));
+  // Step: state.functionsOnly defaults to false.
+  assert.equal(await evaluate('state.functionsOnly'), false);
+});
+
 test('test_all_committed_diagrams_validate_with_mermaid', async () => {
   // Step: every diagram known to the server parses cleanly with Mermaid.
   const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json());

@@ -26,6 +26,7 @@ export const zoomInBtn = document.getElementById('zoomInBtn') as HTMLButtonEleme
 export const zoomOutBtn = document.getElementById('zoomOutBtn') as HTMLButtonElement;
 export const zoomResetBtn = document.getElementById('zoomResetBtn') as HTMLButtonElement;
 export const zoomLevel = document.getElementById('zoomLevel')!;
+export const functionsOnlyToggle = document.getElementById('functionsOnlyToggle') as HTMLInputElement;
 export const nodeActions = document.getElementById('nodeActions')!;
 export const selectedNodeBox = document.getElementById('selectedNode')!;
 export const nodeInspector = document.getElementById('nodeInspector')!;
