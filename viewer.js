@@ -22,6 +22,7 @@ var zoomInBtn = document.getElementById("zoomInBtn");
 var zoomOutBtn = document.getElementById("zoomOutBtn");
 var zoomResetBtn = document.getElementById("zoomResetBtn");
 var zoomLevel = document.getElementById("zoomLevel");
+var functionsOnlyToggle = document.getElementById("functionsOnlyToggle");
 var nodeActions = document.getElementById("nodeActions");
 var selectedNodeBox = document.getElementById("selectedNode");
 var nodeInspector = document.getElementById("nodeInspector");
@@ -63,6 +64,7 @@ var state = {
   phonePreviewChoiceId: null,
   diagramScale: null,
   mainZoomPercent: 100,
+  functionsOnly: false,
   selectedEditorNodeId: null,
   currentDecisionId: null,
   advanceAfterDecisionText: null,
