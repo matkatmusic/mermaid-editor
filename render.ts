@@ -26,11 +26,14 @@ export async function render() {
       let idIsInDiagram = false;
       for (const [, to] of edges) {
         const isTarget = to === id;
-        if (isTarget) idIsInDiagram = true;
+        if (isTarget)
+          idIsInDiagram = true;
       }
-      if (!idIsInDiagram) phonePathIsStale = true;
+      if (!idIsInDiagram)
+        phonePathIsStale = true;
     }
-    if (phonePathIsStale) phonePath.length = 0;
+    if (phonePathIsStale)
+      phonePath.length = 0;
     // render the log before the await so undo callers see it fresh
     renderLog(edges);
     const ids = edges.length > 0 ? sliceIds(edges) : [];
