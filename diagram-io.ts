@@ -101,15 +101,31 @@ export async function loadDiagram(name: string) {
   watchDiagram(name);
 }
 
+let lastSavedDiagramText: string | null = null;
+let watchedDiagramName: string | null = null;
+let pendingSaveCount = 0;
+let saveVersion = 0;
+
 export function watchDiagram(name: string) {
   if (state.watcher)
     state.watcher.close();
+  watchedDiagramName = name;
   const source = new EventSource('/api/watch/' + encodeURIComponent(name));
   state.watcher = source;
   source.onmessage = async () => {
+    const versionAtFetchStart = saveVersion;
+    const saveInFlightAtFetchStart = pendingSaveCount > 0;
     const text = await fetch('/api/diagrams/' + encodeURIComponent(name)).then(r => r.text());
     const isStaleWatcher = state.watcher !== source;
     if (isStaleWatcher)
+      return;
+    // The server may answer this GET from the file before that save's PUT lands, returning pre-edit text.
+    if (saveInFlightAtFetchStart)
+      return;
+    // A save, not an external edit, triggered this notification.
+    if (pendingSaveCount > 0 || saveVersion !== versionAtFetchStart)
+      return;
+    if (text === lastSavedDiagramText)
       return;
     if (text !== codeBox.value) {
       restoreTypeMetadata(splitEditorMetadata(text).metadata);
@@ -129,13 +145,30 @@ export async function saveDiagram() {
     if (!name.endsWith('.mmd'))
       name += '.mmd';
   }
-  await fetch('/api/diagrams/' + encodeURIComponent(name), {
-    method: 'PUT',
-    body: codeBox.value,
-  });
+  lastSavedDiagramText = codeBox.value;
+  pendingSaveCount++;
+  saveVersion++;
+  try {
+    await fetch('/api/diagrams/' + encodeURIComponent(name), {
+      method: 'PUT',
+      body: codeBox.value,
+    });
+  }
+  finally {
+    pendingSaveCount--;
+  }
   state.currentName = name;
   setStatus('Saved ' + name);
   loadList();
-  watchDiagram(name);
+  // Don't reopen an already-watching watcher; that raced a stale onmessage against the new one.
+  const hasNoWatcher = !state.watcher;
+  if (hasNoWatcher) {
+    watchDiagram(name);
+  }
+  else {
+    const isWatchingSomethingElse = watchedDiagramName !== name;
+    if (isWatchingSomethingElse)
+      watchDiagram(name);
+  }
 }
 

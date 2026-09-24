@@ -992,15 +992,28 @@ async function loadDiagram(name) {
   loadList();
   watchDiagram(name);
 }
+var lastSavedDiagramText = null;
+var watchedDiagramName = null;
+var pendingSaveCount = 0;
+var saveVersion = 0;
 function watchDiagram(name) {
   if (state.watcher)
     state.watcher.close();
+  watchedDiagramName = name;
   const source = new EventSource("/api/watch/" + encodeURIComponent(name));
   state.watcher = source;
   source.onmessage = async () => {
+    const versionAtFetchStart = saveVersion;
+    const saveInFlightAtFetchStart = pendingSaveCount > 0;
     const text = await fetch("/api/diagrams/" + encodeURIComponent(name)).then((r) => r.text());
     const isStaleWatcher = state.watcher !== source;
     if (isStaleWatcher)
+      return;
+    if (saveInFlightAtFetchStart)
+      return;
+    if (pendingSaveCount > 0 || saveVersion !== versionAtFetchStart)
+      return;
+    if (text === lastSavedDiagramText)
       return;
     if (text !== codeBox.value) {
       restoreTypeMetadata(splitEditorMetadata(text).metadata);
@@ -1019,14 +1032,28 @@ async function saveDiagram() {
     if (!name.endsWith(".mmd"))
       name += ".mmd";
   }
-  await fetch("/api/diagrams/" + encodeURIComponent(name), {
-    method: "PUT",
-    body: codeBox.value
-  });
+  lastSavedDiagramText = codeBox.value;
+  pendingSaveCount++;
+  saveVersion++;
+  try {
+    await fetch("/api/diagrams/" + encodeURIComponent(name), {
+      method: "PUT",
+      body: codeBox.value
+    });
+  } finally {
+    pendingSaveCount--;
+  }
   state.currentName = name;
   setStatus("Saved " + name);
   loadList();
-  watchDiagram(name);
+  const hasNoWatcher = !state.watcher;
+  if (hasNoWatcher) {
+    watchDiagram(name);
+  } else {
+    const isWatchingSomethingElse = watchedDiagramName !== name;
+    if (isWatchingSomethingElse)
+      watchDiagram(name);
+  }
 }
 
 // decision-nav.ts
@@ -1603,6 +1630,7 @@ function removeChoice() {
     if (otherEndpoint !== id)
       preserveInlineDecl(edge, otherEndpoint, graph, newLines);
   }
+  selectEditorNode(null);
   setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function removeBlock() {
@@ -1633,6 +1661,7 @@ function removeBlock() {
   for (const predecessor of predecessors)
     for (const successor of successors)
       newLines.push(`  ${predecessor} --> ${successor}`);
+  selectEditorNode(null);
   setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function removeQuestion() {
