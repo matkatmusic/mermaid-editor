@@ -28,6 +28,7 @@ export const state = {
   phonePreviewChoiceId: null as string | null,
   diagramScale: null as number | null,
   mainZoomPercent: 100,
+  functionsOnly: false,
   selectedEditorNodeId: null as string | null,
   currentDecisionId: null as string | null,
   advanceAfterDecisionText: null as { decisionId: string; choiceId: string } | null,
