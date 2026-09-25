@@ -765,12 +765,12 @@ function contextualDecisionSliceIds(decisionId, edges) {
   return ids;
 }
 function sliceIds(edges) {
-  const focusNodeId = state.phoneFocusNodeId;
+  const focusNodeId = state.functionsOnly ? null : state.phoneFocusNodeId;
   const hasFocusedDecisionContext = focusNodeId !== null && state.phoneFocusUsesDecisionContext;
   if (hasFocusedDecisionContext)
     return contextualDecisionSliceIds(focusNodeId, edges);
-  const last = state.phonePreviewChoiceId ?? phonePath[phonePath.length - 1];
-  const ids = state.phoneFocusNodeId ? [state.phoneFocusNodeId] : last ? [parentOf(last, edges), last] : [edges[0][0]];
+  const last = state.functionsOnly ? undefined : state.phonePreviewChoiceId ?? phonePath[phonePath.length - 1];
+  const ids = focusNodeId ? [focusNodeId] : last ? [parentOf(last, edges), last] : [edges[0][0]];
   let node = ids[ids.length - 1];
   const visited = new Set(ids);
   for (;; ) {
@@ -1172,6 +1172,99 @@ async function navigateDecision(step) {
   centerNodeInViewport(outputBox, diagramBox, decision.id);
 }
 
+// function-routing.ts
+var SIGNATURE = /^[A-Za-z_$][A-Za-z0-9_$]*\(.*\)/;
+function isFunctionLabel(label) {
+  return SIGNATURE.test(label.trim());
+}
+function isFunctionNode(node) {
+  return node.id.startsWith("B_") && isFunctionLabel(node.label);
+}
+function leadingId(segment) {
+  const match = segment.trim().match(/^([A-Za-z0-9_]+)/);
+  return match ? match[1] : segment.trim();
+}
+function parseDeclaration(line, lineIndex) {
+  const match = line.match(/^([A-Za-z0-9_]+)([\s\S]*)$/);
+  if (!match)
+    return null;
+  const id = match[1];
+  const rest = match[2].trim();
+  const isBrace = rest.startsWith("{") && rest.endsWith("}");
+  const isRect = rest.startsWith("[") && rest.endsWith("]");
+  if (!isBrace && !isRect)
+    return null;
+  const label = rest.slice(1, -1).replace(/^"(.*)"$/, "$1");
+  const kind = id.startsWith("Q_CHOICE") ? "choice" : id.startsWith("Q_") ? "question" : "block";
+  return { id, kind, label, lineIndex };
+}
+function parseRoutingGraph(source) {
+  const nodes = new Map;
+  const edges = [];
+  let header = "flowchart TD";
+  const lines = source.split(`
+`);
+  for (let lineIndex = 0;lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex].trim();
+    if (!line)
+      continue;
+    if (line.startsWith("flowchart")) {
+      header = line;
+      continue;
+    }
+    const isMeta = line.startsWith("classDef") || line.startsWith("class ") || line.startsWith("%%");
+    if (isMeta)
+      continue;
+    if (line.includes("-->")) {
+      const segments = line.split("-->");
+      for (let i = 0;i + 1 < segments.length; i++)
+        edges.push([leadingId(segments[i]), leadingId(segments[i + 1])]);
+      continue;
+    }
+    const decl = parseDeclaration(line, lineIndex);
+    if (decl && !nodes.has(decl.id))
+      nodes.set(decl.id, decl);
+  }
+  return { header, nodes, edges };
+}
+function calleesOf(callerId, functionIds, edges) {
+  const found = [];
+  const visited = new Set;
+  const stack = [callerId];
+  while (stack.length) {
+    const node = stack.pop();
+    for (const [from, to] of edges) {
+      if (from !== node)
+        continue;
+      if (functionIds.has(to)) {
+        if (!found.includes(to))
+          found.push(to);
+        continue;
+      }
+      if (!visited.has(to)) {
+        visited.add(to);
+        stack.push(to);
+      }
+    }
+  }
+  return found;
+}
+function filterToFunctions(source) {
+  const graph = parseRoutingGraph(source);
+  const functionNodes = [...graph.nodes.values()].filter(isFunctionNode).sort((a, b) => a.lineIndex - b.lineIndex);
+  const functionIds = new Set(functionNodes.map((node) => node.id));
+  const lines = [graph.header];
+  for (const node of functionNodes)
+    lines.push(`  ${node.id}["${node.label}"]`);
+  for (const caller of functionNodes) {
+    const callees = calleesOf(caller.id, functionIds, graph.edges).map((id) => graph.nodes.get(id)).sort((a, b) => a.lineIndex - b.lineIndex);
+    for (const callee of callees)
+      lines.push(`  ${caller.id} --> ${callee.id}`);
+  }
+  return lines.join(`
+`);
+}
+
 // phone-separators.ts
 function drawSeparatorBetween(topId, belowIds, label) {
   const svg = phoneDiagramBox.querySelector("svg");
@@ -1284,6 +1377,8 @@ function drawLastDecisionMask(ids, edges, openDecisionId) {
   svg.appendChild(rect);
 }
 function scrollChoicesIntoView(bottomQ, edges) {
+  if (state.functionsOnly)
+    return;
   if (state.phoneFocusNodeId) {
     centerNodeInViewport(phoneDiagramBox, phoneDiagramBox, state.phoneFocusNodeId);
     return;
@@ -1350,12 +1445,14 @@ async function render() {
     }
     state.currentBottomQ = bottomQ;
     const phoneSource = edges.length > 0 ? chunkSource(shown, siblings, edges) : codeBox.value;
+    const mainSource = state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value;
+    const filteredPhoneSource = state.functionsOnly ? filterToFunctions(phoneSource) : phoneSource;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const phoneViewport = { left: phoneDiagramBox.scrollLeft, top: phoneDiagramBox.scrollTop };
     const myRenderId = state.renderId;
     const [{ svg: regularSvg }, { svg: phoneSvg }] = await Promise.all([
-      mermaid.render("diagram-" + state.renderId++, codeBox.value),
-      mermaid.render("phone-diagram-" + state.renderId++, phoneSource)
+      mermaid.render("diagram-" + state.renderId++, mainSource),
+      mermaid.render("phone-diagram-" + state.renderId++, filteredPhoneSource)
     ]);
     if (state.renderId !== myRenderId + 2)
       return;
@@ -1403,6 +1500,10 @@ async function render() {
     showEditorValidationError(err);
   }
 }
+functionsOnlyToggle.addEventListener("change", () => {
+  state.functionsOnly = functionsOnlyToggle.checked;
+  render();
+});
 
 // editor-actions.ts
 async function commitEditorSource(source, options) {

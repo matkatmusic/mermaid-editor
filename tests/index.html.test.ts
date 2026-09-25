@@ -1861,6 +1861,47 @@ test('test_functions_only_toggle_exists_and_is_unchecked_by_default', async () =
   assert.equal(await evaluate('state.functionsOnly'), false);
 });
 
+test('test_functions_only_toggle_filters_both_views_to_functions_and_restores_on_toggle_off', async () => {
+  // Scenario: a code-flow diagram whose B_ nodes carry call-signature labels, wired through a non-function step,
+  // is filtered down to only its function nodes with edges rerouted directly between them in both the main and
+  // phone views; turning the toggle back off restores the original diagram.
+  // Step: build the code-flow diagram inline; B_SETUP is a non-function step between two functions.
+  await setEditorSource('flowchart TD\n  B_MAIN["main()"]\n  B_SETUP["prepare data"]\n  B_PARSE["parse()"]\n  B_DONE["cleanup()"]\n  B_MAIN --> B_SETUP\n  B_SETUP --> B_PARSE\n  B_PARSE --> B_DONE');
+  const mainNodeIds = () => evaluate("JSON.stringify(Array.from(document.querySelectorAll('#diagram g.node')).map(nodeIdOf).sort())").then(JSON.parse);
+  const mainHasEdge = (fragment: string) => evaluate(`JSON.stringify(Array.from(document.querySelectorAll('#diagram path.flowchart-link')).some(el => el.id.includes(${JSON.stringify(fragment)})))`).then(JSON.parse);
+  const phoneHasEdge = (fragment: string) => evaluate(`JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram path.flowchart-link')).some(el => el.id.includes(${JSON.stringify(fragment)})))`).then(JSON.parse);
+  // Step: with the toggle off, the main view shows every node, including the non-function step.
+  assert.deepEqual(await mainNodeIds(), ['B_DONE', 'B_MAIN', 'B_PARSE', 'B_SETUP']);
+  assert.equal(await mainHasEdge('L_B_MAIN_B_SETUP_'), true);
+  // Step: enable the functions-only toggle and let both views rerender.
+  await evaluate("(() => { const toggle = document.getElementById('functionsOnlyToggle'); toggle.checked = true; toggle.dispatchEvent(new Event('change')); })()");
+  await sleep(400);
+  assert.equal(await evaluate('state.functionsOnly'), true);
+  // Step: the main view now holds only the three function nodes.
+  assert.deepEqual(await mainNodeIds(), ['B_DONE', 'B_MAIN', 'B_PARSE']);
+  // Step: the phone view holds the same three function nodes.
+  assert.deepEqual(await nodeIds(), ['B_DONE', 'B_MAIN', 'B_PARSE']);
+  // Step: the non-function step is gone from both views.
+  assert.ok(!(await mainNodeIds()).includes('B_SETUP'));
+  assert.ok(!(await nodeIds()).includes('B_SETUP'));
+  // Step: the edge is rerouted directly from B_MAIN to B_PARSE in both views, skipping the removed step.
+  assert.equal(await mainHasEdge('L_B_MAIN_B_PARSE_'), true);
+  assert.equal(await phoneHasEdge('L_B_MAIN_B_PARSE_'), true);
+  assert.equal(await mainHasEdge('L_B_PARSE_B_DONE_'), true);
+  // Step: disable the functions-only toggle and let both views rerender.
+  await evaluate("(() => { const toggle = document.getElementById('functionsOnlyToggle'); toggle.checked = false; toggle.dispatchEvent(new Event('change')); })()");
+  await sleep(400);
+  assert.equal(await evaluate('state.functionsOnly'), false);
+  // Step: the original diagram is restored, non-function step and original edge included.
+  assert.deepEqual(await mainNodeIds(), ['B_DONE', 'B_MAIN', 'B_PARSE', 'B_SETUP']);
+  assert.equal(await mainHasEdge('L_B_MAIN_B_SETUP_'), true);
+  // Step: the rerouted function-to-function edge is gone once filtering is off.
+  assert.equal(await mainHasEdge('L_B_MAIN_B_PARSE_'), false);
+  // Step: restore the accountability diagram so later runs start clean.
+  await evaluate("loadDiagram('accountability.mmd')");
+  await sleep(300);
+});
+
 test('test_all_committed_diagrams_validate_with_mermaid', async () => {
   // Step: every diagram known to the server parses cleanly with Mermaid.
   const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json());
