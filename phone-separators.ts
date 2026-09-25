@@ -213,6 +213,8 @@ export function drawSeparator(ids: string[], leadIns: string[]) {
 }
 
 export function scrollChoicesIntoView(bottomQ: string | undefined, edges: Edge[]): void {
+  if (state.functionsOnly)
+    return;
   if (state.phoneFocusNodeId) {
     centerNodeInViewport(phoneDiagramBox, phoneDiagramBox, state.phoneFocusNodeId);
     return;
