@@ -80,13 +80,13 @@ export function contextualDecisionSliceIds(decisionId: string, edges: Edge[]) {
 }
 
 export function sliceIds(edges: Edge[]) {
-  const focusNodeId = state.phoneFocusNodeId;
+  const focusNodeId = state.functionsOnly ? null : state.phoneFocusNodeId;
   const hasFocusedDecisionContext = focusNodeId !== null && state.phoneFocusUsesDecisionContext;
   if (hasFocusedDecisionContext)
     return contextualDecisionSliceIds(focusNodeId, edges);
-  const last = state.phonePreviewChoiceId ?? phonePath[phonePath.length - 1];
-  const ids = state.phoneFocusNodeId
-    ? [state.phoneFocusNodeId]
+  const last = state.functionsOnly ? undefined : state.phonePreviewChoiceId ?? phonePath[phonePath.length - 1];
+  const ids = focusNodeId
+    ? [focusNodeId]
     : last
       ? [parentOf(last, edges), last]
       : [edges[0][0]];
