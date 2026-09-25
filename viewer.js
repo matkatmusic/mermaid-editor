@@ -2065,7 +2065,7 @@ outputBox.addEventListener("click", (event) => {
     }
   }
 });
-phoneDiagramBox.addEventListener("click", (event) => {
+phoneDiagramBox.addEventListener("click", async (event) => {
   const nodeEl = event.target.closest("g.node");
   if (!nodeEl)
     return;
@@ -2080,7 +2080,12 @@ phoneDiagramBox.addEventListener("click", (event) => {
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
-  render();
+  await render();
+  if (state.currentBottomQ) {
+    state.currentDecisionId = state.currentBottomQ;
+    selectEditorNode(state.currentBottomQ);
+    centerNodeInViewport(outputBox, diagramBox, state.currentBottomQ);
+  }
 });
 outputBox.addEventListener("dblclick", (event) => {
   const nodeEl = event.target.closest("g.node");

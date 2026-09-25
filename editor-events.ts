@@ -1,10 +1,10 @@
-import { codeBox, destinationSelect, nodeInspectorActions, nodeInspectorDismissBtn, nodeTextInput, nodeTypeColorInput, nodeTypeInput, outputBox, phoneDiagramBox } from './dom.ts';
+import { codeBox, destinationSelect, diagramBox, nodeInspectorActions, nodeInspectorDismissBtn, nodeTextInput, nodeTypeColorInput, nodeTypeInput, outputBox, phoneDiagramBox } from './dom.ts';
 import { isAnswerId, nodeIdOf } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { editorGraph, setEditorActionPromise } from './editor-graph.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, phonePath, state } from './state.ts';
 import { render } from './render.ts';
-import { nearestFeedingChoice } from './decision-nav.ts';
+import { centerNodeInViewport, nearestFeedingChoice } from './decision-nav.ts';
 import { parseEdges } from './diagram-source.ts';
 import { choicesOf } from './graph-slice.ts';
 import { addBlockAfter, addChoice, addQuestionAfter, insertDecisionBefore, insertStaticBefore } from './editor-add.ts';
@@ -38,7 +38,7 @@ outputBox.addEventListener('click', (event) => {
   }
 });
 
-phoneDiagramBox.addEventListener('click', (event) => {
+phoneDiagramBox.addEventListener('click', async (event) => {
   const nodeEl = (event.target as HTMLElement).closest('g.node');
   if (!nodeEl)
     return;
@@ -53,7 +53,12 @@ phoneDiagramBox.addEventListener('click', (event) => {
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
-  render();
+  await render();
+  if (state.currentBottomQ) {
+    state.currentDecisionId = state.currentBottomQ;
+    selectEditorNode(state.currentBottomQ);
+    centerNodeInViewport(outputBox, diagramBox, state.currentBottomQ);
+  }
 });
 
 outputBox.addEventListener('dblclick', (event) => {
