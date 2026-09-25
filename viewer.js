@@ -38,6 +38,11 @@ var destinationSelect = document.getElementById("destinationSelect");
 var nodeInspectorActions = document.getElementById("nodeInspectorActions");
 var nodeInspectorControls = document.getElementById("nodeInspectorControls");
 var nodeInspectorRemovalPreview = document.getElementById("nodeInspectorRemovalPreview");
+var searchInput = document.getElementById("searchInput");
+var searchClearBtn = document.getElementById("searchClearBtn");
+var searchPreviousBtn = document.getElementById("searchPreviousBtn");
+var searchNextBtn = document.getElementById("searchNextBtn");
+var searchCounter = document.getElementById("searchCounter");
 
 // state.ts
 var MAIN_ZOOM_STEP = 10;
@@ -2156,6 +2161,64 @@ document.addEventListener("keydown", (event) => {
 outputBox.addEventListener("scroll", positionNodeInspector);
 window.addEventListener("resize", positionNodeInspector);
 
+// node-search.ts
+var searchMatches = [];
+var searchIndex = 0;
+var searchRunId = 0;
+function matchingNodes(graph, query) {
+  if (query === "")
+    return [];
+  const needle = query.toLowerCase();
+  return [...graph.nodes.values()].filter((node) => node.id.toLowerCase().includes(needle) || node.label.toLowerCase().includes(needle)).sort((a, b) => a.lineIndex - b.lineIndex);
+}
+function updateSearchControls() {
+  const hasText = searchInput.value !== "";
+  const hasSeveralMatches = searchMatches.length > 1;
+  const current = searchMatches.length === 0 ? 0 : searchIndex + 1;
+  searchClearBtn.hidden = !hasText;
+  searchCounter.hidden = !hasText;
+  searchPreviousBtn.hidden = !hasSeveralMatches;
+  searchNextBtn.hidden = !hasSeveralMatches;
+  searchCounter.textContent = `${current} / ${searchMatches.length}`;
+}
+async function jumpToSearchMatch() {
+  const runId = ++searchRunId;
+  const id = searchMatches[searchIndex].id;
+  selectEditorNode(id);
+  await render();
+  if (runId !== searchRunId)
+    return;
+  selectEditorNode(id);
+  centerNodeInViewport(outputBox, diagramBox, id);
+}
+async function runSearch() {
+  let graph;
+  try {
+    graph = editorGraph();
+  } catch (error) {
+    showEditorValidationError(error);
+    return;
+  }
+  searchMatches = matchingNodes(graph, searchInput.value);
+  searchIndex = 0;
+  updateSearchControls();
+  if (searchMatches.length === 0)
+    return;
+  await jumpToSearchMatch();
+}
+async function cycleSearch(step) {
+  searchIndex = (searchIndex + step + searchMatches.length) % searchMatches.length;
+  updateSearchControls();
+  await jumpToSearchMatch();
+}
+function clearSearch() {
+  searchInput.value = "";
+  searchMatches = [];
+  searchIndex = 0;
+  searchRunId++;
+  updateSearchControls();
+}
+
 // main-events.ts
 document.getElementById("newBtn").addEventListener("click", () => {
   if (state.watcher)
@@ -2177,6 +2240,10 @@ document.getElementById("newBtn").addEventListener("click", () => {
 document.getElementById("saveBtn").addEventListener("click", saveDiagram);
 previousDecisionBtn.addEventListener("click", () => navigateDecision(-1));
 nextDecisionBtn.addEventListener("click", () => navigateDecision(1));
+searchInput.addEventListener("input", runSearch);
+searchClearBtn.addEventListener("click", clearSearch);
+searchPreviousBtn.addEventListener("click", () => cycleSearch(-1));
+searchNextBtn.addEventListener("click", () => cycleSearch(1));
 zoomInBtn.addEventListener("click", () => setMainZoomPercent(state.mainZoomPercent + MAIN_ZOOM_STEP));
 zoomOutBtn.addEventListener("click", () => setMainZoomPercent(state.mainZoomPercent - MAIN_ZOOM_STEP));
 zoomResetBtn.addEventListener("click", () => setMainZoomPercent(100));
