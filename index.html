@@ -8,6 +8,9 @@
   body { margin: 0; display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; }
   #header { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #ccc; }
   #header button, #header select { padding: 6px 10px; }
+  #fileMenu { position: relative; }
+  #fileMenu > summary { cursor: pointer; padding: 6px 10px; list-style: none; }
+  #fileMenu[open] > #fileMenuItems { position: absolute; top: 100%; left: 0; z-index: 10; display: flex; flex-direction: column; gap: 4px; padding: 4px; background: #fff; border: 1px solid #ccc; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
   #mainZoomControls { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
   #zoomLevel { min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
   #main { flex: 1; display: flex; min-height: 0; }
@@ -55,11 +58,16 @@
 </head>
 <body>
 <div id="header">
-  <button id="newBtn">New</button>
-  <button id="saveBtn">Save</button>
-  <button id="openFileBtn">Open file...</button>
-  <input type="file" id="openFileInput" accept=".mmd,text/plain" style="display:none">
-  <button id="resetBtn">Reset</button>
+  <details id="fileMenu">
+    <summary>File</summary>
+    <div id="fileMenuItems">
+      <button id="newBtn">New</button>
+      <button id="saveBtn">Save</button>
+      <button id="openFileBtn">Open file...</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+    <input type="file" id="openFileInput" accept=".mmd,text/plain" style="display:none">
+  </details>
   <button id="editorUndoBtn">Undo edit</button>
   <button id="editorRedoBtn">Redo edit</button>
   <button id="previousDecisionBtn">Previous</button>

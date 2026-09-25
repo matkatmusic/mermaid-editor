@@ -2232,6 +2232,9 @@ codeBox.addEventListener("input", () => {
   resetEditorHistory(codeBox.value);
   render();
 });
+document.getElementById("fileMenuItems").addEventListener("click", () => {
+  document.getElementById("fileMenu").open = false;
+});
 
 // viewer.ts
 applyMainZoom(false);
