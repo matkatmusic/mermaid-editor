@@ -770,7 +770,7 @@ function sliceIds(edges) {
   if (hasFocusedDecisionContext)
     return contextualDecisionSliceIds(focusNodeId, edges);
   const last = state.functionsOnly ? undefined : state.phonePreviewChoiceId ?? phonePath[phonePath.length - 1];
-  const ids = focusNodeId ? [focusNodeId] : last ? [parentOf(last, edges), last] : [edges[0][0]];
+  const ids = focusNodeId ? [focusNodeId] : last ? [parentOf(last, edges), last] : [edges.map(([from]) => from).find((from) => !edges.some(([, to]) => to === from))];
   let node = ids[ids.length - 1];
   const visited = new Set(ids);
   for (;; ) {

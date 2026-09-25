@@ -1936,10 +1936,14 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
   assert.deepEqual(placement.bareInHeader, [false, false, false, false]);
   assert.deepEqual(placement.inMenu, [true, true, true, true]);
 
-  // Step: Reset entry closes the menu (its reset action is covered by the existing reset tests).
+  // Step: Reset entry clears a chosen phone path and closes the menu.
+  await evaluate("document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
+  await sleep(100);
+  assert.equal(await evaluate("phonePath.length"), 1);
   await evaluate("document.getElementById('fileMenu').open = true");
   await evaluate("document.getElementById('resetBtn').click()");
   await sleep(100);
+  assert.equal(await evaluate("phonePath.length"), 0);
   assert.equal(await evaluate("document.getElementById('fileMenu').open"), false);
 
   // Step: Save entry PUTs the diagram to the server and closes the menu.

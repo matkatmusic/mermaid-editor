@@ -89,7 +89,7 @@ export function sliceIds(edges: Edge[]) {
     ? [focusNodeId]
     : last
       ? [parentOf(last, edges), last]
-      : [edges[0][0]];
+      : [edges.map(([from]) => from).find(from => !edges.some(([, to]) => to === from))!];
   let node = ids[ids.length - 1];
   const visited = new Set(ids);
   for (;;) {
