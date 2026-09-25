@@ -1921,3 +1921,67 @@ test('test_viewer_js_build_matches_committed_bundle', async () => {
   // Step: the freshly rebuilt bundle is byte-identical to the committed viewer.js.
   assert.equal(fresh, committed);
 });
+
+test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
+  // Scenario: the four file actions moved into one dropdown menu; each entry keeps its old id and handler, and the menu closes after a choice.
+  // Step: start from a known diagram so state.currentName is set (Save must not prompt).
+  await evaluate("loadDiagram('accountability.mmd')");
+  await sleep(300);
+
+  // Step: the four actions are no longer bare toolbar buttons and now live inside #fileMenu.
+  const placement = await evaluate(`JSON.stringify({
+    bareInHeader: ['newBtn','saveBtn','openFileBtn','resetBtn'].map(id => !!document.querySelector('#header > #' + id)),
+    inMenu: ['newBtn','saveBtn','openFileBtn','resetBtn'].map(id => !!document.querySelector('#fileMenu #' + id)),
+  })`).then(JSON.parse);
+  assert.deepEqual(placement.bareInHeader, [false, false, false, false]);
+  assert.deepEqual(placement.inMenu, [true, true, true, true]);
+
+  // Step: Reset entry clears a chosen phone path and closes the menu.
+  await evaluate("document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
+  await sleep(100);
+  assert.equal(await evaluate("phonePath.length"), 1);
+  await evaluate("document.getElementById('fileMenu').open = true");
+  await evaluate("document.getElementById('resetBtn').click()");
+  await sleep(100);
+  assert.equal(await evaluate("phonePath.length"), 0);
+  assert.equal(await evaluate("document.getElementById('fileMenu').open"), false);
+
+  // Step: Save entry PUTs the diagram to the server and closes the menu.
+  const saved = await evaluate(`(async () => {
+    let posted = null;
+    const originalFetch = window.fetch;
+    window.fetch = (url, opts) => { if (opts && opts.method === 'PUT') posted = String(url); return originalFetch(url, opts); };
+    document.getElementById('fileMenu').open = true;
+    document.getElementById('saveBtn').click();
+    await new Promise(r => setTimeout(r, 200));
+    window.fetch = originalFetch;
+    return JSON.stringify({ posted, open: document.getElementById('fileMenu').open });
+  })()`).then(JSON.parse);
+  assert.ok(saved.posted && saved.posted.includes('/api/diagrams/'));
+  assert.equal(saved.open, false);
+
+  // Step: Open file entry clicks the hidden file input and closes the menu.
+  const opened = await evaluate(`(() => {
+    let clicked = false;
+    const input = document.getElementById('openFileInput');
+    const original = input.click.bind(input);
+    input.click = () => { clicked = true; };
+    document.getElementById('fileMenu').open = true;
+    document.getElementById('openFileBtn').click();
+    input.click = original;
+    return JSON.stringify({ clicked, open: document.getElementById('fileMenu').open });
+  })()`).then(JSON.parse);
+  assert.equal(opened.clicked, true);
+  assert.equal(opened.open, false);
+
+  // Step: New entry resets the editor source and closes the menu.
+  await evaluate("document.getElementById('fileMenu').open = true");
+  await evaluate("document.getElementById('newBtn').click()");
+  await sleep(100);
+  assert.equal(await evaluate("codeBox.value"), 'flowchart TD\n  B_NEW[New idea]');
+  assert.equal(await evaluate("document.getElementById('fileMenu').open"), false);
+
+  // Step: restore the accountability diagram so later runs start clean.
+  await evaluate("loadDiagram('accountability.mmd')");
+  await sleep(300);
+});

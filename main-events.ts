@@ -83,3 +83,7 @@ codeBox.addEventListener('input', () => {
   resetEditorHistory(codeBox.value);
   render();
 });
+
+document.getElementById('fileMenuItems')!.addEventListener('click', () => {
+  (document.getElementById('fileMenu') as HTMLDetailsElement).open = false;
+});
