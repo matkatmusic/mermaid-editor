@@ -4,7 +4,8 @@ import { commitEditorSource, enqueueEditorAction, selectEditorNode } from './edi
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { focusInspectorDestination, focusInspectorText, replaceDeclarationInLine } from './node-inspector.ts';
 import { declarationSuffixOf, editorGraph, setEditorActionPromise } from './editor-graph.ts';
-import { destinationSelect, nodeTextInput } from './dom.ts';
+import { centerNodeInViewport } from './decision-nav.ts';
+import { destinationSelect, diagramBox, nodeTextInput, outputBox } from './dom.ts';
 
 export async function commitNewStaticAfter(sourceId: string, graph: EditorGraph) {
   const staticId = nextEditorId('B_NEW', graph);
@@ -155,6 +156,7 @@ export function applyDestination(destination: string) {
         : removeOutgoing(id, currentGraph);
       await commitEditorSource(source);
     }
+    centerNodeInViewport(outputBox, diagramBox, id);
   });
 }
 

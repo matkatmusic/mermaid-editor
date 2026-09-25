@@ -1008,7 +1008,7 @@ function watchDiagram(name) {
   watchedDiagramName = name;
   const source = new EventSource("/api/watch/" + encodeURIComponent(name));
   state.watcher = source;
-  source.onmessage = async () => {
+  const refresh = async () => {
     const versionAtFetchStart = saveVersion;
     const saveInFlightAtFetchStart = pendingSaveCount > 0;
     const text = await fetch("/api/diagrams/" + encodeURIComponent(name)).then((r) => r.text());
@@ -1030,6 +1030,8 @@ function watchDiagram(name) {
     }
     render();
   };
+  source.onmessage = refresh;
+  source.onopen = refresh;
 }
 async function saveDiagram() {
   let name = state.currentName;
@@ -2032,6 +2034,7 @@ function applyDestination(destination) {
       const source = destination ? replaceOutgoing(id, destination, currentGraph) : removeOutgoing(id, currentGraph);
       await commitEditorSource(source);
     }
+    centerNodeInViewport(outputBox, diagramBox, id);
   });
 }
 function commitDestination() {

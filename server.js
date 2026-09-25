@@ -16,6 +16,7 @@ const HOSTNAME = hostnameFlagIndex === -1 ? "0.0.0.0" : process.argv[hostnameFla
 if (import.meta.main) Bun.serve({
   port: PORT,
   hostname: HOSTNAME,
+  idleTimeout: 0,
   async fetch(req) {
     const url = new URL(req.url);
 

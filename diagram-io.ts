@@ -116,7 +116,7 @@ export function watchDiagram(name: string) {
   watchedDiagramName = name;
   const source = new EventSource('/api/watch/' + encodeURIComponent(name));
   state.watcher = source;
-  source.onmessage = async () => {
+  const refresh = async () => {
     const versionAtFetchStart = saveVersion;
     const saveInFlightAtFetchStart = pendingSaveCount > 0;
     const text = await fetch('/api/diagrams/' + encodeURIComponent(name)).then(r => r.text());
@@ -140,6 +140,8 @@ export function watchDiagram(name: string) {
     }
     render();
   };
+  source.onmessage = refresh;
+  source.onopen = refresh;
 }
 
 export async function saveDiagram() {
