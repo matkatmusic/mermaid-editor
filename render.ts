@@ -1,8 +1,9 @@
 declare const mermaid: any;
-import { codeBox, decisionCounter, diagramBox, errorBox, errorLog, outputBox, phoneDiagramBox } from './dom.ts';
+import { codeBox, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, outputBox, phoneDiagramBox } from './dom.ts';
 import { editorGraph } from './editor-graph.ts';
 import { discardInvalidPhonePreview, updateDecisionCounter } from './decision-nav.ts';
 import { chunkSource, parseEdges } from './diagram-source.ts';
+import { filterToFunctions } from './function-routing.ts';
 import { choicesOf, leadInIds, renderLog, siblingIds, sliceIds } from './graph-slice.ts';
 import { phonePath, state } from './state.ts';
 import { applyNodeTypeColors } from './node-type-colors.ts';
@@ -60,12 +61,14 @@ export async function render() {
     }
     state.currentBottomQ = bottomQ;
     const phoneSource = edges.length > 0 ? chunkSource(shown, siblings, edges) : codeBox.value;
+    const mainSource = state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value;
+    const filteredPhoneSource = state.functionsOnly ? filterToFunctions(phoneSource) : phoneSource;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const phoneViewport = { left: phoneDiagramBox.scrollLeft, top: phoneDiagramBox.scrollTop };
     const myRenderId = state.renderId;
     const [{ svg: regularSvg }, { svg: phoneSvg }] = await Promise.all([
-      mermaid.render('diagram-' + (state.renderId++), codeBox.value),
-      mermaid.render('phone-diagram-' + (state.renderId++), phoneSource),
+      mermaid.render('diagram-' + (state.renderId++), mainSource),
+      mermaid.render('phone-diagram-' + (state.renderId++), filteredPhoneSource),
     ]);
     // A newer render() started while this one was awaiting Mermaid; drop this stale result.
     if (state.renderId !== myRenderId + 2)
@@ -117,4 +120,9 @@ export async function render() {
     showEditorValidationError(err);
   }
 }
+
+functionsOnlyToggle.addEventListener('change', () => {
+  state.functionsOnly = functionsOnlyToggle.checked;
+  render();
+});
 
