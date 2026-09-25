@@ -1,9 +1,10 @@
 import { MAIN_ZOOM_STEP, chosenAnswers, phonePath, state } from './state.ts';
 import { restoreTypeMetadata, splitEditorMetadata } from './editor-graph.ts';
-import { codeBox, drawer, drawerToggle, logBox, logBtn, nextDecisionBtn, openFileBtn, openFileInput, outputBox, phoneDiagramBox, previousDecisionBtn, selectBox, zoomInBtn, zoomOutBtn, zoomResetBtn } from './dom.ts';
+import { codeBox, drawer, drawerToggle, logBox, logBtn, nextDecisionBtn, openFileBtn, openFileInput, outputBox, phoneDiagramBox, previousDecisionBtn, searchClearBtn, searchInput, searchNextBtn, searchPreviousBtn, selectBox, zoomInBtn, zoomOutBtn, zoomResetBtn } from './dom.ts';
 import { loadDiagram, loadList, resetEditorHistory, saveDiagram, setDrawerOpen } from './diagram-io.ts';
 import { render } from './render.ts';
 import { navigateDecision } from './decision-nav.ts';
+import { clearSearch, cycleSearch, runSearch } from './node-search.ts';
 import { setMainZoomPercent } from './zoom.ts';
 import { highlightPath } from './render-helpers.ts';
 
@@ -26,6 +27,10 @@ document.getElementById('newBtn')!.addEventListener('click', () => {
 document.getElementById('saveBtn')!.addEventListener('click', saveDiagram);
 previousDecisionBtn.addEventListener('click', () => navigateDecision(-1));
 nextDecisionBtn.addEventListener('click', () => navigateDecision(1));
+searchInput.addEventListener('input', runSearch);
+searchClearBtn.addEventListener('click', clearSearch);
+searchPreviousBtn.addEventListener('click', () => cycleSearch(-1));
+searchNextBtn.addEventListener('click', () => cycleSearch(1));
 zoomInBtn.addEventListener('click', () => setMainZoomPercent(state.mainZoomPercent + MAIN_ZOOM_STEP));
 zoomOutBtn.addEventListener('click', () => setMainZoomPercent(state.mainZoomPercent - MAIN_ZOOM_STEP));
 zoomResetBtn.addEventListener('click', () => setMainZoomPercent(100));
