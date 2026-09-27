@@ -21,6 +21,7 @@ export const openFileInput = document.getElementById('openFileInput') as HTMLInp
 export const mainBox = document.getElementById('main')!;
 export const outputBox = document.getElementById('output')!;
 export const phoneDiagramBox = document.getElementById('phoneDiagram')!;
+export const phoneSeparatorOverlay = document.getElementById('phoneSeparatorOverlay')!;
 export const logBtn = document.getElementById('logBtn')!;
 export const logBox = document.getElementById('logBox')!;
 export const previousDecisionBtn = document.getElementById('previousDecisionBtn')!;

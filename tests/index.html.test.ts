@@ -252,16 +252,16 @@ test("test_phone_view_shows_the_start_slice", async () => {
   assert.ok(widths.svg >= widths.output * 0.6);
   // Step: exactly one dashed separator marks the bottom decision point as pending.
   const separatorCount = await evaluate(
-    "JSON.stringify(document.querySelectorAll('#phoneDiagram svg line.separator').length)"
+    "JSON.stringify(document.querySelectorAll('#phoneSeparatorOverlay .separator-line').length)"
   );
   assert.equal(separatorCount, "1");
   // Step: one label reads "open decision", and there is no last-decision mask at the start slice.
   const startLabels = await evaluate(
-    "JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram svg text.separator-label')).map(el => el.textContent))"
+    "JSON.stringify(Array.from(document.querySelectorAll('#phoneSeparatorOverlay .separator-label')).map(el => el.textContent))"
   ).then(JSON.parse);
   assert.deepEqual(startLabels, ["open decision"]);
   const startMask = await evaluate(
-    "JSON.stringify(!!document.querySelector('#phoneDiagram svg rect.last-decision-mask'))"
+    "JSON.stringify(!!document.querySelector('#phoneSeparatorOverlay .last-decision-mask'))"
   );
   assert.equal(startMask, "false");
   // Step: the edge from the bottom decision point into its stub target is dotted.
@@ -291,31 +291,25 @@ test("test_clicking_a_decision_node_slices_to_the_next_decision_point", async ()
   assert.equal(topStubNode, "false");
   // Step: there are now two separators, one for the answered decision and one for the pending one.
   const separators = await evaluate(
-    "JSON.stringify({ lineCount: document.querySelectorAll('#phoneDiagram svg line.separator').length, labelTexts: Array.from(document.querySelectorAll('#phoneDiagram svg text.separator-label')).map(el => el.textContent), labelYs: Array.from(document.querySelectorAll('#phoneDiagram svg text.separator-label')).map(el => Number(el.getAttribute('y'))) })"
+    "JSON.stringify({ lineCount: document.querySelectorAll('#phoneSeparatorOverlay .separator-line').length, labelTexts: Array.from(document.querySelectorAll('#phoneSeparatorOverlay .separator-label')).map(el => el.textContent), labelYs: Array.from(document.querySelectorAll('#phoneSeparatorOverlay .separator-label')).map(el => el.getBoundingClientRect().top) })"
   ).then(JSON.parse);
   assert.equal(separators.lineCount, 2);
   assert.deepEqual([...separators.labelTexts].sort(), ["last decision", "open decision"]);
   const lastDecisionY = separators.labelYs[separators.labelTexts.indexOf("last decision")];
   const openDecisionY = separators.labelYs[separators.labelTexts.indexOf("open decision")];
   assert.ok(lastDecisionY < openDecisionY);
-  // Step: a light mask covers the answered "last decision" chunk, ending before the still-open decision point.
+  // Step: a light mask runs from the top of the phone view down to the "last decision" line, never past it.
   const mask = await evaluate(`JSON.stringify((() => {
-    const rect = document.querySelector('#phoneDiagram svg rect.last-decision-mask');
-    const yOf = (el) => Number(el.getAttribute('transform').match(/translate\\([^,]+,\\s*([^)]+)\\)/)[1]);
-    const doneSpeakingYY = yOf(document.querySelector('#phoneDiagram [id*="flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-"]'));
-    const understandY = yOf(document.querySelector('#phoneDiagram [id*="flowchart-Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID-"]'));
-    return {
-      exists: !!rect,
-      height: rect && Number(rect.getAttribute('height')),
-      bottom: rect && Number(rect.getAttribute('y')) + Number(rect.getAttribute('height')),
-      doneSpeakingYY,
-      understandY,
-    };
+    const el = document.querySelector('#phoneSeparatorOverlay .last-decision-mask');
+    const line = document.querySelector('#phoneSeparatorOverlay .separator-line[data-label="last decision"]');
+    const overlay = document.getElementById('phoneSeparatorOverlay').getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    return { top: rect.top - overlay.top, bottom: rect.bottom - overlay.top, lineTop: line.getBoundingClientRect().top - overlay.top, left: rect.left - overlay.left, width: rect.width, overlayWidth: overlay.width, overlayHeight: overlay.height };
   })())`).then(JSON.parse);
-  assert.equal(mask.exists, true);
-  assert.ok(mask.height > 0);
-  assert.ok(mask.bottom > mask.doneSpeakingYY);
-  assert.ok(mask.bottom < mask.understandY);
+  assert.equal(mask.top, 0);
+  assert.equal(mask.width, mask.overlayWidth);
+  assert.equal(mask.left, 0);
+  assert.ok(mask.bottom <= Math.max(0, Math.min(mask.lineTop, mask.overlayHeight)) + 0.5, JSON.stringify(mask));
   // Step: the unchosen "No" answer shows dimmed instead of disappearing.
   const unchosenNode = await evaluate(
     "JSON.stringify(!!document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_N-\"].unchosen'))"
@@ -358,6 +352,31 @@ test("test_clicking_a_decision_node_slices_to_the_next_decision_point", async ()
   assert.deepEqual(idsAfterSiblingClick, AFTER_Y_SLICE);
   const logAfterSiblingClick = await evaluate("document.getElementById('logBox').textContent");
   assert.equal(logAfterSiblingClick.split("\n").length - 1, 1);
+});
+
+test("test_phone_separator_labels_stay_at_the_left_edge_when_scrolled", async () => {
+  // Step: widen the phone diagram so it scrolls sideways, then scroll away from 0.
+  await evaluate(`(() => {
+    const box = document.getElementById('phoneDiagram');
+    const svg = box.querySelector('svg');
+    svg.style.width = box.clientWidth * 3 + 'px';
+    box.scrollLeft = box.clientWidth;
+  })()`);
+  await sleep(200);
+  // Step: both labels still sit inside the visible phone viewport.
+  const result = await evaluate(`JSON.stringify((() => {
+    const box = document.getElementById('phoneDiagram').getBoundingClientRect();
+    return {
+      scrollLeft: document.getElementById('phoneDiagram').scrollLeft,
+      labels: Array.from(document.querySelectorAll('#phoneSeparatorOverlay .separator-label')).map(el => {
+        const r = el.getBoundingClientRect();
+        return { text: el.textContent, inside: r.left >= box.left && r.right <= box.right };
+      }),
+    };
+  })())`).then(JSON.parse);
+  assert.ok(result.scrollLeft > 0);
+  assert.deepEqual(result.labels.map(l => l.text).sort(), ["last decision", "open decision"]);
+  for (const label of result.labels) assert.equal(label.inside, true);
 });
 
 test("test_reset_returns_to_the_start_slice", async () => {
@@ -1440,7 +1459,7 @@ test('test_previous_selection_mask_stops_before_the_open_decision_after_each_pho
   await evaluate(`document.querySelector('#phoneDiagram [id*="flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await sleep(400);
   const firstMaskState = await evaluate(`JSON.stringify((() => {
-    const mask = document.querySelector('#phoneDiagram .last-decision-mask').getBoundingClientRect();
+    const mask = document.querySelector('#phoneSeparatorOverlay .last-decision-mask').getBoundingClientRect();
     const openDecision = document.querySelector('#phoneDiagram [id*="flowchart-Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID-"]').getBoundingClientRect();
     const openChoices = ['Y', 'N'].map(suffix => document.querySelector('#phoneDiagram [id*="flowchart-Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_' + suffix + '-"]').getBoundingClientRect());
     return { maskBottom: mask.bottom, openDecisionTop: openDecision.top, openChoiceTops: openChoices.map(rect => rect.top) };
@@ -1451,7 +1470,7 @@ test('test_previous_selection_mask_stops_before_the_open_decision_after_each_pho
   await evaluate(`document.querySelector('#phoneDiagram [id*="flowchart-Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N-"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await sleep(400);
   const maskState = await evaluate(`JSON.stringify((() => {
-    const mask = document.querySelector('#phoneDiagram .last-decision-mask').getBoundingClientRect();
+    const mask = document.querySelector('#phoneSeparatorOverlay .last-decision-mask').getBoundingClientRect();
     const openDecision = document.querySelector('#phoneDiagram [id*="flowchart-Q_CLARIFY_ISSUE_COUNT-"]').getBoundingClientRect();
     const openChoices = ['NONE', 'ONCE', 'MULTIPLE'].map(suffix => document.querySelector('#phoneDiagram [id*="flowchart-Q_CHOICE_CLARIFY_ISSUE_COUNT_' + suffix + '-"]').getBoundingClientRect());
     return {
@@ -2183,4 +2202,27 @@ test('test_dark_mode_toggle_off_restores_the_light_background_and_on_restores_da
   assert.equal(await evaluate("getComputedStyle(document.body).backgroundColor"), 'rgb(255, 255, 255)');
   await evaluate("(() => { const toggle = document.getElementById('darkModeToggle'); toggle.checked = true; toggle.dispatchEvent(new Event('change')); })()");
   assert.equal(await evaluate("getComputedStyle(document.body).backgroundColor"), 'rgb(30, 30, 30)');
+});
+
+test('test_last_decision_mask_color_follows_dark_mode_and_never_passes_the_last_decision_line', async () => {
+  await evaluate("loadDiagram('accountability.mmd')");
+  await sleep(500);
+  await evaluate(`document.querySelector('#phoneDiagram [id*="flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  await sleep(400);
+  const maskColor = () => evaluate("getComputedStyle(document.querySelector('#phoneSeparatorOverlay .last-decision-mask')).backgroundColor");
+  const setDark = (on) => evaluate(`(() => { const toggle = document.getElementById('darkModeToggle'); toggle.checked = ${on}; toggle.dispatchEvent(new Event('change')); })()`);
+  await setDark(true);
+  await sleep(400);
+  assert.equal(await maskColor(), 'rgba(255, 255, 255, 0.25)');
+  await setDark(false);
+  await sleep(400);
+  assert.equal(await maskColor(), 'rgba(0, 0, 0, 0.25)');
+  const maskBottomAndLineTop = await evaluate(`JSON.stringify((() => {
+    const mask = document.querySelector('#phoneSeparatorOverlay .last-decision-mask').getBoundingClientRect();
+    const line = document.querySelector('#phoneSeparatorOverlay .separator-line[data-label="last decision"]').getBoundingClientRect();
+    return { maskBottom: mask.bottom, lineTop: line.top };
+  })())`).then(JSON.parse);
+  assert.ok(maskBottomAndLineTop.maskBottom <= maskBottomAndLineTop.lineTop + 0.5, JSON.stringify(maskBottomAndLineTop));
+  await setDark(true);
+  await sleep(400);
 });

@@ -1,5 +1,5 @@
 declare const mermaid: any;
-import { codeBox, darkModeToggle, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, mermaidOptions, outputBox, phoneDiagramBox } from './dom.ts';
+import { codeBox, darkModeToggle, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, mermaidOptions, outputBox, phoneDiagramBox, phoneSeparatorOverlay } from './dom.ts';
 import { editorGraph } from './editor-graph.ts';
 import { discardInvalidPhonePreview, updateDecisionCounter } from './decision-nav.ts';
 import { chunkSource, parseEdges } from './diagram-source.ts';
@@ -10,7 +10,7 @@ import { applyNodeTypeColors } from './node-type-colors.ts';
 import { renderEditorSelection } from './editor-actions.ts';
 import { highlightPath, showEditorValidationError } from './render-helpers.ts';
 import { baseScale, viewBoxOf } from './zoom.ts';
-import { drawLastDecisionMask, drawSeparatorBetween, scrollChoicesIntoView } from './phone-separators.ts';
+import { drawLastDecisionMask, drawSeparatorBetween, scrollChoicesIntoView, updateSeparatorTops } from './phone-separators.ts';
 import { positionNodeInspector } from './node-inspector.ts';
 
 export async function render() {
@@ -75,6 +75,7 @@ export async function render() {
       return;
     diagramBox.innerHTML = regularSvg;
     phoneDiagramBox.innerHTML = phoneSvg;
+    phoneSeparatorOverlay.replaceChildren();
     applyNodeTypeColors(graph);
     renderEditorSelection();
     highlightPath();
@@ -102,7 +103,7 @@ export async function render() {
       && graph.nodes.get(ids[0])?.kind === 'question';
     const shouldDrawLastDecision = edges.length > 0 && (phonePath.length > 0 || state.phonePreviewChoiceId || hasContextualPreviousDecision);
     if (shouldDrawLastDecision)
-      drawLastDecisionMask(ids, edges, bottomQ);
+      drawLastDecisionMask();
     if (shouldDrawLastDecision)
       drawSeparatorBetween(ids[0], choicesOf(ids[0], edges), 'last decision');
     const shouldDrawBottomSeparator = edges.length > 0 && bottomQ;
@@ -110,6 +111,7 @@ export async function render() {
       drawSeparatorBetween(bottomQ!, choicesOf(bottomQ!, edges), 'open decision');
     if (edges.length > 0)
       scrollChoicesIntoView(bottomQ, edges);
+    updateSeparatorTops();
     positionNodeInspector();
     errorLog.textContent = '';
     errorLog.classList.remove('open');

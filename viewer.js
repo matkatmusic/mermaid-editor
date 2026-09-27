@@ -16,6 +16,7 @@ var openFileInput = document.getElementById("openFileInput");
 var mainBox = document.getElementById("main");
 var outputBox = document.getElementById("output");
 var phoneDiagramBox = document.getElementById("phoneDiagram");
+var phoneSeparatorOverlay = document.getElementById("phoneSeparatorOverlay");
 var logBtn = document.getElementById("logBtn");
 var logBox = document.getElementById("logBox");
 var previousDecisionBtn = document.getElementById("previousDecisionBtn");
@@ -1258,9 +1259,7 @@ function filterToFunctions(source) {
 
 // phone-separators.ts
 function drawSeparatorBetween(topId, belowIds, label) {
-  const svg = phoneDiagramBox.querySelector("svg");
   const nodeEl = (id) => phoneDiagramBox.querySelector('[id*="flowchart-' + id + '-"]');
-  const yOf = (el) => Number(el.getAttribute("transform").match(/translate\([^,]+,\s*([^)]+)\)/)[1]);
   const top = nodeEl(topId);
   const belowEls = [];
   for (const id of belowIds) {
@@ -1271,102 +1270,39 @@ function drawSeparatorBetween(topId, belowIds, label) {
   const hasTopAndBelow = top && belowEls.length;
   if (!hasTopAndBelow)
     return;
-  const topBottom = yOf(top) + top.getBBox().height / 2;
   const belowTops = [];
   for (const el of belowEls) {
-    belowTops.push(yOf(el) - el.getBBox().height / 2);
+    belowTops.push(el.getBoundingClientRect().top);
   }
-  const belowTop = Math.min(...belowTops);
-  const viewBoxParts = svg.getAttribute("viewBox").split(" ");
-  const viewBoxNumbers = [];
-  for (const part of viewBoxParts) {
-    viewBoxNumbers.push(Number(part));
-  }
-  const [x, , width] = viewBoxNumbers;
-  const y = (topBottom + belowTop) / 2;
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  const lineAttrs = [
-    ["x1", String(x - 1e4)],
-    ["x2", String(x + width + 1e4)],
-    ["y1", String(y)],
-    ["y2", String(y)],
-    ["stroke", "#888"],
-    ["stroke-width", "2"],
-    ["stroke-dasharray", "8 6"]
-  ];
-  for (const [name, value] of lineAttrs) {
-    line.setAttribute(name, value);
-  }
-  line.setAttribute("class", "separator");
-  svg.appendChild(line);
-  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  const screenToSvg = svg.getScreenCTM().inverse();
-  const svgLeft = new DOMPoint(svg.getBoundingClientRect().left, 0).matrixTransform(screenToSvg).x;
-  text.setAttribute("x", String(svgLeft + 8));
-  text.setAttribute("y", String(y - 6));
-  const isOpenDecision = label === "open decision";
-  const fill = isOpenDecision ? "#2e7d32" : "#c62828";
-  text.setAttribute("fill", fill);
-  text.setAttribute("stroke", "#000");
-  text.setAttribute("stroke-width", "0.6");
-  text.setAttribute("paint-order", "stroke");
-  text.setAttribute("font-weight", "bold");
-  text.setAttribute("font-size", "16");
-  text.setAttribute("font-family", "sans-serif");
-  text.setAttribute("class", "separator-label");
-  text.textContent = label;
-  svg.appendChild(text);
+  const midY = (top.getBoundingClientRect().bottom + Math.min(...belowTops)) / 2;
+  const separator = document.createElement("div");
+  separator.className = "separator-line";
+  separator.dataset.label = label;
+  separator.dataset.contentY = String(midY - phoneDiagramBox.getBoundingClientRect().top + phoneDiagramBox.scrollTop);
+  const labelEl = document.createElement("span");
+  labelEl.className = "separator-label";
+  labelEl.textContent = label;
+  labelEl.style.color = label === "open decision" ? "#2e7d32" : "#c62828";
+  separator.appendChild(labelEl);
+  phoneSeparatorOverlay.appendChild(separator);
+  updateSeparatorTops();
 }
-function drawLastDecisionMask(ids, edges, openDecisionId) {
-  const svg = phoneDiagramBox.querySelector("svg");
-  const nodeEl = (id) => phoneDiagramBox.querySelector('[id*="flowchart-' + id + '-"]');
-  const yOf = (el) => Number(el.getAttribute("transform").match(/translate\([^,]+,\s*([^)]+)\)/)[1]);
-  const top = nodeEl(ids[0]);
-  const choiceEls = [];
-  for (const id of choicesOf(ids[0], edges)) {
-    const el = nodeEl(id);
-    if (el)
-      choiceEls.push(el);
-  }
-  const hasTopAndChoices = top && choiceEls.length;
-  if (!hasTopAndChoices)
+function updateSeparatorTops() {
+  for (const separator of phoneSeparatorOverlay.querySelectorAll(".separator-line"))
+    separator.style.top = Number(separator.dataset.contentY) - phoneDiagramBox.scrollTop + "px";
+  const mask = phoneSeparatorOverlay.querySelector(".last-decision-mask");
+  const lastDecisionLine = phoneSeparatorOverlay.querySelector('.separator-line[data-label="last decision"]');
+  if (!mask)
     return;
-  const bottoms = [];
-  for (const el of choiceEls) {
-    bottoms.push(yOf(el) + el.getBBox().height / 2);
-  }
-  let maskBottom = Math.max(...bottoms) + 12;
-  if (openDecisionId && openDecisionId !== ids[0]) {
-    const protectedEls = [];
-    for (const id of [openDecisionId, ...choicesOf(openDecisionId, edges)]) {
-      const el = nodeEl(id);
-      if (el)
-        protectedEls.push(el);
-    }
-    if (protectedEls.length) {
-      const protectedTop = Math.min(...protectedEls.map((el) => yOf(el) - el.getBBox().height / 2));
-      maskBottom = Math.min(maskBottom, protectedTop - 4);
-    }
-  }
-  const viewBoxParts = svg.getAttribute("viewBox").split(" ");
-  const viewBoxNumbers = [];
-  for (const part of viewBoxParts) {
-    viewBoxNumbers.push(Number(part));
-  }
-  const [x, y, width] = viewBoxNumbers;
-  const maskHeight = Math.max(0, maskBottom - y);
-  if (maskHeight === 0)
-    return;
-  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  rect.setAttribute("x", String(x - 1e4));
-  rect.setAttribute("y", String(y));
-  rect.setAttribute("width", String(width + 20000));
-  rect.setAttribute("height", String(maskHeight));
-  rect.setAttribute("fill", "rgba(0,0,0,0.25)");
-  rect.setAttribute("class", "last-decision-mask");
-  rect.setAttribute("pointer-events", "none");
-  svg.appendChild(rect);
+  const lineTop = lastDecisionLine ? Number(lastDecisionLine.dataset.contentY) - phoneDiagramBox.scrollTop : 0;
+  mask.style.height = Math.min(Math.max(lineTop, 0), phoneSeparatorOverlay.clientHeight) + "px";
 }
+function drawLastDecisionMask() {
+  const mask = document.createElement("div");
+  mask.className = "last-decision-mask";
+  phoneSeparatorOverlay.appendChild(mask);
+}
+phoneDiagramBox.addEventListener("scroll", updateSeparatorTops);
 function scrollChoicesIntoView(bottomQ, edges) {
   if (state.functionsOnly)
     return;
@@ -1449,6 +1385,7 @@ async function render() {
       return;
     diagramBox.innerHTML = regularSvg;
     phoneDiagramBox.innerHTML = phoneSvg;
+    phoneSeparatorOverlay.replaceChildren();
     applyNodeTypeColors(graph);
     renderEditorSelection();
     highlightPath();
@@ -1474,7 +1411,7 @@ async function render() {
     const hasContextualPreviousDecision = state.phoneFocusUsesDecisionContext && ids[0] !== state.phoneFocusNodeId && graph.nodes.get(ids[0])?.kind === "question";
     const shouldDrawLastDecision = edges.length > 0 && (phonePath.length > 0 || state.phonePreviewChoiceId || hasContextualPreviousDecision);
     if (shouldDrawLastDecision)
-      drawLastDecisionMask(ids, edges, bottomQ);
+      drawLastDecisionMask();
     if (shouldDrawLastDecision)
       drawSeparatorBetween(ids[0], choicesOf(ids[0], edges), "last decision");
     const shouldDrawBottomSeparator = edges.length > 0 && bottomQ;
@@ -1482,6 +1419,7 @@ async function render() {
       drawSeparatorBetween(bottomQ, choicesOf(bottomQ, edges), "open decision");
     if (edges.length > 0)
       scrollChoicesIntoView(bottomQ, edges);
+    updateSeparatorTops();
     positionNodeInspector();
     errorLog.textContent = "";
     errorLog.classList.remove("open");
