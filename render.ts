@@ -1,5 +1,5 @@
 declare const mermaid: any;
-import { codeBox, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, outputBox, phoneDiagramBox } from './dom.ts';
+import { codeBox, darkModeToggle, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, mermaidOptions, outputBox, phoneDiagramBox } from './dom.ts';
 import { editorGraph } from './editor-graph.ts';
 import { discardInvalidPhonePreview, updateDecisionCounter } from './decision-nav.ts';
 import { chunkSource, parseEdges } from './diagram-source.ts';
@@ -126,3 +126,8 @@ functionsOnlyToggle.addEventListener('change', () => {
   render();
 });
 
+darkModeToggle.addEventListener('change', () => {
+  document.body.classList.toggle('dark', darkModeToggle.checked);
+  mermaid.initialize(mermaidOptions());
+  render();
+});

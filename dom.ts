@@ -3,7 +3,10 @@ declare const mermaid: any;
 export type Edge = [string, string];
 
 // mermaid.initialize({ startOnLoad: false });
-mermaid.initialize({ startOnLoad: false, suppressErrorRendering: true });
+// mermaid.initialize({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1000000 });
+export const darkModeToggle = document.getElementById('darkModeToggle') as HTMLInputElement;
+export const mermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1000000, theme: darkModeToggle.checked ? 'dark' : 'default', themeVariables: darkModeToggle.checked ? { primaryColor: '#ececff', nodeBkg: '#ececff', mainBkg: '#ececff', primaryTextColor: '#000', nodeTextColor: '#000', primaryBorderColor: '#9370db', nodeBorder: '#9370db' } : {} });
+mermaid.initialize(mermaidOptions());
 export const codeBox = document.getElementById('code') as HTMLTextAreaElement;
 export const diagramBox = document.getElementById('diagram')!;
 export const errorBox = document.getElementById('error')!;

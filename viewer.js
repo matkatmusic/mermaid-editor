@@ -1,5 +1,7 @@
 // dom.ts
-mermaid.initialize({ startOnLoad: false, suppressErrorRendering: true });
+var darkModeToggle = document.getElementById("darkModeToggle");
+var mermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1e6, theme: darkModeToggle.checked ? "dark" : "default", themeVariables: darkModeToggle.checked ? { primaryColor: "#ececff", nodeBkg: "#ececff", mainBkg: "#ececff", primaryTextColor: "#000", nodeTextColor: "#000", primaryBorderColor: "#9370db", nodeBorder: "#9370db" } : {} });
+mermaid.initialize(mermaidOptions());
 var codeBox = document.getElementById("code");
 var diagramBox = document.getElementById("diagram");
 var errorBox = document.getElementById("error");
@@ -1491,6 +1493,11 @@ async function render() {
 }
 functionsOnlyToggle.addEventListener("change", () => {
   state.functionsOnly = functionsOnlyToggle.checked;
+  render();
+});
+darkModeToggle.addEventListener("change", () => {
+  document.body.classList.toggle("dark", darkModeToggle.checked);
+  mermaid.initialize(mermaidOptions());
   render();
 });
 

@@ -2166,3 +2166,21 @@ test('test_open_file_menu_list_stacks_above_the_selected_item_widget', async () 
   const zIndexes = await evaluate("({ menu: Number(getComputedStyle(document.getElementById('fileMenuItems')).zIndex), widget: Number(getComputedStyle(document.getElementById('nodeInspector')).zIndex) })");
   assert.ok(zIndexes.menu > zIndexes.widget);
 });
+
+test('test_dark_mode_toggle_exists_and_is_checked_on_load_with_dark_background', async () => {
+  assert.equal(await evaluate("document.getElementById('darkModeToggle').type"), 'checkbox');
+  assert.equal(await evaluate("document.getElementById('darkModeToggle').checked"), true);
+  assert.equal(await evaluate("getComputedStyle(document.body).backgroundColor"), 'rgb(30, 30, 30)');
+});
+
+test('test_dark_mode_on_renders_flowchart_node_text_black', async () => {
+  assert.equal(await evaluate("document.getElementById('darkModeToggle').checked"), true);
+  assert.equal(await evaluate("getComputedStyle(document.querySelector('#phoneDiagram .node .nodeLabel p')).color"), 'rgb(0, 0, 0)');
+});
+
+test('test_dark_mode_toggle_off_restores_the_light_background_and_on_restores_dark', async () => {
+  await evaluate("(() => { const toggle = document.getElementById('darkModeToggle'); toggle.checked = false; toggle.dispatchEvent(new Event('change')); })()");
+  assert.equal(await evaluate("getComputedStyle(document.body).backgroundColor"), 'rgb(255, 255, 255)');
+  await evaluate("(() => { const toggle = document.getElementById('darkModeToggle'); toggle.checked = true; toggle.dispatchEvent(new Event('change')); })()");
+  assert.equal(await evaluate("getComputedStyle(document.body).backgroundColor"), 'rgb(30, 30, 30)');
+});

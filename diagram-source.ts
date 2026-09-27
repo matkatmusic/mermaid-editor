@@ -1,4 +1,4 @@
-import { codeBox } from './dom.ts';
+import { codeBox, darkModeToggle } from './dom.ts';
 import type { Edge } from './dom.ts';
 
 export function chunkSource(shown: Set<string>, siblings: string[], edges: Edge[]) {
@@ -84,6 +84,8 @@ export function chunkSource(shown: Set<string>, siblings: string[], edges: Edge[
     lines.push(`class ${[...hidden].join(',')} stub`);
   }
   if (siblings.length) {
+    // lines.push('classDef unchosen fill:#eee,stroke:#bbb,color:#999');
+    // lines.push(darkModeToggle.checked ? 'classDef unchosen fill:#3a3a3a,stroke:#666,color:#777' : 'classDef unchosen fill:#eee,stroke:#bbb,color:#999');
     lines.push('classDef unchosen fill:#eee,stroke:#bbb,color:#999');
     lines.push(`class ${siblings.join(',')} unchosen`);
   }
