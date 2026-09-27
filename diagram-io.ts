@@ -1,4 +1,4 @@
-import { codeBox, diagramBox, drawer, outputBox, selectBox, statusBox } from './dom.ts';
+import { codeBox, currentFileName, diagramBox, drawer, outputBox, selectBox, statusBox } from './dom.ts';
 import { positionNodeInspector } from './node-inspector.ts';
 import { phonePath, state } from './state.ts';
 import { selectEditorNode } from './editor-actions.ts';
@@ -21,6 +21,7 @@ export function setDrawerOpen(open: boolean) {
 }
 
 export async function loadList() {
+  currentFileName.textContent = state.currentName ?? '';
   const names = await fetch('/api/diagrams').then(r => r.json());
   selectBox.innerHTML = '<option value="" disabled ' + (state.currentName ? '' : 'selected') + '>Diagrams</option>';
   for (const name of names) {

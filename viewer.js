@@ -6,6 +6,7 @@ var errorBox = document.getElementById("error");
 var errorLog = document.getElementById("errorLog");
 var statusBox = document.getElementById("status");
 var selectBox = document.getElementById("diagramSelect");
+var currentFileName = document.getElementById("currentFileName");
 var drawer = document.getElementById("drawer");
 var drawerToggle = document.getElementById("drawerToggle");
 var openFileBtn = document.getElementById("openFileBtn");
@@ -926,6 +927,7 @@ function setDrawerOpen(open) {
   positionNodeInspector();
 }
 async function loadList() {
+  currentFileName.textContent = state.currentName ?? "";
   const names = await fetch("/api/diagrams").then((r) => r.json());
   selectBox.innerHTML = '<option value="" disabled ' + (state.currentName ? "" : "selected") + ">Diagrams</option>";
   for (const name of names) {
@@ -1076,25 +1078,6 @@ async function saveDiagram() {
 function decisionNodes(graph) {
   return [...graph.nodes.values()].filter((node) => node.kind === "question").sort((a, b) => a.lineIndex - b.lineIndex);
 }
-function nearestDecisionFrom(id, step, graph) {
-  const visited = new Set([id]);
-  let frontier = [id];
-  while (frontier.length) {
-    const nextFrontier = [];
-    for (const nodeId of frontier) {
-      for (const edge of graph.edges) {
-        const neighbor = step === 1 ? edge.from === nodeId ? edge.to : null : edge.to === nodeId ? edge.from : null;
-        if (!neighbor || visited.has(neighbor))
-          continue;
-        visited.add(neighbor);
-        if (graph.nodes.get(neighbor)?.kind === "question")
-          return graph.nodes.get(neighbor);
-        nextFrontier.push(neighbor);
-      }
-    }
-    frontier = nextFrontier;
-  }
-}
 function nearestFeedingChoice(id, graph) {
   const visited = new Set([id]);
   let frontier = [id];
@@ -1162,11 +1145,10 @@ async function navigateDecision(step) {
     return;
   }
   const selected = graph.nodes.get(state.selectedEditorNodeId ?? "");
-  const nearest = selected ? nearestDecisionFrom(selected.id, step, graph) : undefined;
   const anchorId = selected?.kind === "question" ? selected.id : state.currentDecisionId;
   const currentIndex = decisions.findIndex((node) => node.id === anchorId);
   const nextIndex = (currentIndex + step + decisions.length) % decisions.length;
-  const decision = nearest ?? decisions[nextIndex];
+  const decision = decisions[nextIndex];
   state.currentDecisionId = decision.id;
   state.phoneFocusNodeId = decision.id;
   state.phoneFocusUsesDecisionContext = true;
@@ -1524,6 +1506,8 @@ async function commitEditorSource(source, options) {
     state.editorHistoryIndex = state.editorHistory.length - 1;
   }
   await render();
+  if (!state.currentName)
+    throw new Error("No diagram file is loaded to auto-save into");
   await saveDiagram();
   selectEditorNode(null);
 }

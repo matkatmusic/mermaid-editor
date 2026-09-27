@@ -10,7 +10,7 @@
   #header button, #header select { padding: 6px 10px; }
   #fileMenu { position: relative; }
   #fileMenu > summary { cursor: pointer; padding: 6px 10px; list-style: none; }
-  #fileMenu[open] > #fileMenuItems { position: absolute; top: 100%; left: 0; z-index: 10; display: flex; flex-direction: column; gap: 4px; padding: 4px; background: #fff; border: 1px solid #ccc; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+  #fileMenu[open] > #fileMenuItems { position: absolute; top: 100%; left: 0; z-index: 30; display: flex; flex-direction: column; gap: 4px; padding: 4px; background: #fff; border: 1px solid #ccc; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
   #mainZoomControls { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
   #searchControls { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
   #searchBox { position: relative; display: inline-flex; align-items: center; }
@@ -87,7 +87,7 @@
   <button id="nextDecisionBtn">Next</button>
   <span id="decisionCounter" aria-live="polite">0 / 0</span>
   <div id="mainZoomControls" role="group" aria-label="Main diagram zoom">
-    <span>Main zoom:</span>
+    <span>Zoom:</span>
     <button id="zoomInBtn" type="button" aria-label="Zoom main diagram in">+</button>
     <button id="zoomOutBtn" type="button" aria-label="Zoom main diagram out">−</button>
     <button id="zoomResetBtn" type="button">Reset</button>
@@ -97,6 +97,7 @@
   <select id="diagramSelect">
     <option value="" disabled selected>Diagrams</option>
   </select>
+  <span id="currentFileName"></span>
   <div id="status"></div>
 </div>
 <div id="main">

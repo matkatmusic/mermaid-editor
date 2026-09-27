@@ -1,0 +1,13 @@
+{
+  "name": "mermaid-editor",
+  "version": "0.1.0",
+  "description": "Mermaid diagram tooling for the relationship-mermaid editor: /create-mermaid scans tracked TypeScript files and writes one .taskTools/diagrams/<path>.mmd flowchart per file. Usable from any directory via --plugin-dir.",
+  "author": {
+    "name": "Matkat Music LLC"
+  },
+  "keywords": [
+    "mermaid",
+    "diagrams",
+    "create-mermaid"
+  ]
+}

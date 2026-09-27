@@ -17,6 +17,8 @@ export async function commitEditorSource(source: string, options?: { recordHisto
     state.editorHistoryIndex = state.editorHistory.length - 1;
   }
   await render();
+  if (!state.currentName)
+    throw new Error('No diagram file is loaded to auto-save into');
   await saveDiagram();
   selectEditorNode(null);
 }

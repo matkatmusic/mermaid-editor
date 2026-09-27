@@ -480,6 +480,7 @@ test("test_decision_log_reflects_choices_and_undo", async () => {
   // Step: press Reset; the log returns to just the header.
   await evaluate("document.getElementById('resetBtn').click()");
   await waitForNodeIds(AFTER_Y_SLICE);
+  await sleep(300);
   const logAfterReset = await evaluate("document.getElementById('logBox').textContent");
   assert.equal(logAfterReset, "-- Decision Log for <issue> (<timestamp>) --");
   // Step: clicking the log button again closes the drawer and reveals the diagram.
@@ -1135,7 +1136,7 @@ async function inspectorFocus() {
   return evaluate(`JSON.stringify({ activeId: document.activeElement?.id, selectedId: document.getElementById('selectedNode').textContent })`).then(JSON.parse);
 }
 
-test('test_decision_navigation_uses_the_nearest_graph_neighbor_and_focuses_both_views', async () => {
+test('test_decision_navigation_steps_through_every_decision_in_source_order_and_focuses_both_views', async () => {
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  B_START["Start"]\n  Q_FIRST{"First decision"}\n  Q_CHOICE_FIRST_YES["Yes"]\n  Q_CHOICE_FIRST_NO["No"]\n  B_MIDDLE["Middle"]\n  Q_SECOND{"Second decision"}\n  Q_CHOICE_SECOND_YES["Yes"]\n  Q_CHOICE_SECOND_NO["No"]\n  B_START --> Q_FIRST\n  Q_FIRST --> Q_CHOICE_FIRST_YES --> B_MIDDLE --> Q_SECOND\n  Q_FIRST --> Q_CHOICE_FIRST_NO\n  Q_SECOND --> Q_CHOICE_SECOND_YES\n  Q_SECOND --> Q_CHOICE_SECOND_NO');
   // Step: the counter follows standalone brace-shaped decisions in source order.
@@ -1166,16 +1167,13 @@ test('test_decision_navigation_uses_the_nearest_graph_neighbor_and_focuses_both_
     return x >= pane.left && x <= pane.right && y >= pane.top && y <= pane.bottom;
   })()`);
   assert.equal(mainFocusVisible, true);
-  // Step: Next starts at the selected block's closest downstream decision, even if the counter is already there.
+  // Step: Next and Previous step through every decision in source order and wrap, ignoring graph neighbors.
   await clickNode('B_MIDDLE');
   await evaluate("document.getElementById('nextDecisionBtn').click()");
   await sleep(300);
-  assert.equal(await evaluate("document.getElementById('selectedNode').textContent"), 'Q_SECOND');
-  assert.equal(await evaluate("document.getElementById('decisionCounter').textContent"), '2 / 2');
-  // Step: Previous starts at the selected choice's closest upstream decision,
-  // rather than skipping it because of the older navigation position.
+  assert.equal(await evaluate("document.getElementById('selectedNode').textContent"), 'Q_FIRST');
+  assert.equal(await evaluate("document.getElementById('decisionCounter').textContent"), '1 / 2');
   await clickNode('Q_CHOICE_SECOND_YES');
-  assert.equal(await evaluate("document.getElementById('decisionCounter').textContent"), '2 / 2');
   await evaluate("document.getElementById('previousDecisionBtn').click()");
   await sleep(300);
   assert.equal(await evaluate("document.getElementById('selectedNode').textContent"), 'Q_SECOND');
@@ -1185,6 +1183,27 @@ test('test_decision_navigation_uses_the_nearest_graph_neighbor_and_focuses_both_
   assert.equal(await evaluate("document.getElementById('selectedNode').textContent"), 'Q_FIRST');
   assert.equal(await evaluate("document.getElementById('decisionCounter').textContent"), '1 / 2');
 });
+
+  // Old nearest-graph-neighbor assertions:
+  // // Step: Next starts at the selected block's closest downstream decision, even if the counter is already there.
+  // await clickNode('B_MIDDLE');
+  // await evaluate("document.getElementById('nextDecisionBtn').click()");
+  // await sleep(300);
+  // assert.equal(await evaluate("document.getElementById('selectedNode').textContent"), 'Q_SECOND');
+  // assert.equal(await evaluate("document.getElementById('decisionCounter').textContent"), '2 / 2');
+  // // Step: Previous starts at the selected choice's closest upstream decision,
+  // // rather than skipping it because of the older navigation position.
+  // await clickNode('Q_CHOICE_SECOND_YES');
+  // assert.equal(await evaluate("document.getElementById('decisionCounter').textContent"), '2 / 2');
+  // await evaluate("document.getElementById('previousDecisionBtn').click()");
+  // await sleep(300);
+  // assert.equal(await evaluate("document.getElementById('selectedNode').textContent"), 'Q_SECOND');
+  // assert.equal(await evaluate("document.getElementById('decisionCounter').textContent"), '2 / 2');
+  // await evaluate("document.getElementById('previousDecisionBtn').click()");
+  // await sleep(300);
+  // assert.equal(await evaluate("document.getElementById('selectedNode').textContent"), 'Q_FIRST');
+  // assert.equal(await evaluate("document.getElementById('decisionCounter').textContent"), '1 / 2');
+  // });
 
 const SEARCH_FIXTURE = 'flowchart TD\n  B_START["Start"]\n  Q_FIRST{"First decision"}\n  Q_CHOICE_FIRST_YES["Yes"]\n  Q_CHOICE_FIRST_NO["No"]\n  B_MIDDLE["Middle"]\n  Q_SECOND{"Second decision"}\n  Q_CHOICE_SECOND_YES["Yes"]\n  Q_CHOICE_SECOND_NO["No"]\n  B_START --> Q_FIRST\n  Q_FIRST --> Q_CHOICE_FIRST_YES --> B_MIDDLE --> Q_SECOND\n  Q_FIRST --> Q_CHOICE_FIRST_NO\n  Q_SECOND --> Q_CHOICE_SECOND_YES\n  Q_SECOND --> Q_CHOICE_SECOND_NO';
 
@@ -2080,8 +2099,7 @@ test('test_viewer_js_build_matches_committed_bundle', async () => {
 });
 
 test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
-  // Scenario: the four file actions moved into one dropdown menu; each entry keeps its old id and handler, and the menu closes after a choice.
-  // Step: start from a known diagram so state.currentName is set (Save must not prompt).
+  // Scenario: four file actions live in one dropdown menu; entries keep old ids and handlers.
   await evaluate("loadDiagram('accountability.mmd')");
   await sleep(300);
 
@@ -2141,4 +2159,10 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
   // Step: restore the accountability diagram so later runs start clean.
   await evaluate("loadDiagram('accountability.mmd')");
   await sleep(300);
+});
+
+test('test_open_file_menu_list_stacks_above_the_selected_item_widget', async () => {
+  await evaluate("document.getElementById('fileMenu').open = true");
+  const zIndexes = await evaluate("({ menu: Number(getComputedStyle(document.getElementById('fileMenuItems')).zIndex), widget: Number(getComputedStyle(document.getElementById('nodeInspector')).zIndex) })");
+  assert.ok(zIndexes.menu > zIndexes.widget);
 });

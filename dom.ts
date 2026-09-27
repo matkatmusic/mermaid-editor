@@ -10,6 +10,7 @@ export const errorBox = document.getElementById('error')!;
 export const errorLog = document.getElementById('errorLog')!;
 export const statusBox = document.getElementById('status')!;
 export const selectBox = document.getElementById('diagramSelect') as HTMLSelectElement;
+export const currentFileName = document.getElementById('currentFileName')!;
 export const drawer = document.getElementById('drawer')!;
 export const drawerToggle = document.getElementById('drawerToggle')!;
 export const openFileBtn = document.getElementById('openFileBtn')!;

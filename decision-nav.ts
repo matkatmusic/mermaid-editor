@@ -109,11 +109,11 @@ export async function navigateDecision(step: 1 | -1) {
     return;
   }
   const selected = graph.nodes.get(state.selectedEditorNodeId ?? '');
-  const nearest = selected ? nearestDecisionFrom(selected.id, step, graph) : undefined;
+  // const nearest = selected ? nearestDecisionFrom(selected.id, step, graph) : undefined;
   const anchorId = selected?.kind === 'question' ? selected.id : state.currentDecisionId;
   const currentIndex = decisions.findIndex(node => node.id === anchorId);
   const nextIndex = (currentIndex + step + decisions.length) % decisions.length;
-  const decision = nearest ?? decisions[nextIndex];
+  const decision = decisions[nextIndex];
   state.currentDecisionId = decision.id;
   state.phoneFocusNodeId = decision.id;
   state.phoneFocusUsesDecisionContext = true;
