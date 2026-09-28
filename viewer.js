@@ -799,10 +799,14 @@ function renderNodeInspector() {
     destinationSelect.add(new Option("New static block", NEW_STATIC_DESTINATION));
     destinationSelect.add(new Option("New Decision block", NEW_DECISION_DESTINATION));
     const destination = outgoingDestination(node.id, graph);
-    for (const candidate of graph.nodes.values()) {
+    const candidates = Array.from(graph.nodes.values());
+    for (let i = 0;i < candidates.length; i++) {
+      const candidate = candidates[i];
       const isSelf = candidate.id === node.id;
       const isHiddenChoice = candidate.kind === "choice" && candidate.id !== destination;
-      if (isSelf || isHiddenChoice)
+      if (isSelf)
+        continue;
+      if (isHiddenChoice)
         continue;
       destinationSelect.add(new Option(`${candidate.label} (${candidate.id})`, candidate.id));
     }
@@ -829,15 +833,7 @@ function renderClassPicker(node) {
   classPickerList.innerHTML = rows.join("");
   classPickerList.hidden = true;
 }
-function positionNodeInspector() {
-  if (nodeInspector.hidden)
-    return;
-  const drawerRect = drawer.getBoundingClientRect();
-  const mainRect = mainBox.getBoundingClientRect();
-  nodeInspector.style.width = "";
-  nodeInspector.style.left = drawerRect.right + "px";
-  nodeInspector.style.top = mainRect.top + "px";
-}
+function positionNodeInspector() {}
 function focusInspectorText() {
   nodeTextInput.focus();
   nodeTextInput.select();

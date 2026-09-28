@@ -20,8 +20,8 @@
   #header #searchClearBtn { position: absolute; right: 2px; padding: 0 6px; border: none; background: none; cursor: pointer; font-size: 16px; line-height: 1; }
   #zoomLevel { min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
   #main { flex: 1; display: flex; min-height: 0; }
-  #workspace { flex: 0 0 65%; min-width: 0; display: flex; min-height: 0; }
-  #phoneWorkspace { flex: 1 1 35%; min-width: 0; min-height: 0; padding: 12px; box-sizing: border-box; border-left: 1px solid var(--line); display: flex; align-items: center; justify-content: center; background: var(--bg-card); }
+  #workspace { flex: 1 1 auto; min-width: 0; display: flex; min-height: 0; }
+  #phoneWorkspace { flex: none; min-width: 0; min-height: 0; padding: 12px; box-sizing: border-box; border-left: 1px solid var(--line); display: flex; align-items: center; justify-content: center; background: var(--bg-card); }
   #drawer { display: flex; height: 100%; border-right: 1px solid var(--line); }
   #drawer.closed { border-right: none; }
   #editor { display: flex; flex-direction: column; width: 320px; height: 100%; }
@@ -63,8 +63,22 @@
   #diagram g.node.editor-selected rect, #diagram g.node.editor-selected path, #diagram g.node.editor-selected polygon { stroke: var(--select-stroke) !important; stroke-width: 4px !important; }
   #diagram g.node.editor-preview rect, #diagram g.node.editor-preview path, #diagram g.node.editor-preview polygon { stroke: var(--preview-stroke) !important; stroke-width: 4px !important; stroke-dasharray: 6 4; }
   /* #diagram .nodeLabel[contenteditable="true"] { outline: 2px solid #1565c0; background: #fff; } */
-  #nodeInspector { position: fixed; z-index: 20; box-sizing: border-box; width: 320px; padding: 12px 16px 16px; background: var(--bg); border: 1px solid var(--line-soft); border-radius: 22px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); font-family: monospace; }
-  #nodeInspector h2 { margin: 0 0 12px; font-size: 16px; font-weight: normal; text-align: center; }
+  /* #nodeInspector { position: fixed; z-index: 20; box-sizing: border-box; width: 320px; padding: 12px 16px 16px; background: var(--bg); border: 1px solid var(--line-soft); border-radius: 22px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); font-family: monospace; } */
+  #centerColumn { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+  #centerColumn > #output { flex: 1; min-height: 0; height: auto; }
+  #nodeInspector { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 8px; border-top: 1px solid var(--line); font-family: monospace; }
+  #nodeInspector[hidden] { visibility: hidden; }
+  #nodeInspector h2 { display: none; }
+  #nodeTextInput { flex: 1; min-width: 0; box-sizing: border-box; resize: none; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; font: inherit; text-align: center; }
+  #nodeInspector .inspector-text-row { margin-bottom: 0; }
+  #inspectorBottomRow { display: flex; align-items: center; gap: 8px; }
+  #inspectorBottomRow .inspector-grid:not([hidden]) { display: flex; gap: 8px; }
+  #inspectorBottomRow .span-2, #nodeInspectorDismissBtn { margin: 0; }
+  #nodeInspectorDismissBtn { display: none !important; }
+  #inspectorBottomRow { flex-wrap: wrap; }
+  #inspectorBottomRow #nodeInspectorControls:not([hidden]) { display: contents; }
+  #inspectorBottomRow #destinationRow:not([hidden]) { flex: 1 0 100%; min-width: 0; }
+  #classPickerList { top: auto; bottom: 100%; }
   .inspector-text-row { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
   .inspector-text-row input { flex: 1; min-width: 0; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; font: inherit; }
   input[type="color"], .inspector-text-row input[type="color"] { flex: none; width: 32px; height: 32px; padding: 0; border: 2px solid var(--border-input); border-radius: 4px; background: none; cursor: pointer; }
@@ -164,9 +178,34 @@
     <!-- <button id="editorUndoBtn">Undo edit</button> -->
     <!-- <button id="editorRedoBtn">Redo edit</button> -->
     </div>
+    <div id="centerColumn">
     <div id="output">
       <div id="diagram"></div>
       <div id="error"></div>
+    </div>
+<aside id="nodeInspector" role="dialog" aria-labelledby="nodeInspectorTitle" hidden>
+  <h2 id="nodeInspectorTitle"></h2>
+  <label class="inspector-text-row"><span>Node text:</span><textarea id="nodeTextInput" rows="2"></textarea></label>
+  <div id="inspectorBottomRow">
+  <div id="nodeClassRow" class="inspector-text-row">
+    <span>Class:</span>
+    <div id="classPicker">
+      <button type="button" id="classPickerBtn"><span id="classPickerSwatch" class="class-swatch"></span><span id="classPickerLabel"></span></button>
+      <div id="classPickerList" hidden></div>
+    </div>
+  </div>
+  <div id="nodeInspectorActions" class="inspector-grid"></div>
+  <div id="nodeInspectorControls" class="inspector-grid">
+    <button id="nodeInspectorDismissBtn" class="span-2">Cancel</button>
+    <label id="destinationRow" class="inspector-destination-row span-2"><span>Destination:</span><select id="destinationSelect"></select></label>
+  </div>
+  <div id="nodeInspectorRemovalPreview" class="inspector-grid" hidden>
+    <button id="nextRemovalPathBtn">Next replacement path</button>
+    <button id="confirmRemoveQuestionBtn">Confirm removal</button>
+    <button id="cancelRemoveQuestionBtn" class="span-2">Cancel removal</button>
+  </div>
+  </div>
+</aside>
     </div>
   </div>
   <div id="phoneWorkspace">
@@ -177,6 +216,10 @@
     </div>
   </div>
 </div>
+<!--
+  Moved into #centerColumn under #output. A template, not a comment: the retired comment inside cannot nest.
+-->
+<template>
 <aside id="nodeInspector" role="dialog" aria-labelledby="nodeInspectorTitle" hidden>
   <h2 id="nodeInspectorTitle"></h2>
   <label class="inspector-text-row"><span>Text:</span><input id="nodeTextInput" type="text"></label>
@@ -206,6 +249,7 @@
     <button id="cancelRemoveQuestionBtn" class="span-2">Cancel removal</button>
   </div>
 </aside>
+</template>
 
 <dialog id="classEditorDialog">
   <h3>New class</h3>

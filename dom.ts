@@ -33,7 +33,7 @@ export const nodeActions = document.getElementById('nodeActions')!;
 export const selectedNodeBox = document.getElementById('selectedNode')!;
 export const nodeInspector = document.getElementById('nodeInspector')!;
 export const nodeInspectorTitle = document.getElementById('nodeInspectorTitle')!;
-export const nodeTextInput = document.getElementById('nodeTextInput') as HTMLInputElement;
+export const nodeTextInput = document.getElementById('nodeTextInput') as HTMLTextAreaElement;
 // Retired: replaced by the Class picker below (see class-defs.ts).
 // export const nodeTypeRow = document.getElementById('nodeTypeRow')!;
 // export const nodeTypeInput = document.getElementById('nodeTypeInput') as HTMLInputElement;
