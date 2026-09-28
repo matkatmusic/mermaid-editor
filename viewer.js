@@ -16,9 +16,6 @@ var openFileInput = document.getElementById("openFileInput");
 var mainBox = document.getElementById("main");
 var outputBox = document.getElementById("output");
 var phoneDiagramBox = document.getElementById("phoneDiagram");
-var phoneSeparatorOverlay = document.getElementById("phoneSeparatorOverlay");
-var logBtn = document.getElementById("logBtn");
-var logBox = document.getElementById("logBox");
 var previousDecisionBtn = document.getElementById("previousDecisionBtn");
 var nextDecisionBtn = document.getElementById("nextDecisionBtn");
 var decisionCounter = document.getElementById("decisionCounter");
@@ -54,7 +51,6 @@ var MIN_MAIN_ZOOM = 20;
 var MAX_MAIN_ZOOM = 400;
 var chosenAnswers = new Set;
 var phonePath = [];
-var MAX_PHONE_NODES = 8;
 var NEW_STATIC_DESTINATION = "new-static";
 var NEW_DECISION_DESTINATION = "new-decision";
 var DEFAULT_TYPE_COLORS = {
@@ -266,20 +262,6 @@ function edgeEndsOf(el, edges) {
 }
 function nodeIdOf(el) {
   return el.id.replace(/^.*flowchart-/, "").replace(/-\d+$/, "");
-}
-function isAnswerId(id, edges) {
-  let matched = false;
-  for (const [from, to] of edges) {
-    const targetsId = to === id;
-    const fromIsQuestion = from.startsWith("Q_");
-    const idIsAnswerOfFrom = id.startsWith("Q_CHOICE_" + from.replace(/^Q_/, "") + "_");
-    const isMatch = targetsId && fromIsQuestion && idIsAnswerOfFrom;
-    if (isMatch) {
-      matched = true;
-      break;
-    }
-  }
-  return matched;
 }
 function showEditorValidationError(error) {
   const message = error instanceof Error ? error.message : String(error);
@@ -505,15 +487,18 @@ function colorForNode(node) {
   return state.typeColors[effectiveNodeType(node)] ?? state.typeColors.static;
 }
 function applyNodeTypeColors(graph) {
-  for (const box of [diagramBox, phoneDiagramBox]) {
-    for (const nodeEl of box.querySelectorAll("g.node")) {
-      const node = graph.nodes.get(nodeIdOf(nodeEl));
-      if (!node)
-        continue;
-      const color = colorForNode(node);
-      for (const shape of nodeEl.querySelectorAll("rect, path, polygon"))
-        shape.style.fill = color;
-    }
+  for (const nodeEl of diagramBox.querySelectorAll("g.node")) {
+    const node = graph.nodes.get(nodeIdOf(nodeEl));
+    if (!node)
+      continue;
+    const color = colorForNode(node);
+    for (const shape of nodeEl.querySelectorAll("rect, path, polygon"))
+      shape.style.fill = color;
+  }
+  for (const blockEl of phoneDiagramBox.querySelectorAll(".phone-block[data-node-id], .phone-question[data-node-id]")) {
+    const node = graph.nodes.get(blockEl.dataset.nodeId);
+    if (node)
+      blockEl.style.background = colorForNode(node);
   }
 }
 async function saveTypeMetadata() {
@@ -709,38 +694,6 @@ function parentOf(id, edges) {
   }
   return found[0];
 }
-function labelOf(id) {
-  const trimmedLines = [];
-  for (const s of codeBox.value.split(`
-`)) {
-    trimmedLines.push(s.trim());
-  }
-  const shapePattern = /^[\[{(]/;
-  let line;
-  for (const s of trimmedLines) {
-    const startsWithId = s.startsWith(id);
-    const looksLikeNode = shapePattern.test(s.slice(id.length));
-    const isMatch = startsWithId && looksLikeNode;
-    if (isMatch) {
-      line = s;
-      break;
-    }
-  }
-  if (!line)
-    return id;
-  const withoutId = line.slice(id.length);
-  const withoutBrackets = withoutId.replace(/^[\[{(]+|[\]})]+$/g, "");
-  return withoutBrackets.replace(/"/g, "");
-}
-function renderLog(edges) {
-  const rows = [];
-  for (let i = 0;i < phonePath.length; i++) {
-    const id = phonePath[i];
-    rows.push(`[${i + 1}] ${labelOf(parentOf(id, edges))}: ${labelOf(id)}`);
-  }
-  logBox.textContent = ["-- Decision Log for <issue> (<timestamp>) --", ...rows].join(`
-`);
-}
 function contextualDecisionSliceIds(decisionId, edges) {
   const reversed = [decisionId];
   const visited = new Set(reversed);
@@ -798,46 +751,6 @@ function sliceIds(edges) {
     ids.push(node);
     visited.add(node);
   }
-}
-function leadInIds(ids, siblings, edges) {
-  const hasDecisionContext = state.phoneFocusUsesDecisionContext || state.phonePreviewChoiceId || phonePath.length;
-  if (!hasDecisionContext)
-    return [];
-  const budget = MAX_PHONE_NODES - new Set([...ids, ...siblings]).size;
-  const found = [];
-  const queue = [...ids];
-  for (;; ) {
-    const hasQueued = queue.length > 0;
-    if (!hasQueued)
-      break;
-    const underBudget = found.length < budget;
-    if (!underBudget)
-      break;
-    const node = queue.shift();
-    const incoming = [];
-    for (const [from, to] of edges) {
-      if (to === node)
-        incoming.push(from);
-    }
-    for (const from of incoming) {
-      if (found.length >= budget)
-        break;
-      let outgoingCount = 0;
-      for (const [f] of edges) {
-        if (f === from)
-          outgoingCount++;
-      }
-      const isStatic = !isAnswerId(from, edges) && outgoingCount <= 1;
-      if (!isStatic)
-        continue;
-      const alreadyKept = ids.includes(from) || siblings.includes(from) || found.includes(from);
-      if (alreadyKept)
-        continue;
-      found.push(from);
-      queue.push(from);
-    }
-  }
-  return found;
 }
 function siblingIds(ids, edges) {
   const hasDecisionContext = state.phoneFocusUsesDecisionContext || state.phonePreviewChoiceId || phonePath.length;
@@ -1257,75 +1170,208 @@ function filterToFunctions(source) {
 `);
 }
 
-// phone-separators.ts
-function drawSeparatorBetween(topId, belowIds, label) {
-  const nodeEl = (id) => phoneDiagramBox.querySelector('[id*="flowchart-' + id + '-"]');
-  const top = nodeEl(topId);
-  const belowEls = [];
-  for (const id of belowIds) {
-    const el = nodeEl(id);
-    if (el)
-      belowEls.push(el);
+// phone-render.ts
+function rootOf(edges) {
+  for (const [candidate] of edges) {
+    let hasIncoming = false;
+    for (const [, to] of edges) {
+      const targetsCandidate = to === candidate;
+      if (targetsCandidate) {
+        hasIncoming = true;
+        break;
+      }
+    }
+    if (!hasIncoming)
+      return candidate;
   }
-  const hasTopAndBelow = top && belowEls.length;
-  if (!hasTopAndBelow)
-    return;
-  const belowTops = [];
-  for (const el of belowEls) {
-    belowTops.push(el.getBoundingClientRect().top);
-  }
-  const midY = (top.getBoundingClientRect().bottom + Math.min(...belowTops)) / 2;
-  const separator = document.createElement("div");
-  separator.className = "separator-line";
-  separator.dataset.label = label;
-  separator.dataset.contentY = String(midY - phoneDiagramBox.getBoundingClientRect().top + phoneDiagramBox.scrollTop);
-  const labelEl = document.createElement("span");
-  labelEl.className = "separator-label";
-  labelEl.textContent = label;
-  labelEl.style.color = label === "open decision" ? "#2e7d32" : "#c62828";
-  separator.appendChild(labelEl);
-  phoneSeparatorOverlay.appendChild(separator);
-  updateSeparatorTops();
+  return;
 }
-function updateSeparatorTops() {
-  for (const separator of phoneSeparatorOverlay.querySelectorAll(".separator-line"))
-    separator.style.top = Number(separator.dataset.contentY) - phoneDiagramBox.scrollTop + "px";
-  const mask = phoneSeparatorOverlay.querySelector(".last-decision-mask");
-  const lastDecisionLine = phoneSeparatorOverlay.querySelector('.separator-line[data-label="last decision"]');
-  if (!mask)
-    return;
-  const lineTop = lastDecisionLine ? Number(lastDecisionLine.dataset.contentY) - phoneDiagramBox.scrollTop : 0;
-  mask.style.height = Math.min(Math.max(lineTop, 0), phoneSeparatorOverlay.clientHeight) + "px";
+function escapeHtml(text) {
+  const withAmp = text.replace(/&/g, "&amp;");
+  const withLt = withAmp.replace(/</g, "&lt;");
+  const withGt = withLt.replace(/>/g, "&gt;");
+  const withQuote = withGt.replace(/"/g, "&quot;");
+  return withQuote.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
 }
-function drawLastDecisionMask() {
-  const mask = document.createElement("div");
-  mask.className = "last-decision-mask";
-  phoneSeparatorOverlay.appendChild(mask);
+function labelOf(id, graph) {
+  return graph.nodes.get(id)?.label ?? id;
 }
-phoneDiagramBox.addEventListener("scroll", updateSeparatorTops);
-function scrollChoicesIntoView(bottomQ, edges) {
-  if (state.functionsOnly)
-    return;
-  if (state.phoneFocusNodeId) {
-    centerNodeInViewport(phoneDiagramBox, phoneDiagramBox, state.phoneFocusNodeId);
-    return;
+function historyRows(edges, graph) {
+  if (edges.length === 0) {
+    const sorted = [...graph.nodes.values()].sort((a, b) => a.lineIndex - b.lineIndex);
+    const standaloneRows = [];
+    for (const node of sorted) {
+      const isBlock = node.kind === "block";
+      if (isBlock)
+        standaloneRows.push({ status: "block", id: node.id });
+      else
+        standaloneRows.push({ status: "active", id: node.id });
+    }
+    return standaloneRows;
   }
-  const atStart = phonePath.length === 0;
-  if (atStart) {
-    phoneDiagramBox.scrollTop = 0;
-    return;
+  const rows = [];
+  let cur = rootOf(edges);
+  let pathIndex = 0;
+  const maxSteps = graph.nodes.size + phonePath.length + 1;
+  for (let step = 0;step < maxSteps; step++) {
+    if (cur === undefined)
+      break;
+    const kind = graph.nodes.get(cur)?.kind ?? "block";
+    if (kind === "question") {
+      const choices = choicesOf(cur, edges);
+      const hasAnswer = pathIndex < phonePath.length && choices.includes(phonePath[pathIndex]);
+      if (!hasAnswer) {
+        rows.push({ status: "active", id: cur });
+        break;
+      }
+      const answered = phonePath[pathIndex];
+      const declinedChoiceIds = [];
+      for (const choiceId of choices) {
+        const isChosen = choiceId === answered;
+        if (!isChosen)
+          declinedChoiceIds.push(choiceId);
+      }
+      rows.push({ status: "past", id: cur, chosenChoiceId: answered, declinedChoiceIds, revertIndex: pathIndex });
+      pathIndex++;
+      cur = choicesOf(answered, edges)[0];
+      continue;
+    }
+    if (kind === "block")
+      rows.push({ status: "block", id: cur });
+    const nexts = choicesOf(cur, edges);
+    const isSingleChain = nexts.length === 1;
+    cur = isSingleChain ? nexts[0] : undefined;
   }
-  if (!bottomQ)
-    return;
-  let lastChoice = null;
-  for (const [from, to] of edges) {
-    const isChoice = from === bottomQ;
+  return rows;
+}
+function rowsFromIdSequence(ids, graph, activeId, leadChosenId, leadDeclinedIds) {
+  const rows = [];
+  const seen = new Set;
+  const leadQuestionId = ids[0];
+  for (const id of ids) {
+    const alreadySeen = seen.has(id);
+    if (alreadySeen)
+      continue;
+    seen.add(id);
+    const kind = graph.nodes.get(id)?.kind;
+    const isChoice = kind === "choice";
     if (isChoice)
-      lastChoice = phoneDiagramBox.querySelector('[id*="flowchart-' + to + '-"]');
+      continue;
+    const isBlock = kind === "block";
+    if (isBlock) {
+      rows.push({ status: "block", id });
+      continue;
+    }
+    const isQuestion = kind === "question";
+    if (!isQuestion)
+      continue;
+    const isActive = id === activeId;
+    if (isActive) {
+      rows.push({ status: "active", id });
+      continue;
+    }
+    const isLeadQuestion = id === leadQuestionId;
+    const hasLeadChoice = leadChosenId !== undefined;
+    const isAnsweredLeadQuestion = isLeadQuestion && hasLeadChoice;
+    if (isAnsweredLeadQuestion)
+      rows.push({ status: "past", id, chosenChoiceId: leadChosenId, declinedChoiceIds: leadDeclinedIds });
   }
-  if (!lastChoice)
-    return;
-  lastChoice.scrollIntoView({ block: "end" });
+  return rows;
+}
+function focusRows(edges, graph, focusNodeId) {
+  const ids = sliceIds(edges);
+  const siblings = siblingIds(ids, edges);
+  return rowsFromIdSequence(ids, graph, focusNodeId, ids[1], siblings);
+}
+function previewRows(edges, graph) {
+  const ids = sliceIds(edges);
+  const siblings = siblingIds(ids, edges);
+  const reversedIds = [...ids].reverse();
+  let activeId;
+  for (const id of reversedIds) {
+    const isQuestion = graph.nodes.get(id)?.kind === "question";
+    const isLeadQuestion = id === ids[0];
+    const isEarlierQuestion = isQuestion && !isLeadQuestion;
+    if (isEarlierQuestion) {
+      activeId = id;
+      break;
+    }
+  }
+  return rowsFromIdSequence(ids, graph, activeId ?? ids[0], ids[1], siblings);
+}
+function buildRows(edges, graph) {
+  const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
+  if (hasFocusedDecision)
+    return focusRows(edges, graph, state.phoneFocusNodeId);
+  const hasPreviewChoice = !state.functionsOnly && !!state.phonePreviewChoiceId;
+  if (hasPreviewChoice)
+    return previewRows(edges, graph);
+  return historyRows(edges, graph);
+}
+function choiceButtonsHtml(choices, row, graph) {
+  const isPast = row.status === "past";
+  const declinedCount = choices.length - 1;
+  const declinedPct = 30 / declinedCount;
+  const buttons = [];
+  for (const choiceId of choices) {
+    const label = escapeHtml(labelOf(choiceId, graph));
+    const isActive = row.status === "active";
+    if (isActive) {
+      buttons.push(`<button type="button" class="phone-choice" data-node-id="${choiceId}" data-choose="${choiceId}">${label}</button>`);
+      continue;
+    }
+    if (!isPast)
+      continue;
+    const isChosen = choiceId === row.chosenChoiceId;
+    if (isChosen) {
+      buttons.push(`<button type="button" class="phone-choice phone-choice-chosen" style="flex:0 1 70%" data-node-id="${choiceId}" disabled>${label}</button>`);
+      continue;
+    }
+    const style = `style="flex:0 1 ${declinedPct}%"`;
+    const canRevert = row.revertIndex !== undefined;
+    if (canRevert)
+      buttons.push(`<button type="button" class="phone-choice phone-choice-declined" ${style} data-node-id="${choiceId}" data-revert="${row.revertIndex}:${choiceId}">&#8634; ${label}</button>`);
+    else
+      buttons.push(`<button type="button" class="phone-choice phone-choice-declined" ${style} data-node-id="${choiceId}" disabled>${label}</button>`);
+  }
+  return `<div class="phone-choice-row">${buttons.join("")}</div>`;
+}
+function rowHtml(row, graph, edges, isMasked) {
+  const node = graph.nodes.get(row.id);
+  if (!node)
+    return "";
+  if (row.status === "block") {
+    const blockClass = isMasked ? "phone-block phone-block-past" : "phone-block";
+    return `<div class="${blockClass}" data-node-id="${row.id}" style="background:${colorForNode(node)}">${escapeHtml(labelOf(row.id, graph))}</div>`;
+  }
+  const choices = choicesOf(row.id, edges);
+  const activeAttr = row.status === "active" ? " data-active-question" : "";
+  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="background:${colorForNode(node)}">${escapeHtml(labelOf(row.id, graph))}</div>`;
+  const wrapClass = isMasked ? "phone-decision phone-decision-past" : "phone-decision";
+  return `<div class="${wrapClass}">${question}${choiceButtonsHtml(choices, row, graph)}</div>`;
+}
+function renderPhone(edges, graph) {
+  const rows = buildRows(edges, graph);
+  let lastPastIndex = -1;
+  for (let i = 0;i < rows.length; i++) {
+    const isPast = rows[i].status === "past";
+    if (isPast)
+      lastPastIndex = i;
+  }
+  const historyParts = [];
+  const footerParts = [];
+  for (let i = 0;i < rows.length; i++) {
+    const isMasked = i <= lastPastIndex;
+    const html = rowHtml(rows[i], graph, edges, isMasked);
+    const target = i <= lastPastIndex ? historyParts : footerParts;
+    target.push(html);
+  }
+  if (lastPastIndex >= 0)
+    footerParts.unshift('<hr class="phone-separator">');
+  phoneDiagramBox.innerHTML = `<div id="phoneHistory">${historyParts.join("")}</div><div id="phoneFooter">${footerParts.join("")}</div>`;
+  const historyBox = phoneDiagramBox.querySelector("#phoneHistory");
+  if (historyBox)
+    historyBox.scrollTop = historyBox.scrollHeight;
 }
 
 // render.ts
@@ -1349,11 +1395,7 @@ async function render() {
     }
     if (phonePathIsStale)
       phonePath.length = 0;
-    renderLog(edges);
     const ids = edges.length > 0 ? sliceIds(edges) : [];
-    const siblings = siblingIds(ids, edges);
-    const leadIns = leadInIds(ids, siblings, edges);
-    const shown = new Set([...ids, ...siblings, ...leadIns]);
     const reversedIds = [...ids].reverse();
     let bottomQ = state.phoneFocusNodeId && graph.nodes.get(state.phoneFocusNodeId)?.kind === "question" ? state.phoneFocusNodeId : undefined;
     if (!bottomQ) {
@@ -1371,55 +1413,34 @@ async function render() {
       }
     }
     state.currentBottomQ = bottomQ;
-    const phoneSource = edges.length > 0 ? chunkSource(shown, siblings, edges) : codeBox.value;
     const mainSource = state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value;
-    const filteredPhoneSource = state.functionsOnly ? filterToFunctions(phoneSource) : phoneSource;
+    const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
-    const phoneViewport = { left: phoneDiagramBox.scrollLeft, top: phoneDiagramBox.scrollTop };
     const myRenderId = state.renderId;
-    const [{ svg: regularSvg }, { svg: phoneSvg }] = await Promise.all([
-      mermaid.render("diagram-" + state.renderId++, mainSource),
-      mermaid.render("phone-diagram-" + state.renderId++, filteredPhoneSource)
-    ]);
-    if (state.renderId !== myRenderId + 2)
+    const { svg: regularSvg } = await mermaid.render("diagram-" + state.renderId++, mainSource);
+    if (state.renderId !== myRenderId + 1)
       return;
+    const hasEdges = edges.length > 0;
+    const scaleIsUnset = state.diagramScale === null;
+    if (hasEdges) {
+      if (scaleIsUnset)
+        state.diagramScale = await baseScale(edges);
+    }
     diagramBox.innerHTML = regularSvg;
-    phoneDiagramBox.innerHTML = phoneSvg;
-    phoneSeparatorOverlay.replaceChildren();
+    renderPhone(phoneEdges, graph);
     applyNodeTypeColors(graph);
     renderEditorSelection();
     highlightPath();
     if (edges.length > 0) {
-      if (state.diagramScale === null)
-        state.diagramScale = await baseScale(edges);
       const scale = state.diagramScale;
       const mainZoom = state.mainZoomPercent / 100;
       const regularSvgEl = diagramBox.querySelector("svg");
       const regularBox = viewBoxOf(regularSvg);
       regularSvgEl.style.width = regularBox.width * scale * mainZoom + "px";
       regularSvgEl.style.height = regularBox.height * scale * mainZoom + "px";
-      const phoneSvgEl = phoneDiagramBox.querySelector("svg");
-      const phoneBox = viewBoxOf(phoneSvg);
-      const phoneWidth = Math.max(phoneBox.width * scale, phoneDiagramBox.clientWidth);
-      phoneSvgEl.style.width = phoneWidth + "px";
-      phoneSvgEl.style.height = phoneBox.height * scale + "px";
     }
     outputBox.scrollLeft = regularViewport.left;
     outputBox.scrollTop = regularViewport.top;
-    phoneDiagramBox.scrollLeft = phoneViewport.left;
-    phoneDiagramBox.scrollTop = phoneViewport.top;
-    const hasContextualPreviousDecision = state.phoneFocusUsesDecisionContext && ids[0] !== state.phoneFocusNodeId && graph.nodes.get(ids[0])?.kind === "question";
-    const shouldDrawLastDecision = edges.length > 0 && (phonePath.length > 0 || state.phonePreviewChoiceId || hasContextualPreviousDecision);
-    if (shouldDrawLastDecision)
-      drawLastDecisionMask();
-    if (shouldDrawLastDecision)
-      drawSeparatorBetween(ids[0], choicesOf(ids[0], edges), "last decision");
-    const shouldDrawBottomSeparator = edges.length > 0 && bottomQ;
-    if (shouldDrawBottomSeparator)
-      drawSeparatorBetween(bottomQ, choicesOf(bottomQ, edges), "open decision");
-    if (edges.length > 0)
-      scrollChoicesIntoView(bottomQ, edges);
-    updateSeparatorTops();
     positionNodeInspector();
     errorLog.textContent = "";
     errorLog.classList.remove("open");
@@ -2000,17 +2021,16 @@ outputBox.addEventListener("click", (event) => {
   }
 });
 phoneDiagramBox.addEventListener("click", async (event) => {
-  const nodeEl = event.target.closest("g.node");
-  if (!nodeEl)
+  const target = event.target.closest("button[data-choose], button[data-revert]");
+  if (!target)
     return;
-  const clicked = nodeIdOf(nodeEl);
-  const edges = parseEdges(codeBox.value);
-  if (!isAnswerId(clicked, edges))
-    return;
-  const openChoices = state.currentBottomQ ? choicesOf(state.currentBottomQ, edges) : [];
-  if (!openChoices.includes(clicked))
-    return;
-  phonePath.push(clicked);
+  if (target.dataset.choose) {
+    phonePath.push(target.dataset.choose);
+  } else {
+    const [indexStr, choiceId] = target.dataset.revert.split(":");
+    phonePath.length = Number(indexStr);
+    phonePath.push(choiceId);
+  }
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
@@ -2018,7 +2038,14 @@ phoneDiagramBox.addEventListener("click", async (event) => {
   if (state.currentBottomQ) {
     state.currentDecisionId = state.currentBottomQ;
     selectEditorNode(state.currentBottomQ);
-    centerNodeInViewport(outputBox, diagramBox, state.currentBottomQ);
+    const node = diagramBox.querySelector('[id*="flowchart-' + state.currentBottomQ + '-"]');
+    const outputRect = outputBox.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    outputBox.scrollBy({
+      left: nodeRect.left + nodeRect.width / 2 - outputRect.left - outputBox.clientWidth / 2,
+      top: nodeRect.top + nodeRect.height / 2 - outputRect.top - outputBox.clientHeight / 2,
+      behavior: "smooth"
+    });
   }
 });
 outputBox.addEventListener("dblclick", (event) => {
@@ -2185,20 +2212,7 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   highlightPath();
   render();
   outputBox.scrollTo({ top: 0, behavior: "smooth" });
-  phoneDiagramBox.scrollTo({ top: 0, behavior: "smooth" });
-});
-document.getElementById("undoBtn").addEventListener("click", (event) => {
-  event.stopPropagation();
-  state.phoneFocusNodeId = null;
-  state.phoneFocusUsesDecisionContext = false;
-  state.phonePreviewChoiceId = null;
-  phonePath.pop();
-  render();
-});
-logBtn.addEventListener("click", (event) => {
-  event.stopPropagation();
-  const open = logBox.classList.toggle("open");
-  logBtn.textContent = open ? "Log ▼" : "Log ▲";
+  phoneDiagramBox.querySelector("#phoneHistory")?.scrollTo({ top: 0, behavior: "smooth" });
 });
 drawerToggle.addEventListener("click", () => setDrawerOpen(drawer.classList.contains("closed")));
 selectBox.addEventListener("change", () => loadDiagram(selectBox.value));

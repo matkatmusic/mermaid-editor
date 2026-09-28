@@ -6,7 +6,6 @@ export const MIN_MAIN_ZOOM = 20;
 export const MAX_MAIN_ZOOM = 400;
 export const chosenAnswers = new Set();
 export const phonePath: string[] = []; // decision node ids clicked in phone view, in order
-export const MAX_PHONE_NODES = 8;
 export const PHONE_INNER = { width: 327, height: 514 };
 export const NEW_STATIC_DESTINATION = 'new-static';
 export const NEW_DECISION_DESTINATION = 'new-decision';

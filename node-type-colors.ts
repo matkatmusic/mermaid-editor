@@ -22,15 +22,18 @@ export function colorForNode(node: EditorNode) {
 }
 
 export function applyNodeTypeColors(graph: EditorGraph) {
-  for (const box of [diagramBox, phoneDiagramBox]) {
-    for (const nodeEl of box.querySelectorAll('g.node')) {
-      const node = graph.nodes.get(nodeIdOf(nodeEl));
-      if (!node)
-        continue; // Slice stubs and stale metadata entries are intentionally ignored.
-      const color = colorForNode(node);
-      for (const shape of nodeEl.querySelectorAll('rect, path, polygon'))
-        (shape as SVGElement).style.fill = color;
-    }
+  for (const nodeEl of diagramBox.querySelectorAll('g.node')) {
+    const node = graph.nodes.get(nodeIdOf(nodeEl));
+    if (!node)
+      continue; // Slice stubs and stale metadata entries are intentionally ignored.
+    const color = colorForNode(node);
+    for (const shape of nodeEl.querySelectorAll('rect, path, polygon'))
+      (shape as SVGElement).style.fill = color;
+  }
+  for (const blockEl of phoneDiagramBox.querySelectorAll<HTMLElement>('.phone-block[data-node-id], .phone-question[data-node-id]')) {
+    const node = graph.nodes.get(blockEl.dataset.nodeId!);
+    if (node)
+      blockEl.style.background = colorForNode(node);
   }
 }
 

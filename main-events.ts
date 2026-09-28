@@ -1,6 +1,6 @@
 import { MAIN_ZOOM_STEP, chosenAnswers, phonePath, state } from './state.ts';
 import { restoreTypeMetadata, splitEditorMetadata } from './editor-graph.ts';
-import { codeBox, drawer, drawerToggle, logBox, logBtn, nextDecisionBtn, openFileBtn, openFileInput, outputBox, phoneDiagramBox, previousDecisionBtn, searchClearBtn, searchInput, searchNextBtn, searchPreviousBtn, selectBox, zoomInBtn, zoomOutBtn, zoomResetBtn } from './dom.ts';
+import { codeBox, drawer, drawerToggle, nextDecisionBtn, openFileBtn, openFileInput, outputBox, phoneDiagramBox, previousDecisionBtn, searchClearBtn, searchInput, searchNextBtn, searchPreviousBtn, selectBox, zoomInBtn, zoomOutBtn, zoomResetBtn } from './dom.ts';
 import { loadDiagram, loadList, resetEditorHistory, saveDiagram, setDrawerOpen } from './diagram-io.ts';
 import { render } from './render.ts';
 import { navigateDecision } from './decision-nav.ts';
@@ -43,20 +43,7 @@ document.getElementById('resetBtn')!.addEventListener('click', () => {
   highlightPath();
   render();
   outputBox.scrollTo({ top: 0, behavior: 'smooth' });
-  phoneDiagramBox.scrollTo({ top: 0, behavior: 'smooth' });
-});
-document.getElementById('undoBtn')!.addEventListener('click', (event) => {
-  event.stopPropagation();
-  state.phoneFocusNodeId = null;
-  state.phoneFocusUsesDecisionContext = false;
-  state.phonePreviewChoiceId = null;
-  phonePath.pop();
-  render();
-});
-logBtn.addEventListener('click', (event) => {
-  event.stopPropagation();
-  const open = logBox.classList.toggle('open');
-  logBtn.textContent = open ? 'Log ▼' : 'Log ▲';
+  phoneDiagramBox.querySelector('#phoneHistory')?.scrollTo({ top: 0, behavior: 'smooth' });
 });
 drawerToggle.addEventListener('click', () => setDrawerOpen(drawer.classList.contains('closed')));
 selectBox.addEventListener('change', () => loadDiagram(selectBox.value));

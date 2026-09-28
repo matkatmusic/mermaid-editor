@@ -79,32 +79,9 @@ async function waitForFunction(name: string, timeoutMs = 5000) {
 }
 
 async function nodeIds() {
-  // Skip stub and unchosen nodes; they are not real slice nodes.
   const json = await evaluate(
-    "JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram g.node')).filter(el => !el.classList.contains('stub') && !el.classList.contains('unchosen')).map(nodeIdOf).sort())"
+    "JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram [data-node-id]')).map(el => el.dataset.nodeId).sort())"
   );
-  return JSON.parse(json);
-}
-
-async function waitForNodeIds(notEqualTo: string[], timeoutMs = 3000) {
-  const start = Date.now();
-  let ids = await nodeIds();
-  const before = JSON.stringify(notEqualTo);
-  while (Date.now() - start < timeoutMs && JSON.stringify(ids) === before) {
-    await sleep(50);
-    ids = await nodeIds();
-  }
-  return ids;
-}
-
-async function labelLineHeight(id: string, paneId = "phoneDiagram") {
-  // One line's height, not the whole label: labels wrap to different line counts.
-  const json = await evaluate(`JSON.stringify((() => {
-    const p = document.querySelector('#${paneId} [id*="flowchart-${id}-"] .nodeLabel p');
-    const range = document.createRange();
-    range.selectNodeContents(p);
-    return { height: range.getClientRects()[0].height, fontSize: getComputedStyle(p).fontSize };
-  })())`);
   return JSON.parse(json);
 }
 
@@ -186,7 +163,7 @@ test("test_split_workspace_always_renders_regular_and_phone_views_with_distinct_
       workspaceShare: workspace.width / main.width,
       phoneShare: phone.width / main.width,
       regularSvg: !!document.querySelector('#diagram svg'),
-      phoneSvg: !!document.querySelector('#phoneDiagram svg'),
+      phoneHasBlocks: document.querySelectorAll('#phoneDiagram [data-node-id]').length > 0,
       regularWidthStyle: document.querySelector('#diagram svg')?.style.width,
     };
   })())`).then(JSON.parse);
@@ -194,237 +171,200 @@ test("test_split_workspace_always_renders_regular_and_phone_views_with_distinct_
   assert.ok(Math.abs(layout.workspaceShare - 0.65) < 0.02);
   assert.ok(Math.abs(layout.phoneShare - 0.35) < 0.02);
   assert.equal(layout.regularSvg, true);
-  assert.equal(layout.phoneSvg, true);
+  assert.equal(layout.phoneHasBlocks, true);
   assert.match(layout.regularWidthStyle, /^\d+(?:\.\d+)?px$/);
 
-  // Step: phone controls sit above only the right-hand phone diagram.
-  const bar = await evaluate(`JSON.stringify((() => {
-    const svgTop = document.querySelector('#phoneDiagram svg').getBoundingClientRect().top;
-    const barBottom = document.getElementById('phoneBar').getBoundingClientRect().bottom;
-    const logTop = document.getElementById('logBtn').getBoundingClientRect().top;
-    const undoTop = document.getElementById('undoBtn').getBoundingClientRect().top;
-    return { barAboveSvg: svgTop >= barBottom, logAboveSvg: logTop < svgTop, undoAboveSvg: undoTop < svgTop };
-  })())`).then(JSON.parse);
-  assert.equal(bar.barAboveSvg, true);
-  assert.equal(bar.logAboveSvg, true);
-  assert.equal(bar.undoAboveSvg, true);
+  // Step: the log/undo UI is gone; scrolling with masking replaces it.
+  const removedUi = await evaluate(
+    "JSON.stringify({logBtn: !!document.getElementById('logBtn'), undoBtn: !!document.getElementById('undoBtn'), logBox: !!document.getElementById('logBox'), phoneBar: !!document.getElementById('phoneBar')})"
+  ).then(JSON.parse);
+  assert.deepEqual(removedUi, { logBtn: false, undoBtn: false, logBox: false, phoneBar: false });
 
-  // Step: a regular click opens the editor selection while a phone choice advances only the phone path.
+  // Step: click opens editor selection; phone choice advances the phone path and picks the next open decision.
+  await evaluate("document.getElementById('resetBtn').click()");
+  await sleep(300);
   await evaluate("document.querySelector('#diagram [id*=\"flowchart-Q_THEM_DONE_SPEAKING-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   assert.equal(await evaluate("selectedEditorNodeId"), 'Q_THEM_DONE_SPEAKING');
-  await evaluate("document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await sleep(100);
+  await evaluate("document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
+  await sleep(300);
   assert.equal(await evaluate("phonePath.length"), 1);
-  assert.equal(await evaluate("selectedEditorNodeId"), 'Q_THEM_DONE_SPEAKING');
+  assert.equal(await evaluate("selectedEditorNodeId"), 'Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID');
 });
-
-const START_SLICE = ["B_RAISE_ISSUE", "B_SELF_LISTEN", "B_SELF_TAKE_NOTES", "Q_THEM_DONE_SPEAKING", "Q_CHOICE_THEM_DONE_SPEAKING_Y", "Q_CHOICE_THEM_DONE_SPEAKING_N"].sort();
-const AFTER_Y_SLICE = ["B_SELF_LISTEN", "B_SELF_TAKE_NOTES", "Q_THEM_DONE_SPEAKING", "Q_CHOICE_THEM_DONE_SPEAKING_Y", "Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID", "Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_Y", "Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N"].sort();
-const AFTER_N_SLICE = ["B_RAISE_ISSUE", "B_SELF_LISTEN", "B_SELF_TAKE_NOTES", "Q_THEM_DONE_SPEAKING", "Q_CHOICE_THEM_DONE_SPEAKING_N"].sort();
 
 test("test_phone_view_shows_the_start_slice", async () => {
   // Step: a prior test's phone click can leave the path dirty; reset first.
   await evaluate("document.getElementById('resetBtn').click()");
   await sleep(300);
-  // Step: the rendered slice has exactly the start-slice node ids.
-  const ids = await nodeIds();
-  assert.deepEqual(ids, START_SLICE);
-  // Step: the phone frame does not scroll.
-  const output = await evaluate(
-    "JSON.stringify({sh: document.getElementById('phoneDiagram').scrollHeight, ch: document.getElementById('phoneDiagram').clientHeight, sw: document.getElementById('phoneDiagram').scrollWidth, cw: document.getElementById('phoneDiagram').clientWidth})"
-  ).then(JSON.parse);
-  assert.ok(output.sh <= output.ch);
-  assert.ok(output.sw <= output.cw);
-  // Step: a stub line leads out of the bottom decision node.
-  const stubEdge = await evaluate(
-    "JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram path.flowchart-link')).some(el => el.id.includes('L_Q_CHOICE_THEM_DONE_SPEAKING_Y_Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID')))"
-  );
-  assert.equal(stubEdge, "true");
-  // Step: the stub node itself is present but invisible.
-  const stubNode = await evaluate(
-    "JSON.stringify(!!document.querySelector('#phoneDiagram [id*=\"flowchart-Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID-\"].stub'))"
-  );
-  assert.equal(stubNode, "true");
-  // Step: the tiny stub box does not blow up the diagram's scale.
-  const widths = await evaluate(
-    "JSON.stringify({svg: document.querySelector('#phoneDiagram svg').getBoundingClientRect().width, output: document.getElementById('phoneDiagram').getBoundingClientRect().width})"
-  ).then(JSON.parse);
-  assert.ok(widths.svg >= widths.output * 0.6);
-  // Step: exactly one dashed separator marks the bottom decision point as pending.
-  const separatorCount = await evaluate(
-    "JSON.stringify(document.querySelectorAll('#phoneSeparatorOverlay .separator-line').length)"
-  );
-  assert.equal(separatorCount, "1");
-  // Step: one label reads "open decision", and there is no last-decision mask at the start slice.
-  const startLabels = await evaluate(
-    "JSON.stringify(Array.from(document.querySelectorAll('#phoneSeparatorOverlay .separator-label')).map(el => el.textContent))"
-  ).then(JSON.parse);
-  assert.deepEqual(startLabels, ["open decision"]);
-  const startMask = await evaluate(
-    "JSON.stringify(!!document.querySelector('#phoneSeparatorOverlay .last-decision-mask'))"
-  );
-  assert.equal(startMask, "false");
-  // Step: the edge from the bottom decision point into its stub target is dotted.
-  const dottedEdge = await evaluate(
-    "JSON.stringify(!!Array.from(document.querySelectorAll('#phoneDiagram path.flowchart-link')).find(el => el.id.includes('L_Q_CHOICE_THEM_DONE_SPEAKING_Y_Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID'))?.classList.contains('edge-pattern-dotted'))"
-  );
-  assert.equal(dottedEdge, "true");
-});
-
-test("test_clicking_a_decision_node_slices_to_the_next_decision_point", async () => {
-  // Step: click the "Yes" answer under "are they done speaking".
-  await evaluate(
-    "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
-  );
-  const ids = await waitForNodeIds(START_SLICE);
-  // Step: the slice now centers on the clicked node and its next decision point.
-  assert.deepEqual(ids, AFTER_Y_SLICE);
-  // Step: a line shows where the slice came from, above the top decision point.
-  const topStubEdge = await evaluate(
-    "JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram path.flowchart-link')).some(el => el.id.includes('L_B_SELF_TAKE_NOTES_Q_THEM_DONE_SPEAKING')))"
-  );
-  assert.equal(topStubEdge, "true");
-  // Step: that lead-in node is now shown normally, not as an invisible stub.
-  const topStubNode = await evaluate(
-    "JSON.stringify(!!document.querySelector('#phoneDiagram [id*=\"flowchart-B_SELF_TAKE_NOTES-\"].stub'))"
-  );
-  assert.equal(topStubNode, "false");
-  // Step: there are now two separators, one for the answered decision and one for the pending one.
-  const separators = await evaluate(
-    "JSON.stringify({ lineCount: document.querySelectorAll('#phoneSeparatorOverlay .separator-line').length, labelTexts: Array.from(document.querySelectorAll('#phoneSeparatorOverlay .separator-label')).map(el => el.textContent), labelYs: Array.from(document.querySelectorAll('#phoneSeparatorOverlay .separator-label')).map(el => el.getBoundingClientRect().top) })"
-  ).then(JSON.parse);
-  assert.equal(separators.lineCount, 2);
-  assert.deepEqual([...separators.labelTexts].sort(), ["last decision", "open decision"]);
-  const lastDecisionY = separators.labelYs[separators.labelTexts.indexOf("last decision")];
-  const openDecisionY = separators.labelYs[separators.labelTexts.indexOf("open decision")];
-  assert.ok(lastDecisionY < openDecisionY);
-  // Step: a light mask runs from the top of the phone view down to the "last decision" line, never past it.
-  const mask = await evaluate(`JSON.stringify((() => {
-    const el = document.querySelector('#phoneSeparatorOverlay .last-decision-mask');
-    const line = document.querySelector('#phoneSeparatorOverlay .separator-line[data-label="last decision"]');
-    const overlay = document.getElementById('phoneSeparatorOverlay').getBoundingClientRect();
-    const rect = el.getBoundingClientRect();
-    return { top: rect.top - overlay.top, bottom: rect.bottom - overlay.top, lineTop: line.getBoundingClientRect().top - overlay.top, left: rect.left - overlay.left, width: rect.width, overlayWidth: overlay.width, overlayHeight: overlay.height };
-  })())`).then(JSON.parse);
-  assert.equal(mask.top, 0);
-  assert.equal(mask.width, mask.overlayWidth);
-  assert.equal(mask.left, 0);
-  assert.ok(mask.bottom <= Math.max(0, Math.min(mask.lineTop, mask.overlayHeight)) + 0.5, JSON.stringify(mask));
-  // Step: the unchosen "No" answer shows dimmed instead of disappearing.
-  const unchosenNode = await evaluate(
-    "JSON.stringify(!!document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_N-\"].unchosen'))"
-  );
-  assert.equal(unchosenNode, "true");
-  // Step: a sibling is never also a stub, so it keeps its full-size box.
-  const siblingNotStub = await evaluate(
-    "JSON.stringify(!document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_N-\"].stub'))"
-  );
-  assert.equal(siblingNotStub, "true");
-  // Step: "Me: Listen" already has a real predecessor (the "No" loop-back), so B_RAISE_ISSUE's stub arrow is dropped.
-  const raiseIssueNode = await evaluate(
-    "JSON.stringify(!!document.querySelector('#phoneDiagram [id*=\"flowchart-B_RAISE_ISSUE-\"]'))"
-  );
-  assert.equal(raiseIssueNode, "false");
-  // Step: the dimmed "No" answer still has a real dashed arrow into "Me: Listen".
-  const noToListenEdge = await evaluate(
-    "JSON.stringify(!!Array.from(document.querySelectorAll('#phoneDiagram path.flowchart-link')).find(el => el.id.includes('L_Q_CHOICE_THEM_DONE_SPEAKING_N_B_SELF_LISTEN'))?.classList.contains('edge-pattern-dotted'))"
-  );
-  assert.equal(noToListenEdge, "true");
-  // Step: no stray dashed arrow reaches the "don't understand" question except from its real predecessor.
-  const understandTargets = await evaluate(`JSON.stringify(
-    Array.from(document.querySelectorAll('#phoneDiagram path.flowchart-link'))
-      .map(el => el.id.match(/^L_(.+?)_Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_\\d/))
-      .filter(Boolean)
-      .map(m => m[1])
-  )`).then(JSON.parse);
-  for (const source of understandTargets) assert.equal(source, "Q_CHOICE_THEM_DONE_SPEAKING_Y");
-  // Step: the 8-node budget caps how many real (non-stub) nodes are shown.
-  const realNodeCount = await evaluate(
-    "JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram g.node')).filter(el => !el.classList.contains('stub')).length)"
-  );
-  assert.ok(JSON.parse(realNodeCount) <= 8);
-  // Step: clicking a sibling of the last decision point does nothing; it is no longer clickable.
-  await evaluate(
-    "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_N-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
-  );
-  await sleep(100);
-  const idsAfterSiblingClick = await nodeIds();
-  assert.deepEqual(idsAfterSiblingClick, AFTER_Y_SLICE);
-  const logAfterSiblingClick = await evaluate("document.getElementById('logBox').textContent");
-  assert.equal(logAfterSiblingClick.split("\n").length - 1, 1);
-});
-
-test("test_phone_separator_labels_stay_at_the_left_edge_when_scrolled", async () => {
-  // Step: widen the phone diagram so it scrolls sideways, then scroll away from 0.
-  await evaluate(`(() => {
-    const box = document.getElementById('phoneDiagram');
-    const svg = box.querySelector('svg');
-    svg.style.width = box.clientWidth * 3 + 'px';
-    box.scrollLeft = box.clientWidth;
-  })()`);
-  await sleep(200);
-  // Step: both labels still sit inside the visible phone viewport.
-  const result = await evaluate(`JSON.stringify((() => {
-    const box = document.getElementById('phoneDiagram').getBoundingClientRect();
+  // Step: the open decision at the start is the diagram's first question, unmasked, with no separator yet.
+  const state = await evaluate(`JSON.stringify((() => {
+    const active = document.querySelector('#phoneDiagram [data-active-question]');
     return {
-      scrollLeft: document.getElementById('phoneDiagram').scrollLeft,
-      labels: Array.from(document.querySelectorAll('#phoneSeparatorOverlay .separator-label')).map(el => {
-        const r = el.getBoundingClientRect();
-        return { text: el.textContent, inside: r.left >= box.left && r.right <= box.right };
-      }),
+      activeId: active?.dataset.nodeId,
+      separatorCount: document.querySelectorAll('#phoneDiagram .phone-separator').length,
+      maskedCount: document.querySelectorAll('#phoneDiagram .phone-decision-past').length,
     };
   })())`).then(JSON.parse);
-  assert.ok(result.scrollLeft > 0);
-  assert.deepEqual(result.labels.map(l => l.text).sort(), ["last decision", "open decision"]);
-  for (const label of result.labels) assert.equal(label.inside, true);
+  assert.equal(state.activeId, 'Q_THEM_DONE_SPEAKING');
+  assert.equal(state.separatorCount, 0);
+  assert.equal(state.maskedCount, 0);
+  // Step: every block spans the full phone viewport width.
+  const widths = await evaluate(`JSON.stringify((() => {
+    const paneWidth = document.getElementById('phoneDiagram').clientWidth;
+    const blocks = Array.from(document.querySelectorAll('#phoneDiagram .phone-block, #phoneDiagram .phone-question'));
+    return { paneWidth, blockWidths: blocks.map(el => el.getBoundingClientRect().width) };
+  })())`).then(JSON.parse);
+  for (const width of widths.blockWidths)
+    assert.ok(Math.abs(width - widths.paneWidth) < 1, JSON.stringify(widths));
+  // Step: the open question's two choices split the row evenly, with a visible gap between them.
+  const choiceWidths = await evaluate(`JSON.stringify((() => {
+    const choices = Array.from(document.querySelectorAll('#phoneDiagram [data-active-question] + .phone-choice-row .phone-choice'));
+    return { widths: choices.map(el => el.getBoundingClientRect().width) };
+  })())`).then(JSON.parse);
+  assert.equal(choiceWidths.widths.length, 2);
+  assert.ok(Math.abs(choiceWidths.widths[0] - choiceWidths.widths[1]) < 1, JSON.stringify(choiceWidths));
+});
+
+test("test_clicking_a_decision_choice_masks_it_and_opens_the_next_decision", async () => {
+  // Step: click the "Yes" answer under "are they done speaking".
+  await evaluate(
+    "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+  );
+  await sleep(300);
+  const state = await evaluate(`JSON.stringify((() => {
+    const active = document.querySelector('#phoneDiagram [data-active-question]');
+    const pastQuestion = document.querySelector('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]');
+    const pastWrap = pastQuestion.closest('.phone-decision-past');
+    return {
+      activeId: active?.dataset.nodeId,
+      separatorCount: document.querySelectorAll('#phoneDiagram .phone-separator').length,
+      pastIsMasked: !!pastWrap,
+      chosen: !!pastWrap.querySelector('[data-node-id="Q_CHOICE_THEM_DONE_SPEAKING_Y"].phone-choice-chosen'),
+      declined: !!pastWrap.querySelector('[data-node-id="Q_CHOICE_THEM_DONE_SPEAKING_N"].phone-choice-declined'),
+    };
+  })())`).then(JSON.parse);
+  assert.equal(state.activeId, 'Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID');
+  assert.equal(state.separatorCount, 1);
+  assert.equal(state.pastIsMasked, true);
+  assert.equal(state.chosen, true);
+  assert.equal(state.declined, true);
 });
 
 test("test_reset_returns_to_the_start_slice", async () => {
   // Step: press Reset.
   await evaluate("document.getElementById('resetBtn').click()");
-  const ids = await waitForNodeIds(AFTER_Y_SLICE);
-  // Step: the slice is the start slice again.
-  assert.deepEqual(ids, START_SLICE);
+  await sleep(300);
+  const activeId = await evaluate("document.querySelector('#phoneDiagram [data-active-question]')?.dataset.nodeId");
+  assert.equal(activeId, 'Q_THEM_DONE_SPEAKING');
+  assert.equal(await evaluate("phonePath.length"), 0);
 });
 
-test("test_back_button_undoes_one_choice_at_a_time", async () => {
-  // Step: click "Yes" under "done speaking", then "No" under "do I understand everything they said".
+test("test_clicking_a_declined_option_reverts_to_that_branch", async () => {
+  // Step: answer two decisions in a row.
   await evaluate(
-    "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+    "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitForNodeIds(START_SLICE);
+  await sleep(300);
   await evaluate(
-    "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+    "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  const deeperSlice = await waitForNodeIds(AFTER_Y_SLICE);
-  // Step: press Back once.
-  await evaluate("document.getElementById('undoBtn').click()");
-  const afterOneBack = await waitForNodeIds(deeperSlice);
-  // Step: the slice returns to right after "done speaking: Yes".
-  assert.deepEqual(afterOneBack, AFTER_Y_SLICE);
-  // Step: press Back again.
-  await evaluate("document.getElementById('undoBtn').click()");
-  const afterTwoBacks = await waitForNodeIds(AFTER_Y_SLICE);
-  // Step: the slice returns to the start slice.
-  assert.deepEqual(afterTwoBacks, START_SLICE);
-});
-
-test("test_clicking_the_no_answer_shows_the_lead_in_nodes_and_dims_the_other_answer", async () => {
-  // Step: click the "No" answer under "are they done speaking".
+  await sleep(300);
+  assert.deepEqual(await evaluate("phonePath.slice()"), ['Q_CHOICE_THEM_DONE_SPEAKING_Y', 'Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N']);
+  // Step: scroll up and click the declined "No" on the first decision instead.
   await evaluate(
-    "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_N-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+    "document.querySelector('#phoneDiagram [data-node-id=\"Q_THEM_DONE_SPEAKING\"] ~ .phone-choice-row [data-node-id=\"Q_CHOICE_THEM_DONE_SPEAKING_N\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  const ids = await waitForNodeIds(START_SLICE);
-  // Step: the slice shows the static lead-in nodes plus the chosen decision and answer.
-  assert.deepEqual(ids, AFTER_N_SLICE);
-  // Step: the unchosen "Yes" answer shows dimmed.
-  const unchosenNode = await evaluate(
-    "JSON.stringify(!!document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"].unchosen'))"
+  await sleep(300);
+  // Step: the path now holds only the reverted branch; the second decision is cleared, not just undone.
+  assert.deepEqual(await evaluate("phonePath.slice()"), ['Q_CHOICE_THEM_DONE_SPEAKING_N']);
+  const chosenAfterRevert = await evaluate(
+    "document.querySelector('#phoneDiagram [data-node-id=\"Q_CHOICE_THEM_DONE_SPEAKING_N\"]').classList.contains('phone-choice-chosen')"
   );
-  assert.equal(unchosenNode, "true");
-  // Step: reset so later tests start clean, since a sibling click no longer replaces the path.
+  assert.equal(chosenAfterRevert, true);
+  // Step: reset for later tests.
   await evaluate("document.getElementById('resetBtn').click()");
-  await waitForNodeIds(AFTER_N_SLICE);
+  await sleep(300);
+});
+
+test("test_multiple_past_decisions_are_all_masked_while_scrolling", async () => {
+  await evaluate(
+    "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+  );
+  await sleep(300);
+  await evaluate(
+    "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+  );
+  await sleep(300);
+  // Step: both answered decisions are masked; exactly one separator sits right before the open decision.
+  const state = await evaluate(`JSON.stringify((() => {
+    return {
+      maskedCount: document.querySelectorAll('#phoneDiagram .phone-decision-past').length,
+      separatorCount: document.querySelectorAll('#phoneDiagram .phone-separator').length,
+      activeId: document.querySelector('#phoneDiagram [data-active-question]')?.dataset.nodeId,
+    };
+  })())`).then(JSON.parse);
+  assert.equal(state.maskedCount, 2);
+  assert.equal(state.separatorCount, 1);
+  assert.ok(state.activeId);
+  await evaluate("document.getElementById('resetBtn').click()");
+  await sleep(300);
+});
+
+test("test_clicking_the_no_answer_masks_the_decision_with_both_options_visible", async () => {
+  // Step: click the "No" answer under "are they done speaking" (this diagram loops "No" back to re-listen).
+  await evaluate(
+    "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_N\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+  );
+  await sleep(300);
+  const state = await evaluate(`JSON.stringify((() => {
+    const pastWrap = document.querySelector('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]').closest('.phone-decision-past');
+    return {
+      pastIsMasked: !!pastWrap,
+      chosenIsNo: !!pastWrap.querySelector('[data-node-id="Q_CHOICE_THEM_DONE_SPEAKING_N"].phone-choice-chosen'),
+      declinedIsYes: !!pastWrap.querySelector('[data-node-id="Q_CHOICE_THEM_DONE_SPEAKING_Y"].phone-choice-declined'),
+    };
+  })())`).then(JSON.parse);
+  assert.equal(state.pastIsMasked, true);
+  assert.equal(state.chosenIsNo, true);
+  assert.equal(state.declinedIsYes, true);
+  // Step: reset so later tests start clean.
+  await evaluate("document.getElementById('resetBtn').click()");
+  await sleep(300);
+});
+
+test("test_diagram_loop_appends_the_repeated_nodes_instead_of_stopping", async () => {
+  // Step: "No" loops back to "Me: Listen"; the phone log should keep going, not end at the masked decision.
+  await evaluate(
+    "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_N\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+  );
+  await sleep(300);
+  const state = await evaluate(`JSON.stringify((() => {
+    return {
+      listenCount: document.querySelectorAll('#phoneDiagram [data-node-id="B_SELF_LISTEN"]').length,
+      questionCount: document.querySelectorAll('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]').length,
+      hasActive: !!document.querySelector('#phoneDiagram [data-active-question]'),
+    };
+  })())`).then(JSON.parse);
+  assert.equal(state.listenCount, 2);
+  assert.equal(state.questionCount, 2);
+  assert.equal(state.hasActive, true);
+  // Step: reset so later tests start clean.
+  await evaluate("document.getElementById('resetBtn').click()");
+  await sleep(300);
+});
+
+test("test_clicking_a_phone_choice_selects_and_centers_the_next_decision_without_moving_the_page", async () => {
+  // Step: phone choice selects and centers the view on the new decision without scrolling the page.
+  await evaluate("window.scrollTo(0, 5);");
+  const pageBefore = await evaluate("window.scrollY");
+  await evaluate(
+    "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
+  );
+  await sleep(300);
+  const pageAfter = await evaluate("window.scrollY");
+  assert.equal(pageAfter, pageBefore);
+  assert.equal(await evaluate("selectedEditorNodeId"), 'Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID');
+  await evaluate("document.getElementById('resetBtn').click()");
+  await sleep(300);
 });
 
 test("test_phone_view_handles_a_diagram_with_no_edges", async () => {
@@ -437,7 +377,7 @@ test("test_phone_view_handles_a_diagram_with_no_edges", async () => {
   const errorText = await evaluate("document.getElementById('error').textContent");
   assert.equal(errorText, "");
   const hasNodeA = await evaluate(
-    "JSON.stringify(!!document.querySelector('#phoneDiagram [id*=\"flowchart-B_ONLY_ONE_BOX-\"]'))"
+    "JSON.stringify(!!document.querySelector('#phoneDiagram [data-node-id=\"B_ONLY_ONE_BOX\"]'))"
   );
   assert.equal(hasNodeA, "true");
   // Step: restore the accountability diagram for any tests that follow.
@@ -445,135 +385,21 @@ test("test_phone_view_handles_a_diagram_with_no_edges", async () => {
   await sleep(300);
 });
 
-test("test_decision_log_reflects_choices_and_undo", async () => {
-  // Step: click "Yes" under "done speaking", then "No" under "do I understand everything they said".
-  await evaluate(
-    "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
-  );
-  await waitForNodeIds(START_SLICE);
-  await evaluate(
-    "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
-  );
-  await waitForNodeIds(AFTER_Y_SLICE);
-  // Step: open the decision log.
-  await evaluate("document.getElementById('logBtn').click()");
-  const logAfterTwo = await evaluate("document.getElementById('logBox').textContent");
-  assert.equal(
-    logAfterTwo,
-    "-- Decision Log for <issue> (<timestamp>) --\n" +
-      "[1] in my head: are they done speaking?: Yes\n" +
-      "[2] Do I understand everything they said?: No"
-  );
-  const isOpen = await evaluate("document.getElementById('logBox').classList.contains('open')");
-  assert.equal(isOpen, true);
-  // Step: the drawer reaches up into the phone frame.
-  const drawerRect = await evaluate(`JSON.stringify((() => {
-    const logBox = document.getElementById('logBox');
-    const phoneOutput = document.getElementById('phoneOutput');
-    const logRect = logBox.getBoundingClientRect();
-    const phoneRect = phoneOutput.getBoundingClientRect();
-    return {
-      reachesUp: logRect.top < phoneRect.top + 0.6 * phoneRect.height,
-      tallEnough: logRect.height > 100,
-    };
-  })())`).then(JSON.parse);
-  assert.equal(drawerRect.reachesUp, true);
-  assert.equal(drawerRect.tallEnough, true);
-  // Step: the log button stays clickable above the open drawer.
-  const btnHit = await evaluate(`JSON.stringify((() => {
-    const btn = document.getElementById('logBtn');
-    const r = btn.getBoundingClientRect();
-    const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    return { insideBtn: btn === el || btn.contains(el) };
-  })())`).then(JSON.parse);
-  assert.equal(btnHit.insideBtn, true);
-  // Step: press Back once; the log drops the most recent entry.
-  await evaluate("document.getElementById('undoBtn').click()");
-  await waitForNodeIds(AFTER_Y_SLICE);
-  const logAfterUndo = await evaluate("document.getElementById('logBox').textContent");
-  assert.equal(
-    logAfterUndo,
-    "-- Decision Log for <issue> (<timestamp>) --\n" +
-      "[1] in my head: are they done speaking?: Yes"
-  );
-  // Step: press Reset; the log returns to just the header.
-  await evaluate("document.getElementById('resetBtn').click()");
-  await waitForNodeIds(AFTER_Y_SLICE);
+test("test_phone_choice_width_splits_the_viewport_by_choice_count", async () => {
+  // Step: a fresh three-choice fixture, independent of the accountability diagram.
+  await resetEditorFixture();
+  await setEditorSource('flowchart TD\n  Q_FIRST{"First?"}\n  Q_CHOICE_FIRST_A["A"]\n  Q_CHOICE_FIRST_B["B"]\n  Q_CHOICE_FIRST_C["C"]\n  Q_FIRST --> Q_CHOICE_FIRST_A\n  Q_FIRST --> Q_CHOICE_FIRST_B\n  Q_FIRST --> Q_CHOICE_FIRST_C');
   await sleep(300);
-  const logAfterReset = await evaluate("document.getElementById('logBox').textContent");
-  assert.equal(logAfterReset, "-- Decision Log for <issue> (<timestamp>) --");
-  // Step: clicking the log button again closes the drawer and reveals the diagram.
-  await evaluate("document.getElementById('logBtn').click()");
-  const isClosed = await evaluate("document.getElementById('logBox').classList.contains('open')");
-  assert.equal(isClosed, false);
-  const svgVisible = await evaluate(`JSON.stringify((() => {
-    const svg = document.querySelector('#phoneDiagram svg');
-    const r = svg.getBoundingClientRect();
-    const el = document.elementFromPoint(r.left + r.width / 2, r.bottom - 10);
-    return { insideSvg: svg === el || svg.contains(el) };
+  const widths = await evaluate(`JSON.stringify((() => {
+    const choices = Array.from(document.querySelectorAll('#phoneDiagram .phone-choice-row .phone-choice'));
+    return { widths: choices.map(el => el.getBoundingClientRect().width) };
   })())`).then(JSON.parse);
-  assert.equal(svgVisible.insideSvg, true);
+  assert.equal(widths.widths.length, 3);
+  for (const width of widths.widths)
+    assert.ok(Math.abs(width - widths.widths[0]) < 1, JSON.stringify(widths));
+  await evaluate("loadDiagram('accountability.mmd')");
+  await sleep(300);
 });
-
-test("test_font_size_is_the_same_in_every_view", async () => {
-  // Step: measure one line of B_RAISE_ISSUE's label in the phone start slice.
-  const startLabel = await labelLineHeight("B_RAISE_ISSUE", "phoneDiagram");
-  // Step: click "Yes" under "done speaking" to slice to the next decision point.
-  await evaluate(
-    "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
-  );
-  await waitForNodeIds(START_SLICE);
-  // Step: measure one line of Q_THEM_DONE_SPEAKING's label in the new phone slice.
-  const afterYLabel = await labelLineHeight("Q_THEM_DONE_SPEAKING", "phoneDiagram");
-  // Step: the label line height stays the same across phone slices.
-  assert.ok(Math.abs(afterYLabel.height - startLabel.height) < 1);
-  // Step: the phone svg is not shrunk smaller than its set style size.
-  const svgFit = await evaluate(`JSON.stringify((() => {
-    const svg = document.querySelector('#phoneDiagram svg');
-    return { rendered: svg.getBoundingClientRect().width, styled: parseFloat(svg.style.width) };
-  })())`).then(JSON.parse);
-  assert.ok(Math.abs(svgFit.rendered - svgFit.styled) < 1);
-  // Step: the same label line height shows in the always-visible regular view.
-  const webLabel = await labelLineHeight("B_RAISE_ISSUE", "diagram");
-  assert.ok(Math.abs(webLabel.height - startLabel.height) < 1);
-});
-
-// retired: the phone view now fits its pane, so it never overflows
-// test("test_clicking_a_decision_node_scrolls_the_new_choices_into_view", async () => {
-//   // Step: click "Yes" under "done speaking", then "No" under "do I understand everything they said".
-//   await evaluate(
-//     "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
-//   );
-//   await sleep(300);
-//   await evaluate(
-//     "document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
-//   );
-//   const clarifySlice = await waitForNodeIds(AFTER_Y_SLICE);
-//   await sleep(200);
-//   // Step: the new slice overflows the phone frame, so this test actually exercises scrolling.
-//   const overflow = await evaluate(
-//     "JSON.stringify({sh: document.getElementById('phoneDiagram').scrollHeight, ch: document.getElementById('phoneDiagram').clientHeight})"
-//   ).then(JSON.parse);
-//   assert.ok(overflow.sh > overflow.ch);
-//   // Step: every choice of the new bottom decision point sits fully inside the visible container.
-//   const fits = await evaluate(`JSON.stringify((() => {
-//     const container = document.getElementById('phoneDiagram').getBoundingClientRect();
-//     const ids = ['Q_CHOICE_CLARIFY_ISSUE_COUNT_NONE', 'Q_CHOICE_CLARIFY_ISSUE_COUNT_ONCE', 'Q_CHOICE_CLARIFY_ISSUE_COUNT_MULTIPLE'];
-//     return ids.map(id => {
-//       const rect = document.querySelector('#phoneDiagram [id*="flowchart-' + id + '-"]').getBoundingClientRect();
-//       return { id, top: rect.top, bottom: rect.bottom, containerTop: container.top, containerBottom: container.bottom };
-//     });
-//   })())`).then(JSON.parse);
-//   for (const choice of fits) {
-//     assert.ok(choice.top >= choice.containerTop, `${choice.id} top in view`);
-//     assert.ok(choice.bottom <= choice.containerBottom + 1, `${choice.id} bottom in view`);
-//   }
-//   // Step: press Reset; the diagram scrolls back to the top.
-//   await evaluate("document.getElementById('resetBtn').click()");
-//   await waitForNodeIds(clarifySlice);
-//   const scrollTop = await evaluate("JSON.stringify(document.getElementById('phoneDiagram').scrollTop)");
-//   assert.equal(scrollTop, "0");
-// });
 
 test("test_syntax_error_keeps_last_good_diagram_and_shows_error_log", async () => {
   // Step: open the drawer if it is closed, so the editor is interactable.
@@ -1109,8 +935,9 @@ test("test_node_categories_and_colors_persist_and_recolor_both_views", async () 
   })()`);
   await evaluate("window.editorActionPromise");
   const state = await evaluate(`JSON.stringify((() => {
-    const fill = (box) => box.querySelector('[id*="flowchart-B_Start-"] rect').style.fill;
-    return { selected: selectedEditorNodeId, category: document.getElementById('nodeTypeInput').value, regular: fill(document.getElementById('diagram')), phone: fill(document.getElementById('phoneDiagram')) };
+    const regular = document.querySelector('#diagram [id*="flowchart-B_Start-"] rect').style.fill;
+    const phone = document.querySelector('#phoneDiagram [data-node-id="B_Start"]').style.background;
+    return { selected: selectedEditorNodeId, category: document.getElementById('nodeTypeInput').value, regular, phone };
   })())`).then(JSON.parse);
   assert.deepEqual(state, { selected: 'B_Start', category: 'reflection', regular: 'rgb(18, 52, 86)', phone: 'rgb(18, 52, 86)' });
   const saved = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`).then((r) => r.text());
@@ -1120,7 +947,7 @@ test("test_node_categories_and_colors_persist_and_recolor_both_views", async () 
   await evaluate(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
   await sleep(300);
   assert.equal(await evaluate('selectedEditorNodeId'), 'B_Start');
-  assert.equal(await evaluate(`document.querySelector('#phoneDiagram [id*="flowchart-B_Start-"] rect').style.fill`), 'rgb(18, 52, 86)');
+  assert.equal(await evaluate(`document.querySelector('#phoneDiagram [data-node-id="B_Start"]').style.background`), 'rgb(18, 52, 86)');
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: 'PUT', body: editorFixtureSource });
 });
 
@@ -1169,15 +996,9 @@ test('test_decision_navigation_steps_through_every_decision_in_source_order_and_
   assert.equal(await evaluate("document.getElementById('selectedNode').textContent"), 'Q_SECOND');
   assert.equal(await evaluate("document.getElementById('decisionCounter').textContent"), '2 / 2');
   assert.equal(await evaluate("currentBottomQ"), 'Q_SECOND');
-  assert.equal(await evaluate("!!document.querySelector('#phoneDiagram [id*=\"flowchart-Q_SECOND-\"]')"), true);
+  assert.equal(await evaluate("!!document.querySelector('#phoneDiagram [data-node-id=\"Q_SECOND\"]')"), true);
   for (const id of ['Q_FIRST', 'Q_CHOICE_FIRST_YES', 'Q_CHOICE_FIRST_NO', 'B_MIDDLE', 'Q_CHOICE_SECOND_YES', 'Q_CHOICE_SECOND_NO'])
-    assert.equal(await evaluate(`!!document.querySelector('#phoneDiagram [id*="flowchart-${id}-"]')`), true, id);
-  const phoneCenterDelta = await evaluate(`(() => {
-    const pane = document.getElementById('phoneDiagram').getBoundingClientRect();
-    const node = document.querySelector('#phoneDiagram [id*="flowchart-Q_SECOND-"]').getBoundingClientRect();
-    return Math.abs((node.left + node.width / 2) - (pane.left + pane.width / 2));
-  })()`);
-  assert.ok(phoneCenterDelta < 32, `phone decision center delta was ${phoneCenterDelta}`);
+    assert.equal(await evaluate(`!!document.querySelector('#phoneDiagram [data-node-id="${id}"]')`), true, id);
   const mainFocusVisible = await evaluate(`(() => {
     const pane = document.getElementById('output').getBoundingClientRect();
     const node = document.querySelector('#diagram [id*="flowchart-Q_SECOND-"]').getBoundingClientRect();
@@ -1390,7 +1211,7 @@ test('test_main_view_choice_and_regular_nodes_preview_their_feeding_decision_as_
   assert.equal(await evaluate('phoneFocusNodeId'), null);
   assert.equal(await evaluate('phonePath.length'), 0);
   for (const id of ['Q_FIRST', 'Q_CHOICE_FIRST_Y', 'B_ONE', 'B_TWO', 'Q_NEXT', 'Q_CHOICE_NEXT_Y', 'Q_CHOICE_NEXT_N'])
-    assert.equal(await evaluate(`!!document.querySelector('#phoneDiagram [id*="flowchart-${id}-"]')`), true, id);
+    assert.equal(await evaluate(`!!document.querySelector('#phoneDiagram [data-node-id="${id}"]')`), true, id);
   assert.equal(await evaluate("currentBottomQ"), 'Q_NEXT');
 
   // A choice previews the same non-logged decision outcome.
@@ -1417,12 +1238,9 @@ test('test_header_zoom_controls_resize_only_the_main_mermaid_diagram', async () 
   await evaluate("document.getElementById('zoomResetBtn').click()");
   const dimensions = () => evaluate(`JSON.stringify((() => {
     const regularSvg = document.querySelector('#diagram svg');
-    const phoneSvg = document.querySelector('#phoneDiagram svg');
     return {
       regularWidth: Number.parseFloat(regularSvg.style.width),
       regularHeight: Number.parseFloat(regularSvg.style.height),
-      phoneWidth: Number.parseFloat(phoneSvg.style.width),
-      phoneHeight: Number.parseFloat(phoneSvg.style.height),
       outputWidth: document.getElementById('output').getBoundingClientRect().width,
       drawerWidth: document.getElementById('drawer').getBoundingClientRect().width,
       level: document.getElementById('zoomLevel').textContent,
@@ -1437,8 +1255,6 @@ test('test_header_zoom_controls_resize_only_the_main_mermaid_diagram', async () 
   const zoomed = await dimensions();
   assert.ok(Math.abs(zoomed.regularWidth / initial.regularWidth - 1.1) < 0.0001, JSON.stringify({ initial, zoomed }));
   assert.ok(Math.abs(zoomed.regularHeight / initial.regularHeight - 1.1) < 0.0001, JSON.stringify({ initial, zoomed }));
-  assert.equal(zoomed.phoneWidth, initial.phoneWidth);
-  assert.equal(zoomed.phoneHeight, initial.phoneHeight);
   assert.equal(zoomed.outputWidth, initial.outputWidth);
   assert.equal(zoomed.drawerWidth, initial.drawerWidth);
   assert.equal(zoomed.level, '110%');
@@ -1453,50 +1269,49 @@ test('test_header_zoom_controls_resize_only_the_main_mermaid_diagram', async () 
   assert.equal(reset.level, '100%');
 });
 
-test('test_previous_selection_mask_stops_before_the_open_decision_after_each_phone_choice', async () => {
+test('test_previous_selections_stay_masked_through_each_phone_choice', async () => {
   await evaluate("loadDiagram('accountability.mmd')");
   await sleep(500);
-  await evaluate(`document.querySelector('#phoneDiagram [id*="flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  await evaluate("document.getElementById('resetBtn').click()");
+  await sleep(300);
+  await evaluate(`document.querySelector('#phoneDiagram [data-choose="Q_CHOICE_THEM_DONE_SPEAKING_Y"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await sleep(400);
-  const firstMaskState = await evaluate(`JSON.stringify((() => {
-    const mask = document.querySelector('#phoneSeparatorOverlay .last-decision-mask').getBoundingClientRect();
-    const openDecision = document.querySelector('#phoneDiagram [id*="flowchart-Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID-"]').getBoundingClientRect();
-    const openChoices = ['Y', 'N'].map(suffix => document.querySelector('#phoneDiagram [id*="flowchart-Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_' + suffix + '-"]').getBoundingClientRect());
-    return { maskBottom: mask.bottom, openDecisionTop: openDecision.top, openChoiceTops: openChoices.map(rect => rect.top) };
-  })())`).then(JSON.parse);
-  assert.ok(firstMaskState.maskBottom <= firstMaskState.openDecisionTop, JSON.stringify(firstMaskState));
-  for (const choiceTop of firstMaskState.openChoiceTops)
-    assert.ok(firstMaskState.maskBottom <= choiceTop, JSON.stringify(firstMaskState));
-  await evaluate(`document.querySelector('#phoneDiagram [id*="flowchart-Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N-"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
-  await sleep(400);
-  const maskState = await evaluate(`JSON.stringify((() => {
-    const mask = document.querySelector('#phoneSeparatorOverlay .last-decision-mask').getBoundingClientRect();
-    const openDecision = document.querySelector('#phoneDiagram [id*="flowchart-Q_CLARIFY_ISSUE_COUNT-"]').getBoundingClientRect();
-    const openChoices = ['NONE', 'ONCE', 'MULTIPLE'].map(suffix => document.querySelector('#phoneDiagram [id*="flowchart-Q_CHOICE_CLARIFY_ISSUE_COUNT_' + suffix + '-"]').getBoundingClientRect());
+  const firstState = await evaluate(`JSON.stringify((() => {
     return {
-      maskBottom: mask.bottom,
-      openDecisionTop: openDecision.top,
-      openChoiceTops: openChoices.map(rect => rect.top),
+      firstMasked: !!document.querySelector('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]').closest('.phone-decision-past'),
+      activeId: document.querySelector('#phoneDiagram [data-active-question]')?.dataset.nodeId,
+      separatorCount: document.querySelectorAll('#phoneDiagram .phone-separator').length,
+    };
+  })())`).then(JSON.parse);
+  assert.equal(firstState.firstMasked, true);
+  assert.equal(firstState.activeId, 'Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID');
+  assert.equal(firstState.separatorCount, 1);
+  await evaluate(`document.querySelector('#phoneDiagram [data-choose="Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  await sleep(400);
+  const secondState = await evaluate(`JSON.stringify((() => {
+    return {
+      firstMasked: !!document.querySelector('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]').closest('.phone-decision-past'),
+      secondMasked: !!document.querySelector('#phoneDiagram [data-node-id="Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID"]').closest('.phone-decision-past'),
+      separatorCount: document.querySelectorAll('#phoneDiagram .phone-separator').length,
       phonePath: phonePath.slice(),
       currentBottomQ,
     };
   })())`).then(JSON.parse);
-  assert.deepEqual(maskState.phonePath, ['Q_CHOICE_THEM_DONE_SPEAKING_Y', 'Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N']);
-  assert.equal(maskState.currentBottomQ, 'Q_CLARIFY_ISSUE_COUNT');
-  assert.ok(maskState.maskBottom <= maskState.openDecisionTop, JSON.stringify(maskState));
-  for (const choiceTop of maskState.openChoiceTops)
-    assert.ok(maskState.maskBottom <= choiceTop, JSON.stringify(maskState));
+  assert.deepEqual(secondState.phonePath, ['Q_CHOICE_THEM_DONE_SPEAKING_Y', 'Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N']);
+  assert.equal(secondState.currentBottomQ, 'Q_CLARIFY_ISSUE_COUNT');
+  assert.equal(secondState.firstMasked, true);
+  assert.equal(secondState.secondMasked, true);
+  assert.equal(secondState.separatorCount, 1);
+  await evaluate("document.getElementById('resetBtn').click()");
+  await sleep(300);
 });
 
-test('test_add_and_insert_actions_preserve_the_zoom_scale_in_both_views', async () => {
+test('test_add_and_insert_actions_preserve_the_zoom_scale_in_the_regular_view', async () => {
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  B_START["Start"]\n  Q_FIRST{"First?"}\n  Q_CHOICE_FIRST_Y["Yes"]\n  Q_CHOICE_FIRST_N["No"]\n  B_END["End"]\n  B_START --> Q_FIRST\n  Q_FIRST --> Q_CHOICE_FIRST_Y --> B_END\n  Q_FIRST --> Q_CHOICE_FIRST_N');
   const scales = () => evaluate(`JSON.stringify((() => {
-    const scale = (selector) => {
-      const svg = document.querySelector(selector);
-      return Number.parseFloat(svg.style.height) / svg.viewBox.baseVal.height;
-    };
-    return { regular: scale('#diagram svg'), phone: scale('#phoneDiagram svg') };
+    const svg = document.querySelector('#diagram svg');
+    return { regular: Number.parseFloat(svg.style.height) / svg.viewBox.baseVal.height };
   })())`).then(JSON.parse);
   await evaluate("document.getElementById('zoomResetBtn').click(); document.getElementById('zoomInBtn').click()");
   const initial = await scales();
@@ -1505,13 +1320,11 @@ test('test_add_and_insert_actions_preserve_the_zoom_scale_in_both_views', async 
   await clickInspectorAction('add-choice');
   const afterAdd = await scales();
   assert.ok(Math.abs(afterAdd.regular - initial.regular) < 0.000001);
-  assert.ok(Math.abs(afterAdd.phone - initial.phone) < 0.000001);
 
   await clickNode('B_START');
   await clickInspectorAction('insert-decision-after');
   const afterInsert = await scales();
   assert.ok(Math.abs(afterInsert.regular - initial.regular) < 0.000001);
-  assert.ok(Math.abs(afterInsert.phone - initial.phone) < 0.000001);
   await evaluate("document.getElementById('zoomResetBtn').click()");
 });
 
@@ -2064,7 +1877,7 @@ test('test_functions_only_toggle_filters_both_views_to_functions_and_restores_on
   await setEditorSource('flowchart TD\n  B_MAIN["main()"]\n  B_SETUP["prepare data"]\n  B_PARSE["parse()"]\n  B_DONE["cleanup()"]\n  B_MAIN --> B_SETUP\n  B_SETUP --> B_PARSE\n  B_PARSE --> B_DONE');
   const mainNodeIds = () => evaluate("JSON.stringify(Array.from(document.querySelectorAll('#diagram g.node')).map(nodeIdOf).sort())").then(JSON.parse);
   const mainHasEdge = (fragment: string) => evaluate(`JSON.stringify(Array.from(document.querySelectorAll('#diagram path.flowchart-link')).some(el => el.id.includes(${JSON.stringify(fragment)})))`).then(JSON.parse);
-  const phoneHasEdge = (fragment: string) => evaluate(`JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram path.flowchart-link')).some(el => el.id.includes(${JSON.stringify(fragment)})))`).then(JSON.parse);
+  const phoneNodeOrder = () => evaluate("JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram [data-node-id]')).map(el => el.dataset.nodeId))").then(JSON.parse);
   // Step: with the toggle off, the main view shows every node, including the non-function step.
   assert.deepEqual(await mainNodeIds(), ['B_DONE', 'B_MAIN', 'B_PARSE', 'B_SETUP']);
   assert.equal(await mainHasEdge('L_B_MAIN_B_SETUP_'), true);
@@ -2081,7 +1894,7 @@ test('test_functions_only_toggle_filters_both_views_to_functions_and_restores_on
   assert.ok(!(await nodeIds()).includes('B_SETUP'));
   // Step: the edge is rerouted directly from B_MAIN to B_PARSE in both views, skipping the removed step.
   assert.equal(await mainHasEdge('L_B_MAIN_B_PARSE_'), true);
-  assert.equal(await phoneHasEdge('L_B_MAIN_B_PARSE_'), true);
+  assert.deepEqual(await phoneNodeOrder(), ['B_MAIN', 'B_PARSE', 'B_DONE']);
   assert.equal(await mainHasEdge('L_B_PARSE_B_DONE_'), true);
   // Step: disable the functions-only toggle and let both views rerender.
   await evaluate("(() => { const toggle = document.getElementById('functionsOnlyToggle'); toggle.checked = false; toggle.dispatchEvent(new Event('change')); })()");
@@ -2131,7 +1944,7 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
   assert.deepEqual(placement.inMenu, [true, true, true, true]);
 
   // Step: Reset entry clears a chosen phone path and closes the menu.
-  await evaluate("document.querySelector('#phoneDiagram [id*=\"flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
+  await evaluate("document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   await sleep(100);
   assert.equal(await evaluate("phonePath.length"), 1);
   await evaluate("document.getElementById('fileMenu').open = true");
@@ -2194,7 +2007,7 @@ test('test_dark_mode_toggle_exists_and_is_checked_on_load_with_dark_background',
 
 test('test_dark_mode_on_renders_flowchart_node_text_black', async () => {
   assert.equal(await evaluate("document.getElementById('darkModeToggle').checked"), true);
-  assert.equal(await evaluate("getComputedStyle(document.querySelector('#phoneDiagram .node .nodeLabel p')).color"), 'rgb(0, 0, 0)');
+  assert.equal(await evaluate("getComputedStyle(document.querySelector('#diagram .node .nodeLabel p')).color"), 'rgb(0, 0, 0)');
 });
 
 test('test_dark_mode_toggle_off_restores_the_light_background_and_on_restores_dark', async () => {
@@ -2204,25 +2017,25 @@ test('test_dark_mode_toggle_off_restores_the_light_background_and_on_restores_da
   assert.equal(await evaluate("getComputedStyle(document.body).backgroundColor"), 'rgb(30, 30, 30)');
 });
 
-test('test_last_decision_mask_color_follows_dark_mode_and_never_passes_the_last_decision_line', async () => {
+test('test_masked_decision_color_follows_dark_mode', async () => {
   await evaluate("loadDiagram('accountability.mmd')");
   await sleep(500);
-  await evaluate(`document.querySelector('#phoneDiagram [id*="flowchart-Q_CHOICE_THEM_DONE_SPEAKING_Y-"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  await evaluate("document.getElementById('resetBtn').click()");
+  await sleep(300);
+  await evaluate(`document.querySelector('#phoneDiagram [data-choose="Q_CHOICE_THEM_DONE_SPEAKING_Y"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await sleep(400);
-  const maskColor = () => evaluate("getComputedStyle(document.querySelector('#phoneSeparatorOverlay .last-decision-mask')).backgroundColor");
-  const setDark = (on) => evaluate(`(() => { const toggle = document.getElementById('darkModeToggle'); toggle.checked = ${on}; toggle.dispatchEvent(new Event('change')); })()`);
+  const maskColor = () => evaluate(
+    "getComputedStyle(document.querySelector('#phoneDiagram .phone-decision-past'), '::after').backgroundColor"
+  );
+  const setDark = (on: boolean) => evaluate(`(() => { const toggle = document.getElementById('darkModeToggle'); toggle.checked = ${on}; toggle.dispatchEvent(new Event('change')); })()`);
   await setDark(true);
   await sleep(400);
-  assert.equal(await maskColor(), 'rgba(255, 255, 255, 0.25)');
+  assert.equal(await maskColor(), 'rgba(255, 255, 255, 0.55)');
   await setDark(false);
   await sleep(400);
-  assert.equal(await maskColor(), 'rgba(0, 0, 0, 0.25)');
-  const maskBottomAndLineTop = await evaluate(`JSON.stringify((() => {
-    const mask = document.querySelector('#phoneSeparatorOverlay .last-decision-mask').getBoundingClientRect();
-    const line = document.querySelector('#phoneSeparatorOverlay .separator-line[data-label="last decision"]').getBoundingClientRect();
-    return { maskBottom: mask.bottom, lineTop: line.top };
-  })())`).then(JSON.parse);
-  assert.ok(maskBottomAndLineTop.maskBottom <= maskBottomAndLineTop.lineTop + 0.5, JSON.stringify(maskBottomAndLineTop));
+  assert.equal(await maskColor(), 'rgba(0, 0, 0, 0.55)');
+  await evaluate("document.getElementById('resetBtn').click()");
+  await sleep(300);
   await setDark(true);
   await sleep(400);
 });

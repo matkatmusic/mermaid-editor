@@ -1,16 +1,16 @@
 declare const mermaid: any;
-import { codeBox, darkModeToggle, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, mermaidOptions, outputBox, phoneDiagramBox, phoneSeparatorOverlay } from './dom.ts';
+import { codeBox, darkModeToggle, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, mermaidOptions, outputBox } from './dom.ts';
 import { editorGraph } from './editor-graph.ts';
 import { discardInvalidPhonePreview, updateDecisionCounter } from './decision-nav.ts';
-import { chunkSource, parseEdges } from './diagram-source.ts';
+import { parseEdges } from './diagram-source.ts';
 import { filterToFunctions } from './function-routing.ts';
-import { choicesOf, leadInIds, renderLog, siblingIds, sliceIds } from './graph-slice.ts';
+import { sliceIds } from './graph-slice.ts';
 import { phonePath, state } from './state.ts';
 import { applyNodeTypeColors } from './node-type-colors.ts';
 import { renderEditorSelection } from './editor-actions.ts';
 import { highlightPath, showEditorValidationError } from './render-helpers.ts';
 import { baseScale, viewBoxOf } from './zoom.ts';
-import { drawLastDecisionMask, drawSeparatorBetween, scrollChoicesIntoView, updateSeparatorTops } from './phone-separators.ts';
+import { renderPhone } from './phone-render.ts';
 import { positionNodeInspector } from './node-inspector.ts';
 
 export async function render() {
@@ -35,12 +35,8 @@ export async function render() {
     }
     if (phonePathIsStale)
       phonePath.length = 0;
-    // render the log before the await so undo callers see it fresh
-    renderLog(edges);
+    // state.currentBottomQ is kept for the main-view decision-focus/preview integration (decision-nav.ts, editor-events.ts); the phone pane itself no longer needs it.
     const ids = edges.length > 0 ? sliceIds(edges) : [];
-    const siblings = siblingIds(ids, edges);
-    const leadIns = leadInIds(ids, siblings, edges);
-    const shown = new Set([...ids, ...siblings, ...leadIns]);
     const reversedIds = [...ids].reverse();
     let bottomQ = state.phoneFocusNodeId && graph.nodes.get(state.phoneFocusNodeId)?.kind === 'question'
       ? state.phoneFocusNodeId
@@ -60,58 +56,36 @@ export async function render() {
       }
     }
     state.currentBottomQ = bottomQ;
-    const phoneSource = edges.length > 0 ? chunkSource(shown, siblings, edges) : codeBox.value;
     const mainSource = state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value;
-    const filteredPhoneSource = state.functionsOnly ? filterToFunctions(phoneSource) : phoneSource;
+    const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
-    const phoneViewport = { left: phoneDiagramBox.scrollLeft, top: phoneDiagramBox.scrollTop };
     const myRenderId = state.renderId;
-    const [{ svg: regularSvg }, { svg: phoneSvg }] = await Promise.all([
-      mermaid.render('diagram-' + (state.renderId++), mainSource),
-      mermaid.render('phone-diagram-' + (state.renderId++), filteredPhoneSource),
-    ]);
+    const { svg: regularSvg } = await mermaid.render('diagram-' + (state.renderId++), mainSource);
     // A newer render() started while this one was awaiting Mermaid; drop this stale result.
-    if (state.renderId !== myRenderId + 2)
+    if (state.renderId !== myRenderId + 1)
       return;
+    // Resolve scale before the DOM write; awaiting after innerHTML flashes one frame of unsized, overlapping nodes.
+    const hasEdges = edges.length > 0;
+    const scaleIsUnset = state.diagramScale === null;
+    if (hasEdges) {
+      if (scaleIsUnset)
+        state.diagramScale = await baseScale(edges);
+    }
     diagramBox.innerHTML = regularSvg;
-    phoneDiagramBox.innerHTML = phoneSvg;
-    phoneSeparatorOverlay.replaceChildren();
+    renderPhone(phoneEdges, graph);
     applyNodeTypeColors(graph);
     renderEditorSelection();
     highlightPath();
     if (edges.length > 0) {
-      if (state.diagramScale === null)
-        state.diagramScale = await baseScale(edges);
-      const scale = state.diagramScale;
+      const scale = state.diagramScale!;
       const mainZoom = state.mainZoomPercent / 100;
       const regularSvgEl = diagramBox.querySelector('svg')!;
       const regularBox = viewBoxOf(regularSvg);
       regularSvgEl.style.width = regularBox.width * scale * mainZoom + 'px';
       regularSvgEl.style.height = regularBox.height * scale * mainZoom + 'px';
-      const phoneSvgEl = phoneDiagramBox.querySelector('svg')!;
-      const phoneBox = viewBoxOf(phoneSvg);
-      const phoneWidth = Math.max(phoneBox.width * scale, phoneDiagramBox.clientWidth);
-      phoneSvgEl.style.width = phoneWidth + 'px';
-      phoneSvgEl.style.height = phoneBox.height * scale + 'px';
     }
     outputBox.scrollLeft = regularViewport.left;
     outputBox.scrollTop = regularViewport.top;
-    phoneDiagramBox.scrollLeft = phoneViewport.left;
-    phoneDiagramBox.scrollTop = phoneViewport.top;
-    const hasContextualPreviousDecision = state.phoneFocusUsesDecisionContext
-      && ids[0] !== state.phoneFocusNodeId
-      && graph.nodes.get(ids[0])?.kind === 'question';
-    const shouldDrawLastDecision = edges.length > 0 && (phonePath.length > 0 || state.phonePreviewChoiceId || hasContextualPreviousDecision);
-    if (shouldDrawLastDecision)
-      drawLastDecisionMask();
-    if (shouldDrawLastDecision)
-      drawSeparatorBetween(ids[0], choicesOf(ids[0], edges), 'last decision');
-    const shouldDrawBottomSeparator = edges.length > 0 && bottomQ;
-    if (shouldDrawBottomSeparator)
-      drawSeparatorBetween(bottomQ!, choicesOf(bottomQ!, edges), 'open decision');
-    if (edges.length > 0)
-      scrollChoicesIntoView(bottomQ, edges);
-    updateSeparatorTops();
     positionNodeInspector();
     errorLog.textContent = '';
     errorLog.classList.remove('open');

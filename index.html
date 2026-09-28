@@ -5,8 +5,8 @@
 <title>Mermaid Viewer</title>
 <script src="/mermaid.min.js"></script>
 <style>
-  :root { --bg: #fff; --bg-light: #f5f5f5; --bg-card: #fafafa; --text: #000; --text-quiet: #666; --line: #ccc; --line-soft: #ddd; --border-strong: #333; --border-input: #555; --border-mid: #888; --error: red; --select-stroke: #1565c0; --preview-stroke: #ef6c00; --mask: rgba(0,0,0,0.25); }
-  body.dark { color-scheme: dark; --bg: #1e1e1e; --bg-light: #2b2b2b; --bg-card: #2b2b2b; --text: #e6e6e6; --text-quiet: #a0a0a0; --line: #555; --line-soft: #555; --border-strong: #999; --border-input: #999; --border-mid: #999; --error: #ff6b6b; --select-stroke: #64b5f6; --preview-stroke: #ffb74d; --mask: rgba(255,255,255,0.25); }
+  :root { --bg: #fff; --bg-light: #f5f5f5; --bg-card: #fafafa; --text: #000; --text-quiet: #666; --line: #ccc; --line-soft: #ddd; --border-strong: #333; --border-input: #555; --border-mid: #888; --error: red; --select-stroke: #1565c0; --preview-stroke: #ef6c00; --mask: rgba(0,0,0,0.55); }
+  body.dark { color-scheme: dark; --bg: #1e1e1e; --bg-light: #2b2b2b; --bg-card: #2b2b2b; --text: #e6e6e6; --text-quiet: #a0a0a0; --line: #555; --line-soft: #555; --border-strong: #999; --border-input: #999; --border-mid: #999; --error: #ff6b6b; --select-stroke: #64b5f6; --preview-stroke: #ffb74d; --mask: rgba(255,255,255,0.55); }
   body { margin: 0; display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; background: var(--bg); color: var(--text); }
   #header { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
   #header button, #header select { padding: 6px 10px; }
@@ -21,7 +21,7 @@
   #zoomLevel { min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
   #main { flex: 1; display: flex; min-height: 0; }
   #workspace { flex: 0 0 65%; min-width: 0; display: flex; min-height: 0; }
-  #phoneWorkspace { flex: 1 1 35%; min-width: 0; min-height: 0; padding: 12px; box-sizing: border-box; border-left: 1px solid var(--line); display: flex; background: var(--bg-card); }
+  #phoneWorkspace { flex: 1 1 35%; min-width: 0; min-height: 0; padding: 12px; box-sizing: border-box; border-left: 1px solid var(--line); display: flex; align-items: center; justify-content: center; background: var(--bg-card); }
   #drawer { display: flex; height: 100%; border-right: 1px solid var(--line); }
   #drawer.closed { border-right: none; }
   #editor { display: flex; flex-direction: column; width: 320px; height: 100%; }
@@ -33,21 +33,28 @@
   #drawerToggle { width: 24px; border: none; border-left: 1px solid var(--line); background: var(--bg-light); cursor: pointer; }
   #drawer.closed #drawerToggle { border-left: none; }
   #output { flex: 1; min-width: 0; height: 100%; overflow: auto; padding: 12px; box-sizing: border-box; }
-  #phoneOutput { position: relative; flex: 1; min-width: 0; min-height: 0; border: 8px solid var(--border-strong); border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); }
+  #phoneOutput { position: relative; aspect-ratio: 9 / 19.5; width: auto; height: 100%; max-width: 100%; max-height: 100%; border: 8px solid var(--border-strong); border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); }
   #phoneDiagramWrap { position: relative; flex: 1; min-height: 0; }
-  #phoneDiagram { height: 100%; overflow: auto; }
-  #phoneSeparatorOverlay { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
-  .last-decision-mask { position: absolute; top: 0; left: 0; right: 0; height: 0; background: var(--mask); }
-  .separator-line { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed #888; }
-  .separator-label { position: absolute; left: 8px; bottom: 4px; font: bold 16px sans-serif; -webkit-text-stroke: 0.6px #000; paint-order: stroke fill; }
-  #phoneOutput svg { max-width: none !important; }
+  #phoneDiagram { height: 100%; display: flex; flex-direction: column; }
+  #phoneHistory { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  #phoneFooter { flex: none; }
   #diagram svg { max-width: none !important; }
-  #phoneBar { display: flex; gap: 8px; padding: 8px 12px; border-bottom: 2px solid var(--border-mid); box-shadow: 0 2px 6px rgba(0,0,0,0.25); position: relative; z-index: 1; flex: none; }
-  #logBox { display: none; }
-  #logBox.open { display: block; position: absolute; left: 0; right: 0; bottom: 0; top: 45%; margin: 0; padding: 16px; overflow: auto; background: var(--bg); white-space: pre-wrap; font: 14px/1.5 system-ui, sans-serif; border-top: 2px solid var(--border-strong); box-shadow: 0 -4px 12px rgba(0,0,0,.15); z-index: 1; }
+  body > div[id^="ddiagram-"] { position: fixed; visibility: hidden; }
   #error { color: var(--error); white-space: pre-wrap; padding: 12px; }
   #status { font-size: 12px; color: var(--text-quiet); padding: 0 12px; }
-  #phoneDiagram .node[id*="_Y-"], #phoneDiagram .node[id*="_N-"], #phoneDiagram .node[id*="_ONCE-"], #phoneDiagram .node[id*="_NONE-"], #phoneDiagram .node[id*="_MULTIPLE-"] { cursor: pointer; }
+  .phone-block, .phone-question { width: 100%; box-sizing: border-box; padding: 16px 12px; color: #000; text-align: center; font: 14px/1.4 system-ui, sans-serif; }
+  .phone-block { border-bottom: 1px solid var(--border-mid); }
+  .phone-question { font-weight: 600; }
+  .phone-choice-row { display: flex; width: 100%; gap: 8px; padding: 8px; box-sizing: border-box; }
+  .phone-choice { flex: 1 1 0; min-width: 0; box-sizing: border-box; border: none; border-radius: 8px; background: #eee; color: #000; padding: 14px 8px; font: 13px/1.3 system-ui, sans-serif; cursor: pointer; }
+  .phone-choice-chosen { background: #9ed7a4; cursor: default; }
+  .phone-choice-declined { background: repeating-linear-gradient(45deg, #d8d8d8, #d8d8d8 6px, #c8c8c8 6px, #c8c8c8 12px); }
+  .phone-choice-declined:not(:disabled) { cursor: pointer; }
+  .phone-decision-past, .phone-block-past { position: relative; }
+  .phone-decision-past::after, .phone-block-past::after { content: ""; position: absolute; inset: 0; background: var(--mask); pointer-events: none; }
+  .phone-separator { display: block; height: 20px; border: none; background: #000; margin: 0; }
+  .phone-decision:not(.phone-decision-past) .phone-question { font-size: 20px; margin-top: 20px; margin-bottom: 20px; }
+  .phone-decision:not(.phone-decision-past) .phone-choice { font-size: 17px; }
   #diagram .dim { opacity: 0.15; }
   #nodeActions { display: none; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--line); }
   /* #nodeActions.open { display: flex; } */
@@ -139,15 +146,9 @@
   </div>
   <div id="phoneWorkspace">
     <div id="phoneOutput">
-    <div id="phoneBar">
-      <button id="undoBtn">Undo decision</button>
-      <button id="logBtn">Log</button>
-    </div>
     <div id="phoneDiagramWrap">
       <div id="phoneDiagram"></div>
-      <div id="phoneSeparatorOverlay"></div>
     </div>
-    <pre id="logBox"></pre>
     </div>
   </div>
 </div>

@@ -1,12 +1,10 @@
-import { codeBox, destinationSelect, diagramBox, nodeInspectorActions, nodeInspectorDismissBtn, nodeTextInput, nodeTypeColorInput, nodeTypeInput, outputBox, phoneDiagramBox } from './dom.ts';
-import { isAnswerId, nodeIdOf } from './render-helpers.ts';
+import { destinationSelect, diagramBox, nodeInspectorActions, nodeTextInput, nodeTypeColorInput, nodeTypeInput, outputBox, phoneDiagramBox } from './dom.ts';
+import { nodeIdOf } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { editorGraph, setEditorActionPromise } from './editor-graph.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, phonePath, state } from './state.ts';
 import { render } from './render.ts';
-import { centerNodeInViewport, nearestFeedingChoice } from './decision-nav.ts';
-import { parseEdges } from './diagram-source.ts';
-import { choicesOf } from './graph-slice.ts';
+import { nearestFeedingChoice } from './decision-nav.ts';
 import { addBlockAfter, addChoice, addQuestionAfter, insertDecisionBefore, insertStaticBefore } from './editor-add.ts';
 import { advanceRemovalPreview, cancelQuestionRemoval, confirmQuestionRemoval, redoEditorAction, removeBlock, removeChoice, removeChoices, removeQuestion, undoEditorAction } from './editor-remove.ts';
 import { addChoiceOnDecision, applyDestination, commitDestination, commitInsertDecisionAfter, commitInsertStaticAfter, commitNodeText } from './editor-commit.ts';
@@ -39,17 +37,18 @@ outputBox.addEventListener('click', (event) => {
 });
 
 phoneDiagramBox.addEventListener('click', async (event) => {
-  const nodeEl = (event.target as HTMLElement).closest('g.node');
-  if (!nodeEl)
+  // A phone choice also selects and scrolls the main view to the next open decision.
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-choose], button[data-revert]');
+  if (!target)
     return;
-  const clicked = nodeIdOf(nodeEl);
-  const edges = parseEdges(codeBox.value);
-  if (!isAnswerId(clicked, edges))
-    return;
-  const openChoices = state.currentBottomQ ? choicesOf(state.currentBottomQ, edges) : [];
-  if (!openChoices.includes(clicked))
-    return;
-  phonePath.push(clicked);
+  if (target.dataset.choose) {
+    phonePath.push(target.dataset.choose);
+  }
+  else {
+    const [indexStr, choiceId] = target.dataset.revert!.split(':');
+    phonePath.length = Number(indexStr);
+    phonePath.push(choiceId);
+  }
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
@@ -57,7 +56,15 @@ phoneDiagramBox.addEventListener('click', async (event) => {
   if (state.currentBottomQ) {
     state.currentDecisionId = state.currentBottomQ;
     selectEditorNode(state.currentBottomQ);
-    centerNodeInViewport(outputBox, diagramBox, state.currentBottomQ);
+    // centerNodeInViewport(outputBox, diagramBox, state.currentBottomQ);
+    const node = diagramBox.querySelector('[id*="flowchart-' + state.currentBottomQ + '-"]')!;
+    const outputRect = outputBox.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    outputBox.scrollBy({
+      left: nodeRect.left + nodeRect.width / 2 - outputRect.left - outputBox.clientWidth / 2,
+      top: nodeRect.top + nodeRect.height / 2 - outputRect.top - outputBox.clientHeight / 2,
+      behavior: 'smooth',
+    });
   }
 });
 
