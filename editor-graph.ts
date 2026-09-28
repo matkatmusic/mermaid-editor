@@ -1,6 +1,6 @@
 import { EDITOR_METADATA_FENCE, EDITOR_METADATA_WARNING, EditorValidationError } from './editor-types.ts';
 import type { EditorEdge, EditorGraph, EditorMetadata, EditorNode, EditorNodeKind } from './editor-types.ts';
-import { DEFAULT_TYPE_COLORS, state } from './state.ts';
+import { state } from './state.ts';
 import { codeBox, outputBox } from './dom.ts';
 import { showEditorValidationError } from './render-helpers.ts';
 
@@ -39,14 +39,18 @@ export function sourceWithEditorMetadata(source: string) {
     outputScrollLeft: outputBox.scrollLeft,
     outputScrollTop: outputBox.scrollTop,
     mainZoomPercent: state.mainZoomPercent,
-    typeColors: state.typeColors,
-    nodeTypes: state.nodeTypes,
+    // Retired: typeColors/nodeTypes metadata is no longer written; color lives in classDef/class lines.
+    // typeColors: state.typeColors,
+    // nodeTypes: state.nodeTypes,
   };
   return `${body}\n${EDITOR_METADATA_FENCE}\n%% ${EDITOR_METADATA_WARNING}\n%% ${JSON.stringify(metadata)}\n${EDITOR_METADATA_FENCE}`;
 }
 
 export function stringRecord(value: unknown) {
-  if (!value || typeof value !== 'object' || Array.isArray(value))
+  const isMissing = !value;
+  const isNotObject = typeof value !== 'object';
+  const isArray = Array.isArray(value);
+  if (isMissing || isNotObject || isArray)
     return undefined;
   const result: Record<string, string> = {};
   for (const [key, entry] of Object.entries(value)) {
@@ -57,8 +61,7 @@ export function stringRecord(value: unknown) {
 }
 
 export function restoreTypeMetadata(metadata: EditorMetadata | null) {
-  state.typeColors = { ...DEFAULT_TYPE_COLORS, ...(metadata?.typeColors ?? {}) };
-  state.nodeTypes = { ...(metadata?.nodeTypes ?? {}) };
+  // No-op: colors now come from classDef/class lines, not saved metadata.
 }
 
 export function setEditorActionPromise(promise: Promise<void>) {
@@ -187,7 +190,8 @@ export function editorGraph(): EditorGraph {
     }
   }
   for (const [id, lineIndex] of references) {
-    if (!declLines.has(id))
+    const isUndeclared = !declLines.has(id);
+    if (isUndeclared)
       problems.push(`Line ${lineIndex + 1}: id "${id}" must be declared on its own standalone line and ${declarationRequirement(id)}.`);
   }
   const uniqueProblems = [...new Set(problems)];

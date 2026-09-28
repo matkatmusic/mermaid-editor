@@ -1,7 +1,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
@@ -98,7 +98,10 @@ async function setup() {
     throw new Error(`pick free ports; ${problems.join(", ")}`);
   }
   spawnSync("bun", ["build", "viewer.ts", "--outfile", "viewer.js"], { stdio: "inherit" });
-  serverProc = spawn("bun", ["server.js", "--port", String(SERVER_PORT)], { stdio: "ignore" });
+  // The server saves into a temp copy so tests never overwrite the real diagrams.
+  const diagramsCopyDir = mkdtempSync(join(tmpdir(), "diagrams-copy-"));
+  cpSync(join(process.cwd(), "..", "diagrams"), diagramsCopyDir, { recursive: true });
+  serverProc = spawn("bun", ["server.js", "--port", String(SERVER_PORT)], { stdio: "ignore", env: { ...process.env, DIAGRAMS_DIR: diagramsCopyDir } });
   await waitForPort(SERVER_PORT);
 
   const userDataDir = mkdtempSync(join(tmpdir(), "phone-view-test-"));
@@ -207,14 +210,17 @@ test("test_phone_view_shows_the_start_slice", async () => {
   assert.equal(state.activeId, 'Q_THEM_DONE_SPEAKING');
   assert.equal(state.separatorCount, 0);
   assert.equal(state.maskedCount, 0);
-  // Step: every block spans the full phone viewport width.
+  // Step: every question spans the full phone viewport width; static blocks are inset by their 8px margin.
   const widths = await evaluate(`JSON.stringify((() => {
     const paneWidth = document.getElementById('phoneDiagram').clientWidth;
-    const blocks = Array.from(document.querySelectorAll('#phoneDiagram .phone-block, #phoneDiagram .phone-question'));
-    return { paneWidth, blockWidths: blocks.map(el => el.getBoundingClientRect().width) };
+    const questionWidths = Array.from(document.querySelectorAll('#phoneDiagram .phone-question')).map(el => el.getBoundingClientRect().width);
+    const blockWidths = Array.from(document.querySelectorAll('#phoneDiagram .phone-block')).map(el => el.getBoundingClientRect().width);
+    return { paneWidth, questionWidths, blockWidths };
   })())`).then(JSON.parse);
-  for (const width of widths.blockWidths)
+  for (const width of widths.questionWidths)
     assert.ok(Math.abs(width - widths.paneWidth) < 1, JSON.stringify(widths));
+  for (const width of widths.blockWidths)
+    assert.ok(Math.abs(width - (widths.paneWidth - 16)) < 1, JSON.stringify(widths));
   // Step: the open question's two choices split the row evenly, with a visible gap between them.
   const choiceWidths = await evaluate(`JSON.stringify((() => {
     const choices = Array.from(document.querySelectorAll('#phoneDiagram [data-active-question] + .phone-choice-row .phone-choice'));
@@ -440,7 +446,9 @@ test("test_syntax_error_keeps_last_good_diagram_and_shows_error_log", async () =
 });
 
 const EDITOR_FIXTURE_NAME = "say-something-or-let-it-go.mmd";
-const editorFixtureSource = readFileSync(join(process.cwd(), "..", "diagrams", EDITOR_FIXTURE_NAME), "utf8");
+// Saves no longer write the retired typeColors/nodeTypes metadata, so the fixture must not carry them either.
+const editorFixtureSource = readFileSync(join(process.cwd(), "..", "diagrams", EDITOR_FIXTURE_NAME), "utf8")
+  .replace(/,"typeColors":\{[^}]*\},"nodeTypes":\{[^}]*\}/, "");
 
 async function resetEditorFixture() {
   // Scenario: put the editor fixture back to its original bytes and load it fresh in web view.
@@ -860,8 +868,8 @@ test("test_save_persists_and_load_restores_editor_metadata_trailer", async () =>
   }, {
     lastSelectedNodeId: 'B_RAISE_ISSUE', outputScrollLeft: 0, outputScrollTop: 150,
   });
-  assert.equal(savedMetadata.typeColors.static, '#9fc5e8');
-  assert.deepEqual(savedMetadata.nodeTypes, {});
+  assert.equal(savedMetadata.typeColors, undefined);
+  assert.equal(savedMetadata.nodeTypes, undefined);
   assert.equal((saved.match(/%%%%====/g) ?? []).length, 2);
 
   // Step: a load restores the selected node and saved viewport, while Mermaid still renders the comment trailer.
@@ -921,34 +929,120 @@ test("test_load_uses_the_first_node_position_when_scroll_metadata_is_missing", a
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: 'PUT', body: editorFixtureSource });
 });
 
-test("test_node_categories_and_colors_persist_and_recolor_both_views", async () => {
+async function openClassPickerNew() {
+  await evaluate("document.getElementById('classPickerBtn').click()");
+  await evaluate("document.querySelector('#classPickerList [data-class-new]').click()");
+}
+
+async function fillClassEditor(name: string, fill: string, stroke: string) {
+  await evaluate(`(() => {
+    document.getElementById('classEditorName').value = ${JSON.stringify(name)};
+    document.getElementById('classEditorFill').value = ${JSON.stringify(fill)};
+    document.getElementById('classEditorStroke').value = ${JSON.stringify(stroke)};
+  })()`);
+}
+
+test("test_class_picker_creates_and_assigns_a_class_and_recolors_both_views", async () => {
   await resetEditorFixture();
   await clickNode("B_Start");
-  await evaluate(`(() => {
-    const type = document.getElementById('nodeTypeInput');
-    type.value = 'reflection'; type.dispatchEvent(new Event('change', { bubbles: true }));
-  })()`);
+  // Step: open the class picker and create a brand-new class from it, assigning it to B_Start.
+  await openClassPickerNew();
+  await fillClassEditor('reflection', '#123456', '#000000');
+  await evaluate("document.getElementById('classEditorCreateBtn').click()");
   await evaluate("window.editorActionPromise");
-  await evaluate(`(() => {
-    const color = document.getElementById('nodeTypeColorInput');
-    color.value = '#123456'; color.dispatchEvent(new Event('change', { bubbles: true }));
-  })()`);
-  await evaluate("window.editorActionPromise");
-  const state = await evaluate(`JSON.stringify((() => {
-    const regular = document.querySelector('#diagram [id*="flowchart-B_Start-"] rect').style.fill;
-    const phone = document.querySelector('#phoneDiagram [data-node-id="B_Start"]').style.background;
-    return { selected: selectedEditorNodeId, category: document.getElementById('nodeTypeInput').value, regular, phone };
+  await sleep(300);
+  // Step: both the main SVG and the phone block recolor from the new class's fill.
+  const colors = await evaluate(`JSON.stringify((() => {
+    const rect = document.querySelector('#diagram [id*="flowchart-B_Start-"] rect');
+    return { regular: getComputedStyle(rect).fill, phone: document.querySelector('#phoneDiagram [data-node-id="B_Start"]').style.background };
   })())`).then(JSON.parse);
-  assert.deepEqual(state, { selected: 'B_Start', category: 'reflection', regular: 'rgb(18, 52, 86)', phone: 'rgb(18, 52, 86)' });
+  assert.equal(colors.regular, 'rgb(18, 52, 86)');
+  assert.equal(colors.phone, 'rgb(18, 52, 86)');
+  // Step: the class lives in classDef/class lines, not typeColors/nodeTypes metadata.
   const saved = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`).then((r) => r.text());
-  const metadata = JSON.parse(saved.match(/%% (\{[^\n]+\})\n%%%%====$/)![1]);
-  assert.equal(metadata.nodeTypes.B_Start, 'reflection');
-  assert.equal(metadata.typeColors.reflection, '#123456');
+  assert.match(saved, /classDef reflection fill:#123456,stroke:#000000/);
+  assert.match(saved, /class B_Start reflection/);
+  assert.doesNotMatch(saved, /typeColors|nodeTypes/);
+  // Step: reloading keeps the class and its color, read fresh from the source.
   await evaluate(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
   await sleep(300);
-  assert.equal(await evaluate('selectedEditorNodeId'), 'B_Start');
   assert.equal(await evaluate(`document.querySelector('#phoneDiagram [data-node-id="B_Start"]').style.background`), 'rgb(18, 52, 86)');
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: 'PUT', body: editorFixtureSource });
+});
+
+test("test_class_picker_always_shows_the_nodes_actual_class", async () => {
+  // Scenario: this is the bug being fixed - the picker must read the node's real class, not stale state.
+  await resetEditorFixture();
+  await evaluate(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
+  await sleep(500);
+  // Step: B_SELF_RESTATE_ISSUE is classed "forwards" (green) in accountability.mmd's classDef lines.
+  await clickNode("B_SELF_RESTATE_ISSUE");
+  const picker = await evaluate(`JSON.stringify({
+    label: document.getElementById('classPickerLabel').textContent,
+    swatch: document.getElementById('classPickerSwatch').style.background,
+  })`).then(JSON.parse);
+  assert.equal(picker.label, 'forwards');
+  assert.ok(picker.swatch.length > 0);
+  // Step: a differently classed node shows its own class, not a stale "forwards".
+  await clickNode("Q_THEM_DONE_SPEAKING");
+  const decisionLabel = await evaluate("document.getElementById('classPickerLabel').textContent");
+  assert.equal(decisionLabel, 'decision');
+});
+
+test("test_unclassed_nodes_get_diagonal_stripes_in_both_views", async () => {
+  await resetEditorFixture();
+  await setEditorSource('flowchart TD\n  B_ONE["One"]\n  B_TWO["Two"]\n  B_ONE --> B_TWO\n  classDef greenish fill:#00ff00,stroke:#006600\n  class B_TWO greenish');
+  const stripes = await evaluate(`JSON.stringify((() => {
+    const oneRect = document.querySelector('#diagram [id*="flowchart-B_ONE-"] rect');
+    const twoRect = document.querySelector('#diagram [id*="flowchart-B_TWO-"] rect');
+    return {
+      oneFill: getComputedStyle(oneRect).fill,
+      twoFill: getComputedStyle(twoRect).fill,
+      onePhone: document.querySelector('#phoneDiagram [data-node-id="B_ONE"]').style.background,
+      twoPhone: document.querySelector('#phoneDiagram [data-node-id="B_TWO"]').style.background,
+    };
+  })())`).then(JSON.parse);
+  assert.match(stripes.oneFill, /url\(.*unclassed-stripe-pattern.*\)/);
+  assert.equal(stripes.twoFill, 'rgb(0, 255, 0)');
+  assert.match(stripes.onePhone, /repeating-linear-gradient/);
+  assert.match(stripes.twoPhone, /rgb\(0, 255, 0\)/);
+  await evaluate(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
+  await sleep(300);
+});
+
+test("test_classes_dialog_renames_recolors_and_deletes_a_class", async () => {
+  await resetEditorFixture();
+  await setEditorSource('flowchart TD\n  B_ONE["One"]\n  classDef mine fill:#ff0000,stroke:#000000\n  class B_ONE mine');
+  await evaluate("document.getElementById('classesMenuBtn').click()");
+  await sleep(100);
+  const initialRow = await evaluate(`JSON.stringify((() => {
+    const row = document.querySelector('.classes-row');
+    return { name: row.querySelector('.classes-name').value, fill: row.querySelector('.classes-fill').value };
+  })())`).then(JSON.parse);
+  assert.deepEqual(initialRow, { name: 'mine', fill: '#ff0000' });
+  // Step: renaming the class in the dialog rewrites both the classDef and the class line.
+  await evaluate(`(() => {
+    const input = document.querySelector('.classes-row .classes-name');
+    input.value = 'renamed';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await evaluate("window.editorActionPromise");
+  await sleep(200);
+  let source = await evaluate("codeBox.value");
+  assert.match(source, /classDef renamed fill:#ff0000,stroke:#000000/);
+  assert.match(source, /class B_ONE renamed/);
+  // Step: deleting the class from the dialog comments out its classDef; the node becomes unclassed.
+  await evaluate("document.getElementById('classesMenuBtn').click()");
+  await sleep(100);
+  await evaluate("document.querySelector('.classes-row .classes-delete').click()");
+  await evaluate("window.editorActionPromise");
+  await sleep(200);
+  source = await evaluate("codeBox.value");
+  assert.match(source, /%% classDef renamed fill:#ff0000,stroke:#000000/);
+  // Step: an open modal makes the rest of the page inert, so later tests could not focus anything.
+  await evaluate("document.getElementById('classesCloseBtn').click()");
+  await evaluate(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
+  await sleep(300);
 });
 
 async function destinationState() {

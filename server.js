@@ -6,7 +6,7 @@ export function isValidName(name) {
 }
 
 const EDITOR_DIR = import.meta.dir;
-const DIAGRAMS_DIR = resolve(EDITOR_DIR, "..", "diagrams");
+const DIAGRAMS_DIR = process.env.DIAGRAMS_DIR ?? resolve(EDITOR_DIR, "..", "diagrams");
 
 const portFlagIndex = process.argv.indexOf("--port");
 const PORT = portFlagIndex === -1 ? 3000 : Number(process.argv[portFlagIndex + 1]);

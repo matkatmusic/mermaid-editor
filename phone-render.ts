@@ -1,9 +1,22 @@
-import { phoneDiagramBox } from './dom.ts';
+import { codeBox, phoneDiagramBox } from './dom.ts';
 import type { Edge } from './dom.ts';
-import type { EditorGraph } from './editor-types.ts';
+import type { EditorGraph, EditorNode } from './editor-types.ts';
 import { phonePath, state } from './state.ts';
 import { choicesOf, siblingIds, sliceIds } from './graph-slice.ts';
-import { colorForNode } from './node-type-colors.ts';
+import { buildClassStyleIndex, styleOfNode, type ClassStyleIndex } from './class-defs.ts';
+
+const UNCLASSED_PHONE_STYLE = 'background:repeating-linear-gradient(45deg, red 0 8px, black 8px 16px)';
+
+// Rebuilt once per renderPhone() call (see bottom of this file) instead of per row.
+let classIndex: ClassStyleIndex = { assignments: new Map(), defsByName: new Map() };
+
+// Color now comes from the node's mermaid class, not state.typeColors/state.nodeTypes.
+function phoneNodeAppearance(node: EditorNode) {
+  const classStyle = styleOfNode(classIndex, node.id);
+  if (!classStyle)
+    return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: 'opacity:0.15' };
+  return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}`, labelStyle: '' };
+}
 
 function rootOf(edges: Edge[]) {
   for (const [candidate] of edges) {
@@ -194,16 +207,19 @@ function rowHtml(row: Row, graph: EditorGraph, edges: Edge[], isMasked: boolean)
     return '';
   if (row.status === 'block') {
     const blockClass = isMasked ? 'phone-block phone-block-past' : 'phone-block';
-    return `<div class="${blockClass}" data-node-id="${row.id}" style="background:${colorForNode(node)}">${escapeHtml(labelOf(row.id, graph))}</div>`;
+    const { boxStyle, labelStyle } = phoneNodeAppearance(node);
+    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${escapeHtml(labelOf(row.id, graph))}</span></div>`;
   }
   const choices = choicesOf(row.id, edges);
   const activeAttr = row.status === 'active' ? ' data-active-question' : '';
-  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="background:${colorForNode(node)}">${escapeHtml(labelOf(row.id, graph))}</div>`;
+  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = phoneNodeAppearance(node);
+  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${escapeHtml(labelOf(row.id, graph))}</span></div>`;
   const wrapClass = isMasked ? 'phone-decision phone-decision-past' : 'phone-decision';
   return `<div class="${wrapClass}">${question}${choiceButtonsHtml(choices, row, graph)}</div>`;
 }
 
 export function renderPhone(edges: Edge[], graph: EditorGraph) {
+  classIndex = buildClassStyleIndex(codeBox.value);
   const rows = buildRows(edges, graph);
   let lastPastIndex = -1;
   for (let i = 0; i < rows.length; i++) {

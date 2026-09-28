@@ -10,12 +10,13 @@ export const PHONE_INNER = { width: 327, height: 514 };
 export const NEW_STATIC_DESTINATION = 'new-static';
 export const NEW_DECISION_DESTINATION = 'new-decision';
 
-export const DEFAULT_TYPE_COLORS: Record<string, string> = {
-  decision: '#f6d365',
-  choice: '#9ed7a4',
-  static: '#9fc5e8',
-  goal: '#c9b6e4',
-};
+// Retired: node color now comes only from mermaid classDef/class lines (see class-defs.ts).
+// export const DEFAULT_TYPE_COLORS: Record<string, string> = {
+//   decision: '#f6d365',
+//   choice: '#9ed7a4',
+//   static: '#9fc5e8',
+//   goal: '#c9b6e4',
+// };
 
 export const state = {
   renderId: 0,
@@ -36,8 +37,9 @@ export const state = {
   editorHistory: [codeBox.value] as string[],
   editorHistoryIndex: 0,
   editorActionPromise: undefined as unknown as Promise<void>,
-  typeColors: { ...DEFAULT_TYPE_COLORS } as Record<string, string>,
-  nodeTypes: {} as Record<string, string>,
+  // Retired: node color now comes only from mermaid classDef/class lines (see class-defs.ts).
+  // typeColors: { ...DEFAULT_TYPE_COLORS } as Record<string, string>,
+  // nodeTypes: {} as Record<string, string>,
 };
 
 // These were bare globals before the split; mirror each state field onto globalThis so old test evals still work.

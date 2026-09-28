@@ -1,10 +1,10 @@
 import { INSPECTOR_TITLES } from './editor-types.ts';
-import type { EditorGraph, EditorNodeKind } from './editor-types.ts';
+import type { EditorGraph, EditorNode, EditorNodeKind } from './editor-types.ts';
 import { editorGraph } from './editor-graph.ts';
 import { commitEditorSource, runEditorAction } from './editor-actions.ts';
-import { destinationRow, destinationSelect, drawer, mainBox, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeTextInput, nodeTypeColorInput, nodeTypeColorRow, nodeTypeInput, nodeTypeRow } from './dom.ts';
+import { classPickerBtn, classPickerLabel, classPickerList, classPickerSwatch, codeBox, destinationRow, destinationSelect, drawer, mainBox, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeTextInput } from './dom.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
-import { colorForNode, effectiveNodeType } from './node-type-colors.ts';
+import { classDefByName, classOfNode, parseClassDefs } from './class-defs.ts';
 import { outgoingDestination } from './source-edit.ts';
 
 export function replaceDeclarationInLine(line: string, id: string, newToken: string) {
@@ -69,11 +69,14 @@ export function renderNodeInspector() {
   const previewing = !!state.pendingRemoval;
   nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
   nodeTextInput.value = node.label;
-  const nodeType = effectiveNodeType(node);
-  nodeTypeRow.hidden = previewing || node.kind !== 'block';
-  nodeTypeColorRow.hidden = previewing;
-  nodeTypeInput.value = node.kind === 'block' ? nodeType : '';
-  nodeTypeColorInput.value = colorForNode(node);
+  // Retired Category/Color inputs; a class picker (any node kind) replaces them below.
+  // nodeTypeRow.hidden = previewing || node.kind !== 'block';
+  // nodeTypeColorRow.hidden = previewing;
+  // nodeTypeInput.value = node.kind === 'block' ? nodeType : '';
+  // nodeTypeColorInput.value = colorForNode(node);
+  nodeClassRow.hidden = previewing;
+  if (!previewing)
+    renderClassPicker(node);
   nodeInspectorRemovalPreview.hidden = !previewing;
   nodeInspectorActions.hidden = previewing;
   nodeInspectorControls.hidden = previewing;
@@ -127,6 +130,23 @@ export function renderNodeInspector() {
     nodeInspectorDismissBtn.textContent = 'Cancel';
   }
   positionNodeInspector();
+}
+
+export function renderClassPicker(node: EditorNode) {
+  const source = codeBox.value;
+  const className = classOfNode(source, node.id);
+  const def = className ? classDefByName(source, className) : undefined;
+  classPickerBtn.dataset.nodeId = node.id;
+  classPickerLabel.textContent = className ?? '(none)';
+  classPickerSwatch.style.background = def ? def.fill : 'transparent';
+  classPickerSwatch.style.borderColor = def ? def.stroke : '#999';
+  const rows: string[] = [];
+  for (const classDef of parseClassDefs(source))
+    rows.push(`<button type="button" class="class-picker-row" data-class-name="${classDef.name}"><span class="class-swatch" style="background:${classDef.fill};border-color:${classDef.stroke}"></span>${classDef.name}</button>`);
+  rows.push('<button type="button" class="class-picker-row" data-class-none>(none)</button>');
+  rows.push('<button type="button" class="class-picker-row" data-class-new>new...</button>');
+  classPickerList.innerHTML = rows.join('');
+  classPickerList.hidden = true;
 }
 
 export function positionNodeInspector() {

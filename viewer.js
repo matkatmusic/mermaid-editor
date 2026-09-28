@@ -29,10 +29,24 @@ var selectedNodeBox = document.getElementById("selectedNode");
 var nodeInspector = document.getElementById("nodeInspector");
 var nodeInspectorTitle = document.getElementById("nodeInspectorTitle");
 var nodeTextInput = document.getElementById("nodeTextInput");
-var nodeTypeRow = document.getElementById("nodeTypeRow");
-var nodeTypeInput = document.getElementById("nodeTypeInput");
-var nodeTypeColorRow = document.getElementById("nodeTypeColorRow");
-var nodeTypeColorInput = document.getElementById("nodeTypeColorInput");
+var nodeClassRow = document.getElementById("nodeClassRow");
+var classPickerBtn = document.getElementById("classPickerBtn");
+var classPickerSwatch = document.getElementById("classPickerSwatch");
+var classPickerLabel = document.getElementById("classPickerLabel");
+var classPickerList = document.getElementById("classPickerList");
+var classEditorDialog = document.getElementById("classEditorDialog");
+var classEditorName = document.getElementById("classEditorName");
+var classEditorFill = document.getElementById("classEditorFill");
+var classEditorStroke = document.getElementById("classEditorStroke");
+var classEditorError = document.getElementById("classEditorError");
+var classEditorCancelBtn = document.getElementById("classEditorCancelBtn");
+var classEditorCreateBtn = document.getElementById("classEditorCreateBtn");
+var classesMenuBtn = document.getElementById("classesMenuBtn");
+var classesDialog = document.getElementById("classesDialog");
+var classesList = document.getElementById("classesList");
+var classesError = document.getElementById("classesError");
+var classesNewBtn = document.getElementById("classesNewBtn");
+var classesCloseBtn = document.getElementById("classesCloseBtn");
 var nodeInspectorDismissBtn = document.getElementById("nodeInspectorDismissBtn");
 var destinationRow = document.getElementById("destinationRow");
 var destinationSelect = document.getElementById("destinationSelect");
@@ -53,12 +67,6 @@ var chosenAnswers = new Set;
 var phonePath = [];
 var NEW_STATIC_DESTINATION = "new-static";
 var NEW_DECISION_DESTINATION = "new-decision";
-var DEFAULT_TYPE_COLORS = {
-  decision: "#f6d365",
-  choice: "#9ed7a4",
-  static: "#9fc5e8",
-  goal: "#c9b6e4"
-};
 var state = {
   renderId: 0,
   currentName: null,
@@ -77,9 +85,7 @@ var state = {
   pendingRemoval: null,
   editorHistory: [codeBox.value],
   editorHistoryIndex: 0,
-  editorActionPromise: undefined,
-  typeColors: { ...DEFAULT_TYPE_COLORS },
-  nodeTypes: {}
+  editorActionPromise: undefined
 };
 for (const key of Object.keys(state)) {
   Object.defineProperty(globalThis, key, {
@@ -317,9 +323,7 @@ function sourceWithEditorMetadata(source) {
     lastSelectedNodeId: state.selectedEditorNodeId,
     outputScrollLeft: outputBox.scrollLeft,
     outputScrollTop: outputBox.scrollTop,
-    mainZoomPercent: state.mainZoomPercent,
-    typeColors: state.typeColors,
-    nodeTypes: state.nodeTypes
+    mainZoomPercent: state.mainZoomPercent
   };
   return `${body}
 ${EDITOR_METADATA_FENCE}
@@ -328,7 +332,10 @@ ${EDITOR_METADATA_FENCE}
 ${EDITOR_METADATA_FENCE}`;
 }
 function stringRecord(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value))
+  const isMissing = !value;
+  const isNotObject = typeof value !== "object";
+  const isArray = Array.isArray(value);
+  if (isMissing || isNotObject || isArray)
     return;
   const result = {};
   for (const [key, entry] of Object.entries(value)) {
@@ -337,10 +344,7 @@ function stringRecord(value) {
   }
   return result;
 }
-function restoreTypeMetadata(metadata) {
-  state.typeColors = { ...DEFAULT_TYPE_COLORS, ...metadata?.typeColors ?? {} };
-  state.nodeTypes = { ...metadata?.nodeTypes ?? {} };
-}
+function restoreTypeMetadata(metadata) {}
 function setEditorActionPromise(promise) {
   state.editorActionPromise = promise;
   window.editorActionPromise = promise;
@@ -458,7 +462,8 @@ function editorGraph() {
     }
   }
   for (const [id, lineIndex] of references) {
-    if (!declLines.has(id))
+    const isUndeclared = !declLines.has(id);
+    if (isUndeclared)
       problems.push(`Line ${lineIndex + 1}: id "${id}" must be declared on its own standalone line and ${declarationRequirement(id)}.`);
   }
   const uniqueProblems = [...new Set(problems)];
@@ -475,74 +480,218 @@ function editorGraph() {
   return { lines, nodes, edges };
 }
 
-// node-type-colors.ts
-function effectiveNodeType(node) {
-  if (node.kind === "question")
-    return "decision";
-  if (node.kind === "choice")
-    return "choice";
-  return state.nodeTypes[node.id]?.trim() || "static";
+// class-defs.ts
+var CLASSDEF_LINE_RE = /^(\s*)classDef\s+(\S+)\s+(.+?)\s*$/;
+var CLASS_LINE_RE = /^(\s*)class\s+(\S+)\s+(\S+)\s*$/;
+function isCommented(line) {
+  return line.trim().startsWith("%%");
 }
-function colorForNode(node) {
-  return state.typeColors[effectiveNodeType(node)] ?? state.typeColors.static;
-}
-function applyNodeTypeColors(graph) {
-  for (const nodeEl of diagramBox.querySelectorAll("g.node")) {
-    const node = graph.nodes.get(nodeIdOf(nodeEl));
-    if (!node)
+function parseStyleProps(styleText) {
+  const order = [];
+  const props = {};
+  for (const part of styleText.split(",")) {
+    const trimmed = part.trim();
+    if (!trimmed)
       continue;
-    const color = colorForNode(node);
-    for (const shape of nodeEl.querySelectorAll("rect, path, polygon"))
-      shape.style.fill = color;
+    const colonIndex = trimmed.indexOf(":");
+    if (colonIndex === -1)
+      continue;
+    const key = trimmed.slice(0, colonIndex).trim();
+    const value = trimmed.slice(colonIndex + 1).trim();
+    if (!(key in props))
+      order.push(key);
+    props[key] = value;
   }
-  for (const blockEl of phoneDiagramBox.querySelectorAll(".phone-block[data-node-id], .phone-question[data-node-id]")) {
-    const node = graph.nodes.get(blockEl.dataset.nodeId);
-    if (node)
-      blockEl.style.background = colorForNode(node);
-  }
+  return { order, props };
 }
-async function saveTypeMetadata() {
-  codeBox.value = sourceWithEditorMetadata(codeBox.value);
-  await saveDiagram();
+function styleText(order, props) {
+  return order.map((key) => `${key}:${props[key]}`).join(",");
 }
-function commitNodeType() {
-  const id = state.selectedEditorNodeId;
-  if (!id)
-    return;
-  let graph;
-  try {
-    graph = editorGraph();
-  } catch {
-    return;
+function parseClassDefs(source) {
+  const defs = [];
+  const lines = source.split(`
+`);
+  for (let i = 0;i < lines.length; i++) {
+    if (isCommented(lines[i]))
+      continue;
+    const match = lines[i].match(CLASSDEF_LINE_RE);
+    if (!match)
+      continue;
+    const { props } = parseStyleProps(match[3]);
+    defs.push({ name: match[2], fill: props.fill ?? "", stroke: props.stroke ?? "", lineIndex: i });
   }
-  const node = graph.nodes.get(id);
-  if (!node || node.kind !== "block")
-    return;
-  const type = nodeTypeInput.value.trim() || "static";
-  if (type === "static")
-    delete state.nodeTypes[id];
+  return defs;
+}
+function classDefByName(source, name) {
+  for (const def of parseClassDefs(source)) {
+    const isNamedClass = def.name === name;
+    if (isNamedClass)
+      return def;
+  }
+  return;
+}
+function classOfNode(source, nodeId) {
+  let found = null;
+  for (const line of source.split(`
+`)) {
+    if (isCommented(line))
+      continue;
+    const match = line.match(CLASS_LINE_RE);
+    if (!match)
+      continue;
+    if (match[2].split(",").includes(nodeId))
+      found = match[3];
+  }
+  return found;
+}
+function buildClassStyleIndex(source) {
+  const assignments = new Map;
+  for (const line of source.split(`
+`)) {
+    if (isCommented(line))
+      continue;
+    const match = line.match(CLASS_LINE_RE);
+    if (!match)
+      continue;
+    for (const id of match[2].split(","))
+      assignments.set(id, match[3]);
+  }
+  const defsByName = new Map(parseClassDefs(source).map((def) => [def.name, def]));
+  return { assignments, defsByName };
+}
+function styleOfNode(index, nodeId) {
+  const name = index.assignments.get(nodeId);
+  if (!name)
+    return null;
+  const def = index.defsByName.get(name);
+  if (!def)
+    return null;
+  return { name, fill: def.fill, stroke: def.stroke };
+}
+function withClassLineRemoved(lines, nodeId) {
+  return lines.map((line) => {
+    if (isCommented(line))
+      return line;
+    const match = line.match(CLASS_LINE_RE);
+    if (!match)
+      return line;
+    const ids = match[2].split(",");
+    const withoutId = ids.filter((id) => id !== nodeId);
+    if (withoutId.length === ids.length)
+      return line;
+    if (withoutId.length === 0)
+      return `%% ${line.trim()}`;
+    return `${match[1]}class ${withoutId.join(",")} ${match[3]}`;
+  });
+}
+function withAssignedClass(source, nodeId, className) {
+  const lines = withClassLineRemoved(source.split(`
+`), nodeId);
+  if (className === null)
+    return lines.join(`
+`);
+  let assigned = false;
+  let lastClassLineIndex = -1;
+  for (let i = 0;i < lines.length; i++) {
+    if (isCommented(lines[i]))
+      continue;
+    const match = lines[i].match(CLASS_LINE_RE);
+    if (!match)
+      continue;
+    lastClassLineIndex = i;
+    if (match[3] === className) {
+      lines[i] = `${match[1]}class ${match[2]},${nodeId} ${className}`;
+      assigned = true;
+    }
+  }
+  if (!assigned) {
+    const newLine = `class ${nodeId} ${className}`;
+    if (lastClassLineIndex === -1)
+      lines.push(newLine);
+    else
+      lines.splice(lastClassLineIndex + 1, 0, newLine);
+  }
+  return lines.join(`
+`);
+}
+function withCreatedClass(source, name, fill, stroke) {
+  const lines = source.split(`
+`);
+  const newLine = `classDef ${name} fill:${fill},stroke:${stroke}`;
+  let lastClassDefLineIndex = -1;
+  for (let i = 0;i < lines.length; i++) {
+    if (isCommented(lines[i]))
+      continue;
+    if (lines[i].match(CLASSDEF_LINE_RE))
+      lastClassDefLineIndex = i;
+  }
+  if (lastClassDefLineIndex === -1)
+    lines.push(newLine);
   else
-    state.nodeTypes[id] = type;
-  nodeTypeInput.value = type;
-  applyNodeTypeColors(graph);
-  setEditorActionPromise(saveTypeMetadata());
+    lines.splice(lastClassDefLineIndex + 1, 0, newLine);
+  return lines.join(`
+`);
 }
-function commitTypeColor() {
-  const id = state.selectedEditorNodeId;
-  if (!id)
-    return;
-  let graph;
-  try {
-    graph = editorGraph();
-  } catch {
-    return;
-  }
-  const node = graph.nodes.get(id);
-  if (!node)
-    return;
-  state.typeColors[effectiveNodeType(node)] = nodeTypeColorInput.value;
-  applyNodeTypeColors(graph);
-  setEditorActionPromise(saveTypeMetadata());
+function withClassColors(source, name, fill, stroke) {
+  return source.split(`
+`).map((line) => {
+    if (isCommented(line))
+      return line;
+    const match = line.match(CLASSDEF_LINE_RE);
+    if (!match || match[2] !== name)
+      return line;
+    const { order, props } = parseStyleProps(match[3]);
+    if (!order.includes("fill"))
+      order.push("fill");
+    if (!order.includes("stroke"))
+      order.push("stroke");
+    props.fill = fill;
+    props.stroke = stroke;
+    return `${match[1]}classDef ${name} ${styleText(order, props)}`;
+  }).join(`
+`);
+}
+function withRenamedClass(source, oldName, newName) {
+  return source.split(`
+`).map((line) => {
+    if (isCommented(line))
+      return line;
+    const classDefMatch = line.match(CLASSDEF_LINE_RE);
+    if (classDefMatch && classDefMatch[2] === oldName)
+      return `${classDefMatch[1]}classDef ${newName} ${classDefMatch[3]}`;
+    const classMatch = line.match(CLASS_LINE_RE);
+    if (classMatch && classMatch[3] === oldName)
+      return `${classMatch[1]}class ${classMatch[2]} ${newName}`;
+    return line;
+  }).join(`
+`);
+}
+function withDeletedClass(source, name) {
+  return source.split(`
+`).map((line) => {
+    if (isCommented(line))
+      return line;
+    const match = line.match(CLASSDEF_LINE_RE);
+    if (!match || match[2] !== name)
+      return line;
+    return `%% ${line.trim()}`;
+  }).join(`
+`);
+}
+async function assignClass(nodeId, className) {
+  await commitEditorSource(withAssignedClass(codeBox.value, nodeId, className));
+}
+async function createClass(name, fill, stroke) {
+  await commitEditorSource(withCreatedClass(codeBox.value, name, fill, stroke));
+}
+async function setClassColors(name, fill, stroke) {
+  await commitEditorSource(withClassColors(codeBox.value, name, fill, stroke));
+}
+async function renameClass(oldName, newName) {
+  await commitEditorSource(withRenamedClass(codeBox.value, oldName, newName));
+}
+async function deleteClass(name) {
+  await commitEditorSource(withDeletedClass(codeBox.value, name));
 }
 
 // source-edit.ts
@@ -624,11 +773,9 @@ function renderNodeInspector() {
   const previewing = !!state.pendingRemoval;
   nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
   nodeTextInput.value = node.label;
-  const nodeType = effectiveNodeType(node);
-  nodeTypeRow.hidden = previewing || node.kind !== "block";
-  nodeTypeColorRow.hidden = previewing;
-  nodeTypeInput.value = node.kind === "block" ? nodeType : "";
-  nodeTypeColorInput.value = colorForNode(node);
+  nodeClassRow.hidden = previewing;
+  if (!previewing)
+    renderClassPicker(node);
   nodeInspectorRemovalPreview.hidden = !previewing;
   nodeInspectorActions.hidden = previewing;
   nodeInspectorControls.hidden = previewing;
@@ -665,6 +812,22 @@ function renderNodeInspector() {
     nodeInspectorDismissBtn.textContent = "Cancel";
   }
   positionNodeInspector();
+}
+function renderClassPicker(node) {
+  const source = codeBox.value;
+  const className = classOfNode(source, node.id);
+  const def = className ? classDefByName(source, className) : undefined;
+  classPickerBtn.dataset.nodeId = node.id;
+  classPickerLabel.textContent = className ?? "(none)";
+  classPickerSwatch.style.background = def ? def.fill : "transparent";
+  classPickerSwatch.style.borderColor = def ? def.stroke : "#999";
+  const rows = [];
+  for (const classDef of parseClassDefs(source))
+    rows.push(`<button type="button" class="class-picker-row" data-class-name="${classDef.name}"><span class="class-swatch" style="background:${classDef.fill};border-color:${classDef.stroke}"></span>${classDef.name}</button>`);
+  rows.push('<button type="button" class="class-picker-row" data-class-none>(none)</button>');
+  rows.push('<button type="button" class="class-picker-row" data-class-new>new...</button>');
+  classPickerList.innerHTML = rows.join("");
+  classPickerList.hidden = true;
 }
 function positionNodeInspector() {
   if (nodeInspector.hidden)
@@ -1170,7 +1333,48 @@ function filterToFunctions(source) {
 `);
 }
 
+// node-type-colors.ts
+var UNCLASSED_STRIPE_PATTERN_ID = "unclassed-stripe-pattern";
+function ensureUnclassedStripePattern(svg) {
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    svg.insertBefore(defs, svg.firstChild);
+  }
+  if (defs.querySelector("#" + UNCLASSED_STRIPE_PATTERN_ID))
+    return;
+  defs.insertAdjacentHTML("beforeend", `<pattern id="${UNCLASSED_STRIPE_PATTERN_ID}" width="16" height="16" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="black"/><rect width="8" height="16" fill="red"/></pattern>`);
+}
+function applyNodeTypeColors(graph) {
+  const svg = diagramBox.querySelector("svg");
+  if (!svg)
+    return;
+  const classIndex = buildClassStyleIndex(codeBox.value);
+  for (const nodeEl of diagramBox.querySelectorAll("g.node")) {
+    const node = graph.nodes.get(nodeIdOf(nodeEl));
+    if (!node)
+      continue;
+    const isClassed = !!styleOfNode(classIndex, node.id);
+    if (isClassed)
+      continue;
+    ensureUnclassedStripePattern(svg);
+    for (const shape of nodeEl.querySelectorAll("rect, path, polygon"))
+      shape.style.fill = `url(#${UNCLASSED_STRIPE_PATTERN_ID})`;
+    const label = nodeEl.querySelector(".nodeLabel");
+    if (label)
+      label.style.opacity = "0.15";
+  }
+}
+
 // phone-render.ts
+var UNCLASSED_PHONE_STYLE = "background:repeating-linear-gradient(45deg, red 0 8px, black 8px 16px)";
+var classIndex = { assignments: new Map, defsByName: new Map };
+function phoneNodeAppearance(node) {
+  const classStyle = styleOfNode(classIndex, node.id);
+  if (!classStyle)
+    return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: "opacity:0.15" };
+  return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}`, labelStyle: "" };
+}
 function rootOf(edges) {
   for (const [candidate] of edges) {
     let hasIncoming = false;
@@ -1342,15 +1546,18 @@ function rowHtml(row, graph, edges, isMasked) {
     return "";
   if (row.status === "block") {
     const blockClass = isMasked ? "phone-block phone-block-past" : "phone-block";
-    return `<div class="${blockClass}" data-node-id="${row.id}" style="background:${colorForNode(node)}">${escapeHtml(labelOf(row.id, graph))}</div>`;
+    const { boxStyle, labelStyle } = phoneNodeAppearance(node);
+    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${escapeHtml(labelOf(row.id, graph))}</span></div>`;
   }
   const choices = choicesOf(row.id, edges);
   const activeAttr = row.status === "active" ? " data-active-question" : "";
-  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="background:${colorForNode(node)}">${escapeHtml(labelOf(row.id, graph))}</div>`;
+  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = phoneNodeAppearance(node);
+  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${escapeHtml(labelOf(row.id, graph))}</span></div>`;
   const wrapClass = isMasked ? "phone-decision phone-decision-past" : "phone-decision";
   return `<div class="${wrapClass}">${question}${choiceButtonsHtml(choices, row, graph)}</div>`;
 }
 function renderPhone(edges, graph) {
+  classIndex = buildClassStyleIndex(codeBox.value);
   const rows = buildRows(edges, graph);
   let lastPastIndex = -1;
   for (let i = 0;i < rows.length; i++) {
@@ -2107,8 +2314,6 @@ nodeTextInput.addEventListener("keydown", (event) => {
   event.preventDefault();
   commitNodeText();
 });
-nodeTypeInput.addEventListener("change", commitNodeType);
-nodeTypeColorInput.addEventListener("change", commitTypeColor);
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape")
     return;
@@ -2116,6 +2321,107 @@ document.addEventListener("keydown", (event) => {
 });
 outputBox.addEventListener("scroll", positionNodeInspector);
 window.addEventListener("resize", positionNodeInspector);
+classPickerBtn.addEventListener("click", () => {
+  classPickerList.hidden = !classPickerList.hidden;
+});
+document.addEventListener("click", (event) => {
+  const insidePicker = event.target.closest("#classPicker");
+  if (!insidePicker)
+    classPickerList.hidden = true;
+});
+classPickerList.addEventListener("click", (event) => {
+  const button = event.target.closest("button.class-picker-row");
+  if (!button)
+    return;
+  const nodeId = classPickerBtn.dataset.nodeId;
+  classPickerList.hidden = true;
+  if (button.dataset.className)
+    setEditorActionPromise(assignClass(nodeId, button.dataset.className));
+  else if (button.dataset.classNone !== undefined)
+    setEditorActionPromise(assignClass(nodeId, null));
+  else if (button.dataset.classNew !== undefined)
+    openClassEditor(nodeId);
+});
+var classEditorAssignNodeId = null;
+function openClassEditor(assignToNodeId) {
+  classEditorAssignNodeId = assignToNodeId;
+  classEditorName.value = "";
+  classEditorFill.value = "#ffffff";
+  classEditorStroke.value = "#000000";
+  classEditorError.textContent = "";
+  classEditorDialog.showModal();
+}
+classEditorCancelBtn.addEventListener("click", () => classEditorDialog.close());
+classEditorCreateBtn.addEventListener("click", () => {
+  const name = classEditorName.value.trim();
+  if (!name) {
+    classEditorError.textContent = "Name is required.";
+    return;
+  }
+  if (classDefByName(codeBox.value, name)) {
+    classEditorError.textContent = `Class "${name}" already exists.`;
+    return;
+  }
+  classEditorError.textContent = "";
+  const assignToNodeId = classEditorAssignNodeId;
+  setEditorActionPromise((async () => {
+    await createClass(name, classEditorFill.value, classEditorStroke.value);
+    if (assignToNodeId)
+      await assignClass(assignToNodeId, name);
+    if (classesDialog.open)
+      renderClassesDialog();
+  })());
+  classEditorDialog.close();
+});
+function renderClassesDialog() {
+  const defs = parseClassDefs(codeBox.value);
+  classesList.innerHTML = defs.map((def) => `
+    <div class="classes-row" data-class-name="${def.name}">
+      <input type="color" class="classes-fill" value="${def.fill}">
+      <input type="color" class="classes-stroke" value="${def.stroke}">
+      <input type="text" class="classes-name" value="${def.name}">
+      <button type="button" class="classes-delete">Delete</button>
+    </div>`).join("");
+  classesError.textContent = "";
+}
+classesMenuBtn.addEventListener("click", () => {
+  document.getElementById("fileMenu").removeAttribute("open");
+  renderClassesDialog();
+  classesDialog.showModal();
+});
+classesCloseBtn.addEventListener("click", () => classesDialog.close());
+classesNewBtn.addEventListener("click", () => openClassEditor(null));
+classesList.addEventListener("change", (event) => {
+  const row = event.target.closest(".classes-row");
+  if (!row)
+    return;
+  const name = row.dataset.className;
+  const target = event.target;
+  if (target.classList.contains("classes-fill") || target.classList.contains("classes-stroke")) {
+    const fill = row.querySelector(".classes-fill").value;
+    const stroke = row.querySelector(".classes-stroke").value;
+    setEditorActionPromise(setClassColors(name, fill, stroke).then(renderClassesDialog));
+  } else if (target.classList.contains("classes-name")) {
+    const newName = target.value.trim();
+    if (!newName || newName === name) {
+      target.value = name;
+      return;
+    }
+    if (parseClassDefs(codeBox.value).some((def) => def.name === newName)) {
+      classesError.textContent = `Class "${newName}" already exists.`;
+      target.value = name;
+      return;
+    }
+    setEditorActionPromise(renameClass(name, newName).then(renderClassesDialog));
+  }
+});
+classesList.addEventListener("click", (event) => {
+  const button = event.target.closest(".classes-delete");
+  if (!button)
+    return;
+  const name = button.closest(".classes-row").dataset.className;
+  setEditorActionPromise(deleteClass(name).then(renderClassesDialog));
+});
 
 // node-search.ts
 var searchMatches = [];
