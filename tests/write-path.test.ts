@@ -20,7 +20,11 @@ test("test_write_chosen_path_writes_numbered_path_files_next_to_the_diagram", as
   assert.ok(names.includes("accountability-path-0.mmd"), JSON.stringify(names));
   // Step: the file holds only the chosen path, without the untaken choice.
   const pathSource = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/accountability-path-0.mmd`).then((r) => r.text());
-  assert.ok(pathSource.startsWith("flowchart TD"), pathSource);
+  // Step: a top comment lists each decision and its chosen answer.
+  assert.ok(pathSource.startsWith("%% Decisions made:\n%%   in my head: are they done speaking? -> Yes\nflowchart TD\n"), pathSource);
+  // Step: the source classDef and class lines keep the path's colors.
+  assert.ok(pathSource.includes("\n  classDef decision fill:#fff3b0,stroke:#b8860b\n"), pathSource);
+  assert.match(pathSource, /^  class \S*\bQ_THEM_DONE_SPEAKING\b\S* decision$/m);
   assert.ok(pathSource.includes("  B_RAISE_ISSUE --> B_SELF_LISTEN"), pathSource);
   assert.ok(pathSource.includes("  Q_THEM_DONE_SPEAKING --> Q_CHOICE_THEM_DONE_SPEAKING_Y"), pathSource);
   assert.ok(!pathSource.includes("Q_CHOICE_THEM_DONE_SPEAKING_N"), pathSource);

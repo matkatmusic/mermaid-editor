@@ -2204,9 +2204,47 @@ function getChosenPathIds() {
   }
   return ids;
 }
+function getPlainLabel(id, graph) {
+  return graph.nodes.get(id).label.replace(/<br\s*\/?>/gi, " ");
+}
+function buildDecisionComment(ids, graph) {
+  const lines = ["%% Decisions made:"];
+  for (let i = 0;i + 1 < ids.length; i++) {
+    const isDecision = graph.nodes.get(ids[i]).kind === "question";
+    if (!isDecision)
+      continue;
+    lines.push(`%%   ${getPlainLabel(ids[i], graph)} -> ${getPlainLabel(ids[i + 1], graph)}`);
+  }
+  const hasNoDecisions = lines.length === 1;
+  if (hasNoDecisions)
+    lines.push("%%   none");
+  return lines;
+}
+function buildClassLines(declaredIds) {
+  const classIndex = buildClassStyleIndex(codeBox.value);
+  const idsByClass = new Map;
+  for (const id of declaredIds) {
+    const className = classIndex.assignments.get(id);
+    if (!className)
+      continue;
+    const classIds = idsByClass.get(className) ?? [];
+    classIds.push(id);
+    idsByClass.set(className, classIds);
+  }
+  const sourceLines = codeBox.value.split(`
+`);
+  const lines = [];
+  for (const [className, classIds] of idsByClass) {
+    const classDef = classIndex.defsByName.get(className);
+    if (classDef)
+      lines.push(`  ${sourceLines[classDef.lineIndex].trim()}`);
+    lines.push(`  class ${classIds.join(",")} ${className}`);
+  }
+  return lines;
+}
 function buildChosenPathSource(ids) {
   const graph = editorGraph();
-  const lines = ["flowchart TD"];
+  const lines = [...buildDecisionComment(ids, graph), "flowchart TD"];
   const declaredIds = new Set;
   for (const id of ids) {
     const isDeclared = declaredIds.has(id);
@@ -2217,6 +2255,7 @@ function buildChosenPathSource(ids) {
   }
   for (let i = 0;i + 1 < ids.length; i++)
     lines.push(`  ${ids[i]} --> ${ids[i + 1]}`);
+  lines.push(...buildClassLines(declaredIds));
   return lines.join(`
 `) + `
 `;
