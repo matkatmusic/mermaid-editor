@@ -1,6 +1,6 @@
 // Node color comes only from classDef/class lines now; parses and rewrites them, replacing retired state.typeColors/nodeTypes.
 import { codeBox } from './dom.ts';
-import { commitEditorSource } from './editor-actions.ts';
+import { applyEditorSource } from './editor-actions.ts';
 
 export interface ClassDef {
   name: string;
@@ -226,21 +226,21 @@ export function withDeletedClass(source: string, name: string) {
 }
 
 export async function assignClass(nodeId: string, className: string | null) {
-  await commitEditorSource(withAssignedClass(codeBox.value, nodeId, className));
+  await applyEditorSource(withAssignedClass(codeBox.value, nodeId, className));
 }
 
 export async function createClass(name: string, fill: string, stroke: string) {
-  await commitEditorSource(withCreatedClass(codeBox.value, name, fill, stroke));
+  await applyEditorSource(withCreatedClass(codeBox.value, name, fill, stroke));
 }
 
 export async function setClassColors(name: string, fill: string, stroke: string) {
-  await commitEditorSource(withClassColors(codeBox.value, name, fill, stroke));
+  await applyEditorSource(withClassColors(codeBox.value, name, fill, stroke));
 }
 
 export async function renameClass(oldName: string, newName: string) {
-  await commitEditorSource(withRenamedClass(codeBox.value, oldName, newName));
+  await applyEditorSource(withRenamedClass(codeBox.value, oldName, newName));
 }
 
 export async function deleteClass(name: string) {
-  await commitEditorSource(withDeletedClass(codeBox.value, name));
+  await applyEditorSource(withDeletedClass(codeBox.value, name));
 }

@@ -6,7 +6,7 @@ import { render } from './render.ts';
 import { saveDiagram } from './diagram-io.ts';
 import { renderNodeInspector } from './node-inspector.ts';
 
-export async function commitEditorSource(source: string, options?: { recordHistory?: boolean }) {
+export async function applyEditorSource(source: string, options?: { recordHistory?: boolean }) {
   source = sourceWithEditorMetadata(source);
   await mermaid.parse(source);
   codeBox.value = source;
@@ -17,20 +17,21 @@ export async function commitEditorSource(source: string, options?: { recordHisto
     state.editorHistoryIndex = state.editorHistory.length - 1;
   }
   await render();
-  if (!state.currentName)
+  const hasSaveTarget = !!state.currentName || !!state.openedFileHandle;
+  if (!hasSaveTarget)
     throw new Error('No diagram file is loaded to auto-save into');
   await saveDiagram();
   // selectEditorNode(null);
   selectEditorNode(state.selectedEditorNodeId);
 }
 
-export function enqueueEditorAction(action: () => Promise<void>) {
+export function appendEditorAction(action: () => Promise<void>) {
   // A rejected action must not permanently block every action queued after it.
   setEditorActionPromise(state.editorActionPromise.catch(() => {}).then(action));
 }
 
-export function runEditorAction(action: () => Promise<void>) {
-  enqueueEditorAction(action);
+export function executeEditorAction(action: () => Promise<void>) {
+  appendEditorAction(action);
 }
 
 export function selectEditorNode(id: string | null) {
@@ -65,7 +66,7 @@ export function renderEditorSelection() {
   }
 }
 
-export function showRemovalPreview() {
+export function renderRemovalPreview() {
   renderEditorSelection();
   renderNodeInspector();
 }

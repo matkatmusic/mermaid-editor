@@ -1,6 +1,6 @@
 import type { EditorEdge, EditorGraph } from './editor-types.ts';
 import { choiceId, nextEditorId, outgoingDestination, removeOutgoing, replaceOutgoing, sourceWithLinesReplaced } from './source-edit.ts';
-import { commitEditorSource, enqueueEditorAction, selectEditorNode } from './editor-actions.ts';
+import { applyEditorSource, appendEditorAction, selectEditorNode } from './editor-actions.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { focusInspectorDestination, focusInspectorText, replaceDeclarationInLine } from './node-inspector.ts';
 import { declarationSuffixOf, editorGraph, setEditorActionPromise } from './editor-graph.ts';
@@ -10,7 +10,7 @@ import { destinationSelect, diagramBox, nodeTextInput, outputBox } from './dom.t
 export async function commitNewStaticAfter(sourceId: string, graph: EditorGraph) {
   const staticId = nextEditorId('B_NEW', graph);
   const source = `${replaceOutgoing(sourceId, staticId, graph)}\n  ${staticId}["New static block"]`;
-  await commitEditorSource(source);
+  await applyEditorSource(source);
   state.focusDestinationAfterTextId = staticId;
   selectEditorNode(staticId);
   focusInspectorText();
@@ -23,7 +23,7 @@ export async function commitInsertStaticAfter(sourceId: string, graph: EditorGra
   if (oldDestination)
     newLines.push(`  ${staticId} --> ${oldDestination}`);
   const source = `${replaceOutgoing(sourceId, staticId, graph)}\n${newLines.join('\n')}`;
-  await commitEditorSource(source);
+  await applyEditorSource(source);
   state.focusDestinationAfterTextId = staticId;
   selectEditorNode(staticId);
   focusInspectorText();
@@ -69,7 +69,7 @@ export async function commitInsertDecisionAfter(sourceId: string, graph: EditorG
     restoreInlineDecl(edge, edge.to);
     newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${edge.to}` : `  ${edge.from} --> ${edge.to}`);
   }
-  await commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines));
+  await applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines));
   selectEditorNode(decisionId);
   focusInspectorText();
 }
@@ -86,7 +86,7 @@ export async function commitAddChoiceOnDecision(questionId: string, graph: Edito
     suffix = 'NEW' + (++n);
   const cid = choiceId(questionId, suffix);
   const newLines = [`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`];
-  await commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines));
+  await applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines));
   selectEditorNode(questionId);
 }
 
@@ -107,7 +107,7 @@ export function commitNodeText(id = state.selectedEditorNodeId, text = nodeTextI
     state.advanceAfterDecisionText = null;
   if (focusDestination)
     state.focusDestinationAfterTextId = null;
-  enqueueEditorAction(async () => {
+  appendEditorAction(async () => {
     const graph = editorGraph();
     const node = graph.nodes.get(id);
     if (!node)
@@ -116,7 +116,7 @@ export function commitNodeText(id = state.selectedEditorNodeId, text = nodeTextI
       const newToken = node.kind === 'question' ? `${id}{"${text}"}` : `${id}["${text}"]`;
       const lines = graph.lines.slice();
       lines[node.lineIndex] = replaceDeclarationInLine(lines[node.lineIndex], id, newToken);
-      await commitEditorSource(lines.join('\n'));
+      await applyEditorSource(lines.join('\n'));
     }
     if (advance) {
       selectEditorNode(advance.choiceId);
@@ -144,7 +144,7 @@ export function applyDestination(destination: string) {
   const text = nodeTextInput.value.trim();
   if (text !== node.label)
     commitNodeText(id, text);
-  enqueueEditorAction(async () => {
+  appendEditorAction(async () => {
     const currentGraph = editorGraph();
     if (createsStatic)
       await commitNewStaticAfter(id, currentGraph);
@@ -154,7 +154,7 @@ export function applyDestination(destination: string) {
       const source = destination
         ? replaceOutgoing(id, destination, currentGraph)
         : removeOutgoing(id, currentGraph);
-      await commitEditorSource(source);
+      await applyEditorSource(source);
     }
     centerNodeInViewport(outputBox, diagramBox, id);
   });

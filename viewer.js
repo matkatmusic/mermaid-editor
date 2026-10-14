@@ -70,6 +70,7 @@ var NEW_DECISION_DESTINATION = "new-decision";
 var state = {
   renderId: 0,
   currentName: null,
+  openedFileHandle: null,
   watcher: null,
   currentBottomQ: undefined,
   phoneFocusNodeId: null,
@@ -98,94 +99,6 @@ for (const key of Object.keys(state)) {
 }
 
 // diagram-source.ts
-function chunkSource(shown, siblings, edges) {
-  const initiallyHidden = [];
-  for (const [a, b] of edges) {
-    const aShown = shown.has(a);
-    const bShown = shown.has(b);
-    if (aShown !== bShown)
-      initiallyHidden.push(aShown ? b : a);
-  }
-  let hidden = new Set(initiallyHidden);
-  const dashed = (a, b) => siblings.includes(a) || siblings.includes(b) || hidden.has(a) || hidden.has(b);
-  const hasShownPredecessor = (id) => {
-    let found = false;
-    for (const [from, to] of edges) {
-      const matchesTarget = to === id;
-      const fromShown = shown.has(from);
-      const isPredecessor = matchesTarget && fromShown;
-      if (isPredecessor) {
-        found = true;
-        break;
-      }
-    }
-    return found;
-  };
-  const idOf = (line) => line.split(/[\[{(\s]/)[0];
-  const lines = [];
-  const keptPairs = [];
-  for (const raw of codeBox.value.split(`
-`)) {
-    const line = raw.trim();
-    const isFlowchart = line.startsWith("flowchart");
-    const isClassDef = line.startsWith("classDef");
-    const isFlowchartOrClassDef = isFlowchart || isClassDef;
-    if (isFlowchartOrClassDef)
-      lines.push(line);
-    else if (line.startsWith("class ")) {
-      const [, list, name] = line.split(" ");
-      const kept = [];
-      for (const id of list.split(",")) {
-        const isShown = shown.has(id);
-        const isSibling = siblings.includes(id);
-        const keepId = isShown && !isSibling;
-        if (keepId)
-          kept.push(id);
-      }
-      if (kept.length)
-        lines.push(`class ${kept.join(",")} ${name}`);
-    } else if (line.includes("-->")) {
-      const chain = [];
-      for (const s of line.split("-->")) {
-        chain.push(s.trim());
-      }
-      for (let i = 0;i + 1 < chain.length; i++) {
-        const a = chain[i], b = chain[i + 1];
-        const aShown = shown.has(a);
-        const bShown = shown.has(b);
-        const eitherShown = aShown || bShown;
-        if (!eitherShown)
-          continue;
-        const bHasShownPredecessor = hasShownPredecessor(b);
-        const dropForPredecessor = !aShown && bHasShownPredecessor;
-        if (dropForPredecessor)
-          continue;
-        lines.push(`${a} ${dashed(a, b) ? "-.->" : "-->"} ${b}`);
-        keptPairs.push([a, b]);
-      }
-    } else if (shown.has(idOf(line)))
-      lines.push(line);
-  }
-  const flatPairs = keptPairs.flat();
-  const notShown = [];
-  for (const id of flatPairs) {
-    if (!shown.has(id))
-      notShown.push(id);
-  }
-  hidden = new Set(notShown);
-  for (const id of hidden)
-    lines.push(`${id}[" "]`);
-  if (hidden.size) {
-    lines.push("classDef stub fill:transparent,stroke:transparent,color:transparent");
-    lines.push(`class ${[...hidden].join(",")} stub`);
-  }
-  if (siblings.length) {
-    lines.push("classDef unchosen fill:#eee,stroke:#bbb,color:#999");
-    lines.push(`class ${siblings.join(",")} unchosen`);
-  }
-  return lines.join(`
-`);
-}
 function parseEdges(text) {
   const edges = [];
   for (const rawLine of text.split(`
@@ -679,19 +592,19 @@ function withDeletedClass(source, name) {
 `);
 }
 async function assignClass(nodeId, className) {
-  await commitEditorSource(withAssignedClass(codeBox.value, nodeId, className));
+  await applyEditorSource(withAssignedClass(codeBox.value, nodeId, className));
 }
 async function createClass(name, fill, stroke) {
-  await commitEditorSource(withCreatedClass(codeBox.value, name, fill, stroke));
+  await applyEditorSource(withCreatedClass(codeBox.value, name, fill, stroke));
 }
 async function setClassColors(name, fill, stroke) {
-  await commitEditorSource(withClassColors(codeBox.value, name, fill, stroke));
+  await applyEditorSource(withClassColors(codeBox.value, name, fill, stroke));
 }
 async function renameClass(oldName, newName) {
-  await commitEditorSource(withRenamedClass(codeBox.value, oldName, newName));
+  await applyEditorSource(withRenamedClass(codeBox.value, oldName, newName));
 }
 async function deleteClass(name) {
-  await commitEditorSource(withDeletedClass(codeBox.value, name));
+  await applyEditorSource(withDeletedClass(codeBox.value, name));
 }
 
 // source-edit.ts
@@ -972,17 +885,6 @@ function viewBoxOf(svgText) {
   const [, w, h] = match;
   return { width: Number(w), height: Number(h) };
 }
-async function baseScale(edges) {
-  const saved = phonePath.splice(0);
-  const ids = sliceIds(edges);
-  const source = chunkSource(new Set(ids), [], edges);
-  phonePath.push(...saved);
-  const { svg } = await mermaid.render("diagram-scale-" + state.renderId++, source);
-  const box = viewBoxOf(svg);
-  const screenWidth = phoneDiagramBox.clientWidth;
-  const screenHeight = phoneDiagramBox.clientHeight;
-  return Math.min(screenWidth / box.width, screenHeight / box.height);
-}
 function applyMainZoom(preserveViewportCenter = true) {
   zoomLevel.textContent = `${state.mainZoomPercent}%`;
   zoomInBtn.disabled = state.mainZoomPercent >= MAX_MAIN_ZOOM;
@@ -1051,7 +953,7 @@ function resetEditorHistory(text) {
   state.editorHistoryIndex = 0;
   selectEditorNode(null);
 }
-function restoreMainViewport(metadata, graph) {
+function applyMainViewport(metadata, graph) {
   const hasSavedLeft = typeof metadata?.outputScrollLeft === "number";
   const hasSavedTop = typeof metadata?.outputScrollTop === "number";
   if (hasSavedLeft)
@@ -1087,6 +989,7 @@ async function loadDiagram(name) {
   const { metadata } = splitEditorMetadata(text);
   restoreTypeMetadata(metadata);
   state.currentName = name;
+  state.openedFileHandle = null;
   phonePath.length = 0;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
@@ -1108,15 +1011,15 @@ async function loadDiagram(name) {
       selectEditorNode(metadata.lastSelectedNodeId);
   }
   if (graph)
-    restoreMainViewport(metadata, graph);
+    applyMainViewport(metadata, graph);
   loadList();
-  watchDiagram(name);
+  createDiagramWatcher(name);
 }
 var lastSavedDiagramText = null;
 var watchedDiagramName = null;
 var pendingSaveCount = 0;
 var saveVersion = 0;
-function watchDiagram(name) {
+function createDiagramWatcher(name) {
   if (state.watcher)
     state.watcher.close();
   watchedDiagramName = name;
@@ -1147,16 +1050,29 @@ function watchDiagram(name) {
   source.onmessage = refresh;
   source.onopen = refresh;
 }
+var MMD_FILE_TYPES = [{ description: "Mermaid diagram", accept: { "text/plain": [".mmd"] } }];
 async function saveDiagram() {
-  let name = state.currentName;
-  if (!name) {
-    name = prompt("Name this diagram (letters, numbers, - and _ only):");
-    if (!name)
+  const needsSaveAsDialog = !state.currentName && !state.openedFileHandle;
+  if (needsSaveAsDialog) {
+    try {
+      state.openedFileHandle = await window.showSaveFilePicker({ suggestedName: "diagram.mmd", types: MMD_FILE_TYPES });
+    } catch (error) {
+      const isUserCancel = error.name === "AbortError";
+      if (!isUserCancel)
+        throw error;
+      console.log("User canceled Save");
       return;
-    const hasMmdExtension = name.endsWith(".mmd");
-    if (!hasMmdExtension)
-      name += ".mmd";
+    }
   }
+  const fileHandle = state.openedFileHandle;
+  if (fileHandle) {
+    const writable = await fileHandle.createWritable();
+    await writable.write(codeBox.value);
+    await writable.close();
+    setStatus("Saved " + fileHandle.name);
+    return;
+  }
+  const name = state.currentName;
   lastSavedDiagramText = codeBox.value;
   pendingSaveCount++;
   saveVersion++;
@@ -1173,11 +1089,11 @@ async function saveDiagram() {
   loadList();
   const hasNoWatcher = !state.watcher;
   if (hasNoWatcher) {
-    watchDiagram(name);
+    createDiagramWatcher(name);
   } else {
     const isWatchingSomethingElse = watchedDiagramName !== name;
     if (isWatchingSomethingElse)
-      watchDiagram(name);
+      createDiagramWatcher(name);
   }
 }
 
@@ -1618,21 +1534,30 @@ function renderPhone(edges, graph) {
   classIndex = buildClassStyleIndex(codeBox.value);
   const rows = buildRows(edges, graph);
   let lastPastIndex = -1;
+  let hasOpenQuestion = false;
   for (let i = 0;i < rows.length; i++) {
     const isPast = rows[i].status === "past";
     if (isPast)
       lastPastIndex = i;
+    const isOpenQuestion = rows[i].status === "active";
+    if (isOpenQuestion)
+      hasOpenQuestion = true;
   }
   const historyParts = [];
   const footerParts = [];
   for (let i = 0;i < rows.length; i++) {
     const isMasked = i <= lastPastIndex;
     const html = buildRowHtml(rows[i], graph, edges, isMasked);
-    const target = i <= lastPastIndex ? historyParts : footerParts;
+    const isAfterLastAnswer = i > lastPastIndex;
+    const isFixedInPlace = isAfterLastAnswer ? hasOpenQuestion : false;
+    const target = isFixedInPlace ? footerParts : historyParts;
     target.push(html);
   }
-  if (lastPastIndex >= 0)
-    footerParts.unshift('<hr class="phone-separator">');
+  const hasFixedRows = footerParts.length > 0;
+  if (lastPastIndex >= 0) {
+    if (hasFixedRows)
+      footerParts.unshift('<hr class="phone-separator">');
+  }
   const hasAnswer = phonePath.length > 0;
   const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo decision</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button></div>' : "";
   phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join("")}</div><div id="phoneFooter">${footerParts.join("")}</div>`;
@@ -1691,7 +1616,7 @@ async function render() {
     const scaleIsUnset = state.diagramScale === null;
     if (hasEdges) {
       if (scaleIsUnset)
-        state.diagramScale = await baseScale(edges);
+        state.diagramScale = 1;
     }
     diagramBox.innerHTML = regularSvg;
     renderPhone(phoneEdges, graph);
@@ -1728,7 +1653,7 @@ darkModeToggle.addEventListener("change", () => {
 });
 
 // editor-actions.ts
-async function commitEditorSource(source, options) {
+async function applyEditorSource(source, options) {
   source = sourceWithEditorMetadata(source);
   await mermaid.parse(source);
   codeBox.value = source;
@@ -1739,16 +1664,17 @@ async function commitEditorSource(source, options) {
     state.editorHistoryIndex = state.editorHistory.length - 1;
   }
   await render();
-  if (!state.currentName)
+  const hasSaveTarget = !!state.currentName || !!state.openedFileHandle;
+  if (!hasSaveTarget)
     throw new Error("No diagram file is loaded to auto-save into");
   await saveDiagram();
   selectEditorNode(state.selectedEditorNodeId);
 }
-function enqueueEditorAction(action) {
+function appendEditorAction(action) {
   setEditorActionPromise(state.editorActionPromise.catch(() => {}).then(action));
 }
-function runEditorAction(action) {
-  enqueueEditorAction(action);
+function executeEditorAction(action) {
+  appendEditorAction(action);
 }
 function selectEditorNode(id) {
   state.selectedEditorNodeId = id;
@@ -1780,7 +1706,7 @@ function renderEditorSelection() {
       el.classList.add("editor-preview");
   }
 }
-function showRemovalPreview() {
+function renderRemovalPreview() {
   renderEditorSelection();
   renderNodeInspector();
 }
@@ -1819,7 +1745,7 @@ function addQuestionAfter() {
     newLines.push(`  ${yesId} --> ${successor}`);
     newLines.push(`  ${noId} --> ${successor}`);
   }
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function addBlockAfter() {
   if (!state.selectedEditorNodeId)
@@ -1840,7 +1766,7 @@ function addBlockAfter() {
   newLines.unshift(`  ${selected} --> ${bId}`, `  ${bId}["New block"]`);
   for (const successor of successors)
     newLines.push(`  ${bId} --> ${successor}`);
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function insertStaticBefore() {
   if (!state.selectedEditorNodeId)
@@ -1881,7 +1807,7 @@ function insertStaticBefore() {
     restoreInlineDecl(edge, edge.to);
     newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${edge.to}` : `  ${edge.from} --> ${edge.to}`);
   }
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function insertDecisionBefore() {
   if (!state.selectedEditorNodeId)
@@ -1911,7 +1837,7 @@ function insertDecisionBefore() {
   for (const edge of predecessors)
     newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${decisionId}` : `  ${edge.from} --> ${decisionId}`);
   newLines.push(`  ${newChoiceId} --> ${selected}`);
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function choiceSuffixFromLabel(label) {
   return label.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "CHOICE";
@@ -1941,7 +1867,7 @@ function addChoice() {
     const cid = choiceId(questionId, suffix);
     newLines.push(`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`);
   }
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 // editor-remove.ts
@@ -1965,7 +1891,7 @@ function removeChoice() {
       preserveInlineDecl(edge, otherEndpoint, graph, newLines);
   }
   selectEditorNode(null);
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function removeBlock() {
   if (!state.selectedEditorNodeId)
@@ -1996,7 +1922,7 @@ function removeBlock() {
     for (const successor of successors)
       newLines.push(`  ${predecessor} --> ${successor}`);
   selectEditorNode(null);
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function removeQuestion() {
   if (!state.selectedEditorNodeId)
@@ -2012,7 +1938,7 @@ function removeQuestion() {
     return;
   state.pendingRemoval = { questionId, choices, index: 0 };
   nodeActions.classList.add("removing");
-  showRemovalPreview();
+  renderRemovalPreview();
 }
 function removeChoices() {
   if (!state.selectedEditorNodeId)
@@ -2045,13 +1971,13 @@ function removeChoices() {
         preserveInlineDecl(inner, otherEndpoint, graph, newLines);
     }
   }
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function advanceRemovalPreview() {
   if (!state.pendingRemoval)
     return;
   state.pendingRemoval.index = (state.pendingRemoval.index + 1) % state.pendingRemoval.choices.length;
-  showRemovalPreview();
+  renderRemovalPreview();
 }
 function cancelQuestionRemoval() {
   selectEditorNode(null);
@@ -2098,21 +2024,21 @@ function confirmQuestionRemoval() {
   }
   for (const predecessor of predecessors)
     newLines.push(`  ${predecessor} --> ${keepSuccessor}`);
-  runEditorAction(() => commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  executeEditorAction(() => applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function undoEditorAction() {
   if (state.editorHistoryIndex <= 0)
     return;
   state.editorHistoryIndex--;
   selectEditorNode(null);
-  runEditorAction(() => commitEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
+  executeEditorAction(() => applyEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
 }
 function redoEditorAction() {
   if (state.editorHistoryIndex >= state.editorHistory.length - 1)
     return;
   state.editorHistoryIndex++;
   selectEditorNode(null);
-  runEditorAction(() => commitEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
+  executeEditorAction(() => applyEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
 }
 
 // editor-commit.ts
@@ -2120,7 +2046,7 @@ async function commitNewStaticAfter(sourceId, graph) {
   const staticId = nextEditorId("B_NEW", graph);
   const source = `${replaceOutgoing(sourceId, staticId, graph)}
   ${staticId}["New static block"]`;
-  await commitEditorSource(source);
+  await applyEditorSource(source);
   state.focusDestinationAfterTextId = staticId;
   selectEditorNode(staticId);
   focusInspectorText();
@@ -2134,7 +2060,7 @@ async function commitInsertStaticAfter(sourceId, graph) {
   const source = `${replaceOutgoing(sourceId, staticId, graph)}
 ${newLines.join(`
 `)}`;
-  await commitEditorSource(source);
+  await applyEditorSource(source);
   state.focusDestinationAfterTextId = staticId;
   selectEditorNode(staticId);
   focusInspectorText();
@@ -2178,7 +2104,7 @@ async function commitInsertDecisionAfter(sourceId, graph) {
     restoreInlineDecl(edge, edge.to);
     newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${edge.to}` : `  ${edge.from} --> ${edge.to}`);
   }
-  await commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines));
+  await applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines));
   selectEditorNode(decisionId);
   focusInspectorText();
 }
@@ -2193,7 +2119,7 @@ async function commitAddChoiceOnDecision(questionId, graph) {
     suffix = "NEW" + ++n;
   const cid = choiceId(questionId, suffix);
   const newLines = [`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`];
-  await commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines));
+  await applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines));
   selectEditorNode(questionId);
 }
 function addChoiceOnDecision() {
@@ -2212,7 +2138,7 @@ function commitNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.va
     state.advanceAfterDecisionText = null;
   if (focusDestination)
     state.focusDestinationAfterTextId = null;
-  enqueueEditorAction(async () => {
+  appendEditorAction(async () => {
     const graph = editorGraph();
     const node = graph.nodes.get(id);
     if (!node)
@@ -2221,7 +2147,7 @@ function commitNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.va
       const newToken = node.kind === "question" ? `${id}{"${text}"}` : `${id}["${text}"]`;
       const lines = graph.lines.slice();
       lines[node.lineIndex] = replaceDeclarationInLine(lines[node.lineIndex], id, newToken);
-      await commitEditorSource(lines.join(`
+      await applyEditorSource(lines.join(`
 `));
     }
     if (advance) {
@@ -2248,7 +2174,7 @@ function applyDestination(destination) {
   const text = nodeTextInput.value.trim();
   if (text !== node.label)
     commitNodeText(id, text);
-  enqueueEditorAction(async () => {
+  appendEditorAction(async () => {
     const currentGraph = editorGraph();
     if (createsStatic)
       await commitNewStaticAfter(id, currentGraph);
@@ -2256,7 +2182,7 @@ function applyDestination(destination) {
       await commitNewDecisionAfter(id, currentGraph);
     else {
       const source = destination ? replaceOutgoing(id, destination, currentGraph) : removeOutgoing(id, currentGraph);
-      await commitEditorSource(source);
+      await applyEditorSource(source);
     }
     centerNodeInViewport(outputBox, diagramBox, id);
   });
@@ -2582,6 +2508,7 @@ document.getElementById("newBtn").addEventListener("click", () => {
   if (state.watcher)
     state.watcher.close();
   state.currentName = null;
+  state.openedFileHandle = null;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
@@ -2618,14 +2545,23 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 });
 drawerToggle.addEventListener("click", () => setDrawerOpen(drawer.classList.contains("closed")));
 selectBox.addEventListener("change", () => loadDiagram(selectBox.value));
-openFileBtn.addEventListener("click", () => openFileInput.click());
-openFileInput.addEventListener("change", async () => {
-  const file = openFileInput.files[0];
-  if (!file)
+openFileBtn.addEventListener("click", async () => {
+  let fileHandles;
+  try {
+    fileHandles = await window.showOpenFilePicker({ types: MMD_FILE_TYPES });
+  } catch (error) {
+    const isUserCancel = error.name === "AbortError";
+    if (!isUserCancel)
+      throw error;
+    console.log("User canceled Open File");
     return;
+  }
+  const [fileHandle] = fileHandles;
+  const file = await fileHandle.getFile();
   if (state.watcher)
     state.watcher.close();
   state.currentName = null;
+  state.openedFileHandle = fileHandle;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
@@ -2638,7 +2574,6 @@ openFileInput.addEventListener("change", async () => {
   render();
   loadList();
   setDrawerOpen(true);
-  openFileInput.value = "";
 });
 codeBox.addEventListener("input", () => {
   resetEditorHistory(codeBox.value);

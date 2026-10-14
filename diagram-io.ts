@@ -40,7 +40,7 @@ export function resetEditorHistory(text: string) {
   selectEditorNode(null);
 }
 
-export function restoreMainViewport(metadata: EditorMetadata | null, graph: EditorGraph) {
+export function applyMainViewport(metadata: EditorMetadata | null, graph: EditorGraph) {
   const hasSavedLeft = typeof metadata?.outputScrollLeft === 'number';
   const hasSavedTop = typeof metadata?.outputScrollTop === 'number';
   if (hasSavedLeft)
@@ -77,6 +77,7 @@ export async function loadDiagram(name: string) {
   const { metadata } = splitEditorMetadata(text);
   restoreTypeMetadata(metadata);
   state.currentName = name;
+  state.openedFileHandle = null;
   phonePath.length = 0;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
@@ -101,9 +102,9 @@ export async function loadDiagram(name: string) {
       selectEditorNode(metadata.lastSelectedNodeId);
   }
   if (graph)
-    restoreMainViewport(metadata, graph);
+    applyMainViewport(metadata, graph);
   loadList();
-  watchDiagram(name);
+  createDiagramWatcher(name);
 }
 
 let lastSavedDiagramText: string | null = null;
@@ -111,7 +112,7 @@ let watchedDiagramName: string | null = null;
 let pendingSaveCount = 0;
 let saveVersion = 0;
 
-export function watchDiagram(name: string) {
+export function createDiagramWatcher(name: string) {
   if (state.watcher)
     state.watcher.close();
   watchedDiagramName = name;
@@ -145,16 +146,40 @@ export function watchDiagram(name: string) {
   source.onopen = refresh;
 }
 
+export const MMD_FILE_TYPES = [{ description: 'Mermaid diagram', accept: { 'text/plain': ['.mmd'] } }];
+
 export async function saveDiagram() {
-  let name = state.currentName;
-  if (!name) {
-    name = prompt('Name this diagram (letters, numbers, - and _ only):');
-    if (!name)
+  const needsSaveAsDialog = !state.currentName && !state.openedFileHandle;
+  if (needsSaveAsDialog) {
+    try {
+      state.openedFileHandle = await (window as any).showSaveFilePicker({ suggestedName: 'diagram.mmd', types: MMD_FILE_TYPES });
+    }
+    catch (error) {
+      const isUserCancel = (error as DOMException).name === 'AbortError';
+      if (!isUserCancel)
+        throw error;
+      console.log('User canceled Save');
       return;
-    const hasMmdExtension = name.endsWith('.mmd');
-    if (!hasMmdExtension)
-      name += '.mmd';
+    }
   }
+  const fileHandle = state.openedFileHandle;
+  if (fileHandle) {
+    const writable = await fileHandle.createWritable();
+    await writable.write(codeBox.value);
+    await writable.close();
+    setStatus('Saved ' + fileHandle.name);
+    return;
+  }
+  const name = state.currentName!;
+  // let name = state.currentName;
+  // if (!name) {
+  //   name = prompt('Name this diagram (letters, numbers, - and _ only):');
+  //   if (!name)
+  //     return;
+  //   const hasMmdExtension = name.endsWith('.mmd');
+  //   if (!hasMmdExtension)
+  //     name += '.mmd';
+  // }
   lastSavedDiagramText = codeBox.value;
   pendingSaveCount++;
   saveVersion++;
@@ -173,12 +198,12 @@ export async function saveDiagram() {
   // Don't reopen an already-watching watcher; that raced a stale onmessage against the new one.
   const hasNoWatcher = !state.watcher;
   if (hasNoWatcher) {
-    watchDiagram(name);
+    createDiagramWatcher(name);
   }
   else {
     const isWatchingSomethingElse = watchedDiagramName !== name;
     if (isWatchingSomethingElse)
-      watchDiagram(name);
+      createDiagramWatcher(name);
   }
 }
 

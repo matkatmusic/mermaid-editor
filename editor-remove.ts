@@ -1,7 +1,7 @@
 import { state } from './state.ts';
 import { editorGraph, setEditorActionPromise } from './editor-graph.ts';
 import { preserveInlineDecl, sourceWithLinesReplaced } from './source-edit.ts';
-import { commitEditorSource, runEditorAction, selectEditorNode, showRemovalPreview } from './editor-actions.ts';
+import { applyEditorSource, executeEditorAction, selectEditorNode, renderRemovalPreview } from './editor-actions.ts';
 import { nodeActions } from './dom.ts';
 
 export function removeChoice() {
@@ -25,7 +25,7 @@ export function removeChoice() {
   }
   // Clear selection before committing so the saved metadata doesn't point at the node this removes.
   selectEditorNode(null);
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 export function removeBlock() {
@@ -59,7 +59,7 @@ export function removeBlock() {
       newLines.push(`  ${predecessor} --> ${successor}`);
   // Clear selection before committing so the saved metadata doesn't point at the node this removes.
   selectEditorNode(null);
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 export function removeQuestion() {
@@ -76,7 +76,7 @@ export function removeQuestion() {
     return;
   state.pendingRemoval = { questionId, choices, index: 0 };
   nodeActions.classList.add('removing');
-  showRemovalPreview();
+  renderRemovalPreview();
 }
 
 export function removeChoices() {
@@ -110,14 +110,14 @@ export function removeChoices() {
         preserveInlineDecl(inner, otherEndpoint, graph, newLines);
     }
   }
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 export function advanceRemovalPreview() {
   if (!state.pendingRemoval)
     return;
   state.pendingRemoval.index = (state.pendingRemoval.index + 1) % state.pendingRemoval.choices.length;
-  showRemovalPreview();
+  renderRemovalPreview();
 }
 
 export function cancelQuestionRemoval() {
@@ -166,7 +166,7 @@ export function confirmQuestionRemoval() {
   }
   for (const predecessor of predecessors)
     newLines.push(`  ${predecessor} --> ${keepSuccessor}`);
-  runEditorAction(() => commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  executeEditorAction(() => applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 export function undoEditorAction() {
@@ -175,7 +175,7 @@ export function undoEditorAction() {
   state.editorHistoryIndex--;
   // Clear selection before committing so the re-stamped metadata doesn't leak the current selection into the restored history entry.
   selectEditorNode(null);
-  runEditorAction(() => commitEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
+  executeEditorAction(() => applyEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
 }
 
 export function redoEditorAction() {
@@ -184,6 +184,6 @@ export function redoEditorAction() {
   state.editorHistoryIndex++;
   // Clear selection before committing so the re-stamped metadata doesn't leak the current selection into the restored history entry.
   selectEditorNode(null);
-  runEditorAction(() => commitEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
+  executeEditorAction(() => applyEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
 }
 

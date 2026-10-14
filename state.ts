@@ -21,6 +21,7 @@ export const NEW_DECISION_DESTINATION = 'new-decision';
 export const state = {
   renderId: 0,
   currentName: null as string | null,
+  openedFileHandle: null as FileSystemFileHandle | null, // a disk file from File -> Open File or the Save-As dialog
   watcher: null as EventSource | null,
   currentBottomQ: undefined as string | undefined,
   phoneFocusNodeId: null as string | null,

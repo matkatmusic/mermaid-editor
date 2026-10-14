@@ -9,7 +9,7 @@ import { phonePath, state } from './state.ts';
 import { applyNodeTypeColors } from './node-type-colors.ts';
 import { renderEditorSelection } from './editor-actions.ts';
 import { highlightPath, showEditorValidationError } from './render-helpers.ts';
-import { baseScale, viewBoxOf } from './zoom.ts';
+import { /* baseScale, */ viewBoxOf } from './zoom.ts';
 import { renderPhone } from './phone-render.ts';
 import { positionNodeInspector } from './node-inspector.ts';
 
@@ -68,8 +68,11 @@ export async function render() {
     const hasEdges = edges.length > 0;
     const scaleIsUnset = state.diagramScale === null;
     if (hasEdges) {
+      // A fixed scale keeps main-view text the same size; baseScale tied it to the window height at load.
       if (scaleIsUnset)
-        state.diagramScale = await baseScale(edges);
+        state.diagramScale = 1;
+      // if (scaleIsUnset)
+      //   state.diagramScale = await baseScale(edges);
     }
     diagramBox.innerHTML = regularSvg;
     renderPhone(phoneEdges, graph);

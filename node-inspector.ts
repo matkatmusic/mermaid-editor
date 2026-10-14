@@ -1,7 +1,7 @@
 import { INSPECTOR_TITLES } from './editor-types.ts';
 import type { EditorGraph, EditorNode, EditorNodeKind } from './editor-types.ts';
 import { editorGraph } from './editor-graph.ts';
-import { commitEditorSource, runEditorAction } from './editor-actions.ts';
+import { applyEditorSource, executeEditorAction } from './editor-actions.ts';
 import { classPickerBtn, classPickerLabel, classPickerList, classPickerSwatch, codeBox, destinationRow, destinationSelect, drawer, mainBox, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeTextInput } from './dom.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { classDefByName, classOfNode, parseClassDefs } from './class-defs.ts';
@@ -33,7 +33,7 @@ export function replaceDeclarationInLine(line: string, id: string, newToken: str
 //     const newToken = kind === 'question' ? `${id}{"${text}"}` : `${id}["${text}"]`;
 //     const lines = graph.lines.slice();
 //     lines[node.lineIndex] = replaceDeclarationInLine(lines[node.lineIndex], id, newToken);
-//     runEditorAction(() => commitEditorSource(lines.join('\n')));
+//     executeEditorAction(() => applyEditorSource(lines.join('\n')));
 //   };
 //   label.addEventListener('keydown', (event) => {
 //     if ((event as KeyboardEvent).key !== 'Enter')

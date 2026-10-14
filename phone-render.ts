@@ -257,22 +257,31 @@ export function renderPhone(edges: Edge[], graph: EditorGraph) {
   classIndex = buildClassStyleIndex(codeBox.value);
   const rows = buildRows(edges, graph);
   let lastPastIndex = -1;
+  let hasOpenQuestion = false;
   for (let i = 0; i < rows.length; i++) {
     const isPast = rows[i].status === 'past';
     if (isPast)
       lastPastIndex = i;
+    const isOpenQuestion = rows[i].status === 'active';
+    if (isOpenQuestion)
+      hasOpenQuestion = true;
   }
-  // History (already-answered decisions) scrolls; everything after the last answer is fixed in place.
+  // A finished path has no open question, so everything scrolls.
   const historyParts: string[] = [];
   const footerParts: string[] = [];
   for (let i = 0; i < rows.length; i++) {
     const isMasked = i <= lastPastIndex;
     const html = buildRowHtml(rows[i], graph, edges, isMasked);
-    const target = i <= lastPastIndex ? historyParts : footerParts;
+    const isAfterLastAnswer = i > lastPastIndex;
+    const isFixedInPlace = isAfterLastAnswer ? hasOpenQuestion : false;
+    const target = isFixedInPlace ? footerParts : historyParts;
     target.push(html);
   }
-  if (lastPastIndex >= 0)
-    footerParts.unshift('<hr class="phone-separator">');
+  const hasFixedRows = footerParts.length > 0;
+  if (lastPastIndex >= 0) {
+    if (hasFixedRows)
+      footerParts.unshift('<hr class="phone-separator">');
+  }
   const hasAnswer = phonePath.length > 0;
   const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo decision</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button></div>' : '';
   phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join('')}</div><div id="phoneFooter">${footerParts.join('')}</div>`;

@@ -1,7 +1,7 @@
 import { state } from './state.ts';
 import { declarationSuffixOf, editorGraph, setEditorActionPromise } from './editor-graph.ts';
 import { choiceId, nextEditorId, preserveInlineDecl, sourceWithLinesReplaced } from './source-edit.ts';
-import { commitEditorSource } from './editor-actions.ts';
+import { applyEditorSource } from './editor-actions.ts';
 import type { EditorEdge } from './editor-types.ts';
 
 export function addQuestionAfter() {
@@ -37,7 +37,7 @@ export function addQuestionAfter() {
     newLines.push(`  ${yesId} --> ${successor}`);
     newLines.push(`  ${noId} --> ${successor}`);
   }
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 export function addBlockAfter() {
@@ -59,7 +59,7 @@ export function addBlockAfter() {
   newLines.unshift(`  ${selected} --> ${bId}`, `  ${bId}["New block"]`);
   for (const successor of successors)
     newLines.push(`  ${bId} --> ${successor}`);
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 export function insertStaticBefore() {
@@ -102,7 +102,7 @@ export function insertStaticBefore() {
     restoreInlineDecl(edge, edge.to);
     newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${edge.to}` : `  ${edge.from} --> ${edge.to}`);
   }
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 export function insertDecisionBefore() {
@@ -133,7 +133,7 @@ export function insertDecisionBefore() {
   for (const edge of predecessors)
     newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${decisionId}` : `  ${edge.from} --> ${decisionId}`);
   newLines.push(`  ${newChoiceId} --> ${selected}`);
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 export function choiceSuffixFromLabel(label: string) {
@@ -170,6 +170,6 @@ export function addChoice() {
     const cid = choiceId(questionId, suffix);
     newLines.push(`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`);
   }
-  setEditorActionPromise(commitEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 

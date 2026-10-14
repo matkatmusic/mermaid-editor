@@ -1,7 +1,7 @@
 import { MAIN_ZOOM_STEP, chosenAnswers, phonePath, state } from './state.ts';
 import { restoreTypeMetadata, splitEditorMetadata } from './editor-graph.ts';
-import { codeBox, drawer, drawerToggle, nextDecisionBtn, openFileBtn, openFileInput, outputBox, phoneDiagramBox, previousDecisionBtn, searchClearBtn, searchInput, searchNextBtn, searchPreviousBtn, selectBox, zoomInBtn, zoomOutBtn, zoomResetBtn } from './dom.ts';
-import { loadDiagram, loadList, resetEditorHistory, saveDiagram, setDrawerOpen } from './diagram-io.ts';
+import { codeBox, drawer, drawerToggle, nextDecisionBtn, openFileBtn, outputBox, phoneDiagramBox, previousDecisionBtn, searchClearBtn, searchInput, searchNextBtn, searchPreviousBtn, selectBox, zoomInBtn, zoomOutBtn, zoomResetBtn } from './dom.ts';
+import { MMD_FILE_TYPES, loadDiagram, loadList, resetEditorHistory, saveDiagram, setDrawerOpen } from './diagram-io.ts';
 import { render } from './render.ts';
 import { navigateDecision } from './decision-nav.ts';
 import { clearSearch, cycleSearch, runSearch } from './node-search.ts';
@@ -12,6 +12,7 @@ document.getElementById('newBtn')!.addEventListener('click', () => {
   if (state.watcher)
     state.watcher.close();
   state.currentName = null;
+  state.openedFileHandle = null;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
@@ -48,14 +49,25 @@ document.getElementById('resetBtn')!.addEventListener('click', () => {
 drawerToggle.addEventListener('click', () => setDrawerOpen(drawer.classList.contains('closed')));
 selectBox.addEventListener('change', () => loadDiagram(selectBox.value));
 
-openFileBtn.addEventListener('click', () => openFileInput.click());
-openFileInput.addEventListener('change', async () => {
-  const file = openFileInput.files![0];
-  if (!file)
+// The OS open dialog returns a file handle, so File -> Save can overwrite the same file.
+openFileBtn.addEventListener('click', async () => {
+  let fileHandles;
+  try {
+    fileHandles = await (window as any).showOpenFilePicker({ types: MMD_FILE_TYPES });
+  }
+  catch (error) {
+    const isUserCancel = (error as DOMException).name === 'AbortError';
+    if (!isUserCancel)
+      throw error;
+    console.log('User canceled Open File');
     return;
+  }
+  const [fileHandle] = fileHandles;
+  const file = await fileHandle.getFile();
   if (state.watcher)
     state.watcher.close();
   state.currentName = null;
+  state.openedFileHandle = fileHandle;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
@@ -68,8 +80,29 @@ openFileInput.addEventListener('change', async () => {
   render();
   loadList();
   setDrawerOpen(true);
-  openFileInput.value = '';
 });
+// openFileBtn.addEventListener('click', () => openFileInput.click());
+// openFileInput.addEventListener('change', async () => {
+//   const file = openFileInput.files![0];
+//   if (!file)
+//     return;
+//   if (state.watcher)
+//     state.watcher.close();
+//   state.currentName = null;
+//   state.phoneFocusNodeId = null;
+//   state.phoneFocusUsesDecisionContext = false;
+//   state.phonePreviewChoiceId = null;
+//   state.diagramScale = null;
+//   state.currentDecisionId = null;
+//   codeBox.value = await file.text();
+//   restoreTypeMetadata(splitEditorMetadata(codeBox.value).metadata);
+//   resetEditorHistory(codeBox.value);
+//   selectBox.value = '';
+//   render();
+//   loadList();
+//   setDrawerOpen(true);
+//   openFileInput.value = '';
+// });
 
 codeBox.addEventListener('input', () => {
   resetEditorHistory(codeBox.value);
