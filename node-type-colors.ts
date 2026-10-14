@@ -11,7 +11,7 @@ import { buildClassStyleIndex, styleOfNode } from './class-defs.ts';
 // import { state } from './state.ts';
 // import type { EditorNode } from './editor-types.ts';
 
-export function editorNodeKind(id: string, graph: EditorGraph) {
+export function getEditorNodeKind(id: string, graph: EditorGraph) {
   return graph.nodes.get(id)?.kind;
 }
 
@@ -29,18 +29,19 @@ export function editorNodeKind(id: string, graph: EditorGraph) {
 
 const UNCLASSED_STRIPE_PATTERN_ID = 'unclassed-stripe-pattern';
 
-function ensureUnclassedStripePattern(svg: SVGSVGElement) {
+function addUnclassedStripePattern(svg: SVGSVGElement) {
   let defs = svg.querySelector('defs');
   if (!defs) {
     defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     svg.insertBefore(defs, svg.firstChild);
   }
-  if (defs.querySelector('#' + UNCLASSED_STRIPE_PATTERN_ID))
+  const existingPattern = defs.querySelector('#' + UNCLASSED_STRIPE_PATTERN_ID);
+  if (existingPattern)
     return;
-  defs.insertAdjacentHTML('beforeend', `<pattern id="${UNCLASSED_STRIPE_PATTERN_ID}" width="16" height="16" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="black"/><rect width="8" height="16" fill="red"/></pattern>`);
+  defs.insertAdjacentHTML('beforeend', `<pattern id="${UNCLASSED_STRIPE_PATTERN_ID}" width="16" height="16" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#fde8e8"/><rect width="8" height="16" fill="#f4b4b4"/></pattern>`);
 }
 
-// Unclassed nodes get red/black stripes in the main view instead of a flat fill.
+// Unclassed nodes get pale red stripes in the main view instead of a flat fill.
 export function applyNodeTypeColors(graph: EditorGraph) {
   const svg = diagramBox.querySelector('svg');
   if (!svg)
@@ -53,12 +54,12 @@ export function applyNodeTypeColors(graph: EditorGraph) {
     const isClassed = !!styleOfNode(classIndex, node.id);
     if (isClassed)
       continue;
-    ensureUnclassedStripePattern(svg);
+    addUnclassedStripePattern(svg);
     for (const shape of nodeEl.querySelectorAll('rect, path, polygon'))
       (shape as SVGElement).style.fill = `url(#${UNCLASSED_STRIPE_PATTERN_ID})`;
-    const label = nodeEl.querySelector<HTMLElement>('.nodeLabel');
-    if (label)
-      label.style.opacity = '0.15';
+    // const label = nodeEl.querySelector<HTMLElement>('.nodeLabel');
+    // if (label)
+    //   label.style.opacity = '0.15';
   }
 }
 

@@ -981,13 +981,13 @@ test("test_class_picker_always_shows_the_nodes_actual_class", async () => {
   await resetEditorFixture();
   await evaluate(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
   await sleep(500);
-  // Step: B_SELF_RESTATE_ISSUE is classed "forwards" (green) in accountability.mmd's classDef lines.
+  // Step: B_SELF_RESTATE_ISSUE is classed "action" in accountability.mmd's classDef lines.
   await clickNode("B_SELF_RESTATE_ISSUE");
   const picker = await evaluate(`JSON.stringify({
     label: document.getElementById('classPickerLabel').textContent,
     swatch: document.getElementById('classPickerSwatch').style.background,
   })`).then(JSON.parse);
-  assert.equal(picker.label, 'forwards');
+  assert.equal(picker.label, 'action');
   assert.ok(picker.swatch.length > 0);
   // Step: a differently classed node shows its own class, not a stale "forwards".
   await clickNode("Q_THEM_DONE_SPEAKING");

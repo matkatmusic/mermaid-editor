@@ -1363,15 +1363,16 @@ function filterToFunctions(source) {
 
 // node-type-colors.ts
 var UNCLASSED_STRIPE_PATTERN_ID = "unclassed-stripe-pattern";
-function ensureUnclassedStripePattern(svg) {
+function addUnclassedStripePattern(svg) {
   let defs = svg.querySelector("defs");
   if (!defs) {
     defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     svg.insertBefore(defs, svg.firstChild);
   }
-  if (defs.querySelector("#" + UNCLASSED_STRIPE_PATTERN_ID))
+  const existingPattern = defs.querySelector("#" + UNCLASSED_STRIPE_PATTERN_ID);
+  if (existingPattern)
     return;
-  defs.insertAdjacentHTML("beforeend", `<pattern id="${UNCLASSED_STRIPE_PATTERN_ID}" width="16" height="16" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="black"/><rect width="8" height="16" fill="red"/></pattern>`);
+  defs.insertAdjacentHTML("beforeend", `<pattern id="${UNCLASSED_STRIPE_PATTERN_ID}" width="16" height="16" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#fde8e8"/><rect width="8" height="16" fill="#f4b4b4"/></pattern>`);
 }
 function applyNodeTypeColors(graph) {
   const svg = diagramBox.querySelector("svg");
@@ -1385,25 +1386,22 @@ function applyNodeTypeColors(graph) {
     const isClassed = !!styleOfNode(classIndex, node.id);
     if (isClassed)
       continue;
-    ensureUnclassedStripePattern(svg);
+    addUnclassedStripePattern(svg);
     for (const shape of nodeEl.querySelectorAll("rect, path, polygon"))
       shape.style.fill = `url(#${UNCLASSED_STRIPE_PATTERN_ID})`;
-    const label = nodeEl.querySelector(".nodeLabel");
-    if (label)
-      label.style.opacity = "0.15";
   }
 }
 
 // phone-render.ts
-var UNCLASSED_PHONE_STYLE = "background:repeating-linear-gradient(45deg, red 0 8px, black 8px 16px)";
+var UNCLASSED_PHONE_STYLE = "background:repeating-linear-gradient(45deg, #f4b4b4 0 8px, #fde8e8 8px 16px)";
 var classIndex = { assignments: new Map, defsByName: new Map };
-function phoneNodeAppearance(node) {
+function getPhoneNodeAppearance(node) {
   const classStyle = styleOfNode(classIndex, node.id);
   if (!classStyle)
-    return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: "opacity:0.15" };
+    return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: "" };
   return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}`, labelStyle: "" };
 }
-function rootOf(edges) {
+function findRoot(edges) {
   for (const [candidate] of edges) {
     let hasIncoming = false;
     for (const [, to] of edges) {
@@ -1418,17 +1416,17 @@ function rootOf(edges) {
   }
   return;
 }
-function escapeHtml(text) {
+function encodeHtml(text) {
   const withAmp = text.replace(/&/g, "&amp;");
   const withLt = withAmp.replace(/</g, "&lt;");
   const withGt = withLt.replace(/>/g, "&gt;");
   const withQuote = withGt.replace(/"/g, "&quot;");
   return withQuote.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
 }
-function labelOf(id, graph) {
+function getLabelOf(id, graph) {
   return graph.nodes.get(id)?.label ?? id;
 }
-function historyRows(edges, graph) {
+function buildHistoryRows(edges, graph) {
   if (edges.length === 0) {
     const sorted = [...graph.nodes.values()].sort((a, b) => a.lineIndex - b.lineIndex);
     const standaloneRows = [];
@@ -1442,7 +1440,7 @@ function historyRows(edges, graph) {
     return standaloneRows;
   }
   const rows = [];
-  let cur = rootOf(edges);
+  let cur = findRoot(edges);
   let pathIndex = 0;
   const maxSteps = graph.nodes.size + phonePath.length + 1;
   for (let step = 0;step < maxSteps; step++) {
@@ -1476,7 +1474,7 @@ function historyRows(edges, graph) {
   }
   return rows;
 }
-function rowsFromIdSequence(ids, graph, activeId, leadChosenId, leadDeclinedIds) {
+function buildRowsFromIdSequence(ids, graph, activeId, leadChosenId, leadDeclinedIds) {
   const rows = [];
   const seen = new Set;
   const leadQuestionId = ids[0];
@@ -1510,12 +1508,12 @@ function rowsFromIdSequence(ids, graph, activeId, leadChosenId, leadDeclinedIds)
   }
   return rows;
 }
-function focusRows(edges, graph, focusNodeId) {
+function buildFocusRows(edges, graph, focusNodeId) {
   const ids = sliceIds(edges);
   const siblings = siblingIds(ids, edges);
-  return rowsFromIdSequence(ids, graph, focusNodeId, ids[1], siblings);
+  return buildRowsFromIdSequence(ids, graph, focusNodeId, ids[1], siblings);
 }
-function previewRows(edges, graph) {
+function buildPreviewRows(edges, graph) {
   const ids = sliceIds(edges);
   const siblings = siblingIds(ids, edges);
   const reversedIds = [...ids].reverse();
@@ -1529,24 +1527,24 @@ function previewRows(edges, graph) {
       break;
     }
   }
-  return rowsFromIdSequence(ids, graph, activeId ?? ids[0], ids[1], siblings);
+  return buildRowsFromIdSequence(ids, graph, activeId ?? ids[0], ids[1], siblings);
 }
 function buildRows(edges, graph) {
   const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
   if (hasFocusedDecision)
-    return focusRows(edges, graph, state.phoneFocusNodeId);
+    return buildFocusRows(edges, graph, state.phoneFocusNodeId);
   const hasPreviewChoice = !state.functionsOnly && !!state.phonePreviewChoiceId;
   if (hasPreviewChoice)
-    return previewRows(edges, graph);
-  return historyRows(edges, graph);
+    return buildPreviewRows(edges, graph);
+  return buildHistoryRows(edges, graph);
 }
-function choiceButtonsHtml(choices, row, graph) {
+function buildChoiceButtonsHtml(choices, row, graph) {
   const isPast = row.status === "past";
   const declinedCount = choices.length - 1;
   const declinedPct = 30 / declinedCount;
   const buttons = [];
   for (const choiceId of choices) {
-    const label = escapeHtml(labelOf(choiceId, graph));
+    const label = encodeHtml(getLabelOf(choiceId, graph));
     const isActive = row.status === "active";
     if (isActive) {
       buttons.push(`<button type="button" class="phone-choice" data-node-id="${choiceId}" data-choose="${choiceId}">${label}</button>`);
@@ -1568,21 +1566,21 @@ function choiceButtonsHtml(choices, row, graph) {
   }
   return `<div class="phone-choice-row">${buttons.join("")}</div>`;
 }
-function rowHtml(row, graph, edges, isMasked) {
+function buildRowHtml(row, graph, edges, isMasked) {
   const node = graph.nodes.get(row.id);
   if (!node)
     return "";
   if (row.status === "block") {
     const blockClass = isMasked ? "phone-block phone-block-past" : "phone-block";
-    const { boxStyle, labelStyle } = phoneNodeAppearance(node);
-    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${escapeHtml(labelOf(row.id, graph))}</span></div>`;
+    const { boxStyle, labelStyle } = getPhoneNodeAppearance(node);
+    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${encodeHtml(getLabelOf(row.id, graph))}</span></div>`;
   }
   const choices = choicesOf(row.id, edges);
   const activeAttr = row.status === "active" ? " data-active-question" : "";
-  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = phoneNodeAppearance(node);
-  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${escapeHtml(labelOf(row.id, graph))}</span></div>`;
+  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node);
+  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${encodeHtml(getLabelOf(row.id, graph))}</span></div>`;
   const wrapClass = isMasked ? "phone-decision phone-decision-past" : "phone-decision";
-  return `<div class="${wrapClass}">${question}${choiceButtonsHtml(choices, row, graph)}</div>`;
+  return `<div class="${wrapClass}">${question}${buildChoiceButtonsHtml(choices, row, graph)}</div>`;
 }
 function renderPhone(edges, graph) {
   classIndex = buildClassStyleIndex(codeBox.value);
@@ -1597,7 +1595,7 @@ function renderPhone(edges, graph) {
   const footerParts = [];
   for (let i = 0;i < rows.length; i++) {
     const isMasked = i <= lastPastIndex;
-    const html = rowHtml(rows[i], graph, edges, isMasked);
+    const html = buildRowHtml(rows[i], graph, edges, isMasked);
     const target = i <= lastPastIndex ? historyParts : footerParts;
     target.push(html);
   }

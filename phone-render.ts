@@ -5,20 +5,20 @@ import { phonePath, state } from './state.ts';
 import { choicesOf, siblingIds, sliceIds } from './graph-slice.ts';
 import { buildClassStyleIndex, styleOfNode, type ClassStyleIndex } from './class-defs.ts';
 
-const UNCLASSED_PHONE_STYLE = 'background:repeating-linear-gradient(45deg, red 0 8px, black 8px 16px)';
+const UNCLASSED_PHONE_STYLE = 'background:repeating-linear-gradient(45deg, #f4b4b4 0 8px, #fde8e8 8px 16px)';
 
 // Rebuilt once per renderPhone() call (see bottom of this file) instead of per row.
 let classIndex: ClassStyleIndex = { assignments: new Map(), defsByName: new Map() };
 
 // Color now comes from the node's mermaid class, not state.typeColors/state.nodeTypes.
-function phoneNodeAppearance(node: EditorNode) {
+function getPhoneNodeAppearance(node: EditorNode) {
   const classStyle = styleOfNode(classIndex, node.id);
   if (!classStyle)
-    return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: 'opacity:0.15' };
+    return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: '' };
   return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}`, labelStyle: '' };
 }
 
-function rootOf(edges: Edge[]) {
+function findRoot(edges: Edge[]) {
   for (const [candidate] of edges) {
     let hasIncoming = false;
     for (const [, to] of edges) {
@@ -34,7 +34,7 @@ function rootOf(edges: Edge[]) {
   return undefined;
 }
 
-function escapeHtml(text: string) {
+function encodeHtml(text: string) {
   const withAmp = text.replace(/&/g, '&amp;');
   const withLt = withAmp.replace(/</g, '&lt;');
   const withGt = withLt.replace(/>/g, '&gt;');
@@ -42,7 +42,7 @@ function escapeHtml(text: string) {
   return withQuote.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
 }
 
-function labelOf(id: string, graph: EditorGraph) {
+function getLabelOf(id: string, graph: EditorGraph) {
   return graph.nodes.get(id)?.label ?? id;
 }
 
@@ -52,7 +52,7 @@ type Row =
   | { status: 'past'; id: string; chosenChoiceId: string; declinedChoiceIds: string[]; revertIndex?: number };
 
 // Walks answered history from the root in phonePath order, so every past decision renders masked.
-function historyRows(edges: Edge[], graph: EditorGraph): Row[] {
+function buildHistoryRows(edges: Edge[], graph: EditorGraph): Row[] {
   if (edges.length === 0) {
     // No edges to walk (e.g. a single declared node): show every declared node standalone.
     const sorted = [...graph.nodes.values()].sort((a, b) => a.lineIndex - b.lineIndex);
@@ -67,7 +67,7 @@ function historyRows(edges: Edge[], graph: EditorGraph): Row[] {
     return standaloneRows;
   }
   const rows: Row[] = [];
-  let cur = rootOf(edges);
+  let cur = findRoot(edges);
   let pathIndex = 0;
   // A loop can revisit a node, adding a new row each time; maxSteps only bounds a pure block cycle.
   const maxSteps = graph.nodes.size + phonePath.length + 1;
@@ -103,7 +103,7 @@ function historyRows(edges: Edge[], graph: EditorGraph): Row[] {
   return rows;
 }
 
-function rowsFromIdSequence(ids: string[], graph: EditorGraph, activeId: string, leadChosenId: string | undefined, leadDeclinedIds: string[]): Row[] {
+function buildRowsFromIdSequence(ids: string[], graph: EditorGraph, activeId: string, leadChosenId: string | undefined, leadDeclinedIds: string[]): Row[] {
   const rows: Row[] = [];
   const seen = new Set<string>();
   const leadQuestionId = ids[0];
@@ -139,13 +139,13 @@ function rowsFromIdSequence(ids: string[], graph: EditorGraph, activeId: string,
 }
 
 // Previews a main-view-clicked decision on the phone: masked lead-in, open focus, nothing revert-clickable.
-function focusRows(edges: Edge[], graph: EditorGraph, focusNodeId: string): Row[] {
+function buildFocusRows(edges: Edge[], graph: EditorGraph, focusNodeId: string): Row[] {
   const ids = sliceIds(edges);
   const siblings = siblingIds(ids, edges);
-  return rowsFromIdSequence(ids, graph, focusNodeId, ids[1], siblings);
+  return buildRowsFromIdSequence(ids, graph, focusNodeId, ids[1], siblings);
 }
 
-function previewRows(edges: Edge[], graph: EditorGraph): Row[] {
+function buildPreviewRows(edges: Edge[], graph: EditorGraph): Row[] {
   const ids = sliceIds(edges);
   const siblings = siblingIds(ids, edges);
   const reversedIds = [...ids].reverse();
@@ -159,26 +159,26 @@ function previewRows(edges: Edge[], graph: EditorGraph): Row[] {
       break;
     }
   }
-  return rowsFromIdSequence(ids, graph, activeId ?? ids[0], ids[1], siblings);
+  return buildRowsFromIdSequence(ids, graph, activeId ?? ids[0], ids[1], siblings);
 }
 
 function buildRows(edges: Edge[], graph: EditorGraph): Row[] {
   const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
   if (hasFocusedDecision)
-    return focusRows(edges, graph, state.phoneFocusNodeId!);
+    return buildFocusRows(edges, graph, state.phoneFocusNodeId!);
   const hasPreviewChoice = !state.functionsOnly && !!state.phonePreviewChoiceId;
   if (hasPreviewChoice)
-    return previewRows(edges, graph);
-  return historyRows(edges, graph);
+    return buildPreviewRows(edges, graph);
+  return buildHistoryRows(edges, graph);
 }
 
-function choiceButtonsHtml(choices: string[], row: Row, graph: EditorGraph) {
+function buildChoiceButtonsHtml(choices: string[], row: Row, graph: EditorGraph) {
   const isPast = row.status === 'past';
   const declinedCount = choices.length - 1;
   const declinedPct = 30 / declinedCount;
   const buttons: string[] = [];
   for (const choiceId of choices) {
-    const label = escapeHtml(labelOf(choiceId, graph));
+    const label = encodeHtml(getLabelOf(choiceId, graph));
     const isActive = row.status === 'active';
     if (isActive) {
       buttons.push(`<button type="button" class="phone-choice" data-node-id="${choiceId}" data-choose="${choiceId}">${label}</button>`);
@@ -201,21 +201,21 @@ function choiceButtonsHtml(choices: string[], row: Row, graph: EditorGraph) {
   return `<div class="phone-choice-row">${buttons.join('')}</div>`;
 }
 
-function rowHtml(row: Row, graph: EditorGraph, edges: Edge[], isMasked: boolean): string {
+function buildRowHtml(row: Row, graph: EditorGraph, edges: Edge[], isMasked: boolean): string {
   const node = graph.nodes.get(row.id);
   if (!node)
     return '';
   if (row.status === 'block') {
     const blockClass = isMasked ? 'phone-block phone-block-past' : 'phone-block';
-    const { boxStyle, labelStyle } = phoneNodeAppearance(node);
-    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${escapeHtml(labelOf(row.id, graph))}</span></div>`;
+    const { boxStyle, labelStyle } = getPhoneNodeAppearance(node);
+    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${encodeHtml(getLabelOf(row.id, graph))}</span></div>`;
   }
   const choices = choicesOf(row.id, edges);
   const activeAttr = row.status === 'active' ? ' data-active-question' : '';
-  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = phoneNodeAppearance(node);
-  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${escapeHtml(labelOf(row.id, graph))}</span></div>`;
+  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node);
+  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${encodeHtml(getLabelOf(row.id, graph))}</span></div>`;
   const wrapClass = isMasked ? 'phone-decision phone-decision-past' : 'phone-decision';
-  return `<div class="${wrapClass}">${question}${choiceButtonsHtml(choices, row, graph)}</div>`;
+  return `<div class="${wrapClass}">${question}${buildChoiceButtonsHtml(choices, row, graph)}</div>`;
 }
 
 export function renderPhone(edges: Edge[], graph: EditorGraph) {
@@ -232,7 +232,7 @@ export function renderPhone(edges: Edge[], graph: EditorGraph) {
   const footerParts: string[] = [];
   for (let i = 0; i < rows.length; i++) {
     const isMasked = i <= lastPastIndex;
-    const html = rowHtml(rows[i], graph, edges, isMasked);
+    const html = buildRowHtml(rows[i], graph, edges, isMasked);
     const target = i <= lastPastIndex ? historyParts : footerParts;
     target.push(html);
   }
