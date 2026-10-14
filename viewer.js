@@ -1,7 +1,7 @@
 // dom.ts
 var darkModeToggle = document.getElementById("darkModeToggle");
-var mermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1e6, theme: darkModeToggle.checked ? "dark" : "default", themeVariables: darkModeToggle.checked ? { primaryColor: "#ececff", nodeBkg: "#ececff", mainBkg: "#ececff", primaryTextColor: "#000", nodeTextColor: "#000", primaryBorderColor: "#9370db", nodeBorder: "#9370db" } : {} });
-mermaid.initialize(mermaidOptions());
+var getMermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1e6, theme: darkModeToggle.checked ? "dark" : "default", themeVariables: darkModeToggle.checked ? { primaryColor: "#ececff", nodeBkg: "#ececff", mainBkg: "#ececff", primaryTextColor: "#000", nodeTextColor: "#000", primaryBorderColor: "#9370db", nodeBorder: "#9370db" } : {} });
+mermaid.initialize(getMermaidOptions());
 var codeBox = document.getElementById("code");
 var diagramBox = document.getElementById("diagram");
 var errorBox = document.getElementById("error");
@@ -1310,14 +1310,6 @@ function applyNodeTypeColors(graph) {
 }
 
 // phone-render.ts
-var UNCLASSED_PHONE_STYLE = "background:repeating-linear-gradient(45deg, #f4b4b4 0 8px, #fde8e8 8px 16px)";
-var classIndex = { assignments: new Map, defsByName: new Map };
-function getPhoneNodeAppearance(node) {
-  const classStyle = styleOfNode(classIndex, node.id);
-  if (!classStyle)
-    return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: "" };
-  return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}`, labelStyle: "" };
-}
 function findRoot(edges) {
   for (const [candidate] of edges) {
     let hasIncoming = false;
@@ -1332,16 +1324,6 @@ function findRoot(edges) {
       return candidate;
   }
   return;
-}
-function encodeHtml(text) {
-  const withAmp = text.replace(/&/g, "&amp;");
-  const withLt = withAmp.replace(/</g, "&lt;");
-  const withGt = withLt.replace(/>/g, "&gt;");
-  const withQuote = withGt.replace(/"/g, "&quot;");
-  return withQuote.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
-}
-function getLabelOf(id, graph) {
-  return graph.nodes.get(id)?.label ?? id;
 }
 function buildHistoryRows(edges, graph) {
   if (edges.length === 0) {
@@ -1391,6 +1373,40 @@ function buildHistoryRows(edges, graph) {
   }
   return rows;
 }
+function isPhoneShowingHistory() {
+  const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
+  const hasPreviewChoice = !state.functionsOnly && !!state.phonePreviewChoiceId;
+  return !hasFocusedDecision && !hasPreviewChoice;
+}
+function findAnswersLeadingTo(questionId, edges, graph) {
+  const root = findRoot(edges);
+  const queue = [{ nodeId: root, answers: [] }];
+  const visited = new Set;
+  for (let i = 0;i < queue.length; i++) {
+    const { nodeId, answers } = queue[i];
+    if (nodeId === undefined)
+      continue;
+    if (nodeId === questionId)
+      return answers;
+    const isVisited = visited.has(nodeId);
+    if (isVisited)
+      continue;
+    visited.add(nodeId);
+    const isQuestion = graph.nodes.get(nodeId)?.kind === "question";
+    if (isQuestion) {
+      for (const choiceId of choicesOf(nodeId, edges))
+        queue.push({ nodeId: choicesOf(choiceId, edges)[0], answers: [...answers, choiceId] });
+      continue;
+    }
+    const nexts = choicesOf(nodeId, edges);
+    const isSingleChain = nexts.length === 1;
+    if (isSingleChain)
+      queue.push({ nodeId: nexts[0], answers });
+  }
+  throw new Error(`No phone path leads from the start to ${questionId}`);
+}
+
+// phone-rows.ts
 function buildRowsFromIdSequence(ids, graph, activeId, leadChosenId, leadDeclinedIds) {
   const rows = [];
   const seen = new Set;
@@ -1446,38 +1462,6 @@ function buildPreviewRows(edges, graph) {
   }
   return buildRowsFromIdSequence(ids, graph, activeId ?? ids[0], ids[1], siblings);
 }
-function isPhoneShowingHistory() {
-  const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
-  const hasPreviewChoice = !state.functionsOnly && !!state.phonePreviewChoiceId;
-  return !hasFocusedDecision && !hasPreviewChoice;
-}
-function findAnswersLeadingTo(questionId, edges, graph) {
-  const root = findRoot(edges);
-  const queue = [{ nodeId: root, answers: [] }];
-  const visited = new Set;
-  for (let i = 0;i < queue.length; i++) {
-    const { nodeId, answers } = queue[i];
-    if (nodeId === undefined)
-      continue;
-    if (nodeId === questionId)
-      return answers;
-    const isVisited = visited.has(nodeId);
-    if (isVisited)
-      continue;
-    visited.add(nodeId);
-    const isQuestion = graph.nodes.get(nodeId)?.kind === "question";
-    if (isQuestion) {
-      for (const choiceId of choicesOf(nodeId, edges))
-        queue.push({ nodeId: choicesOf(choiceId, edges)[0], answers: [...answers, choiceId] });
-      continue;
-    }
-    const nexts = choicesOf(nodeId, edges);
-    const isSingleChain = nexts.length === 1;
-    if (isSingleChain)
-      queue.push({ nodeId: nexts[0], answers });
-  }
-  throw new Error(`No phone path leads from the start to ${questionId}`);
-}
 function buildRows(edges, graph) {
   const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
   if (hasFocusedDecision)
@@ -1486,6 +1470,26 @@ function buildRows(edges, graph) {
   if (hasPreviewChoice)
     return buildPreviewRows(edges, graph);
   return buildHistoryRows(edges, graph);
+}
+
+// phone-html.ts
+var UNCLASSED_PHONE_STYLE = "background:repeating-linear-gradient(45deg, #f4b4b4 0 8px, #fde8e8 8px 16px)";
+var classIndex = { assignments: new Map, defsByName: new Map };
+function getPhoneNodeAppearance(node) {
+  const classStyle = styleOfNode(classIndex, node.id);
+  if (!classStyle)
+    return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: "" };
+  return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}`, labelStyle: "" };
+}
+function encodeHtml(text) {
+  const withAmp = text.replace(/&/g, "&amp;");
+  const withLt = withAmp.replace(/</g, "&lt;");
+  const withGt = withLt.replace(/>/g, "&gt;");
+  const withQuote = withGt.replace(/"/g, "&quot;");
+  return withQuote.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
+}
+function getLabelOf(id, graph) {
+  return graph.nodes.get(id)?.label ?? id;
 }
 function buildChoiceButtonsHtml(choices, row, graph) {
   const isPast = row.status === "past";
@@ -1560,7 +1564,7 @@ function renderPhone(edges, graph) {
       footerParts.unshift('<hr class="phone-separator">');
   }
   const hasAnswer = phonePath.length > 0;
-  const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo decision</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button><button type="button" class="phone-undo" data-write-path>Write chosen path</button></div>' : "";
+  const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button><button type="button" class="phone-undo" data-write-path>Write chosen path</button></div>' : "";
   phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join("")}</div><div id="phoneFooter">${footerParts.join("")}</div>`;
   const historyBox = phoneDiagramBox.querySelector("#phoneHistory");
   if (historyBox)
@@ -1649,7 +1653,7 @@ functionsOnlyToggle.addEventListener("change", () => {
 });
 darkModeToggle.addEventListener("change", () => {
   document.body.classList.toggle("dark", darkModeToggle.checked);
-  mermaid.initialize(mermaidOptions());
+  mermaid.initialize(getMermaidOptions());
   render();
 });
 
@@ -2042,6 +2046,192 @@ function redoEditorAction() {
   executeEditorAction(() => applyEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
 }
 
+// path-export.ts
+function getChosenPathIds() {
+  const rows = buildHistoryRows(parseEdges(codeBox.value), editorGraph());
+  const ids = [];
+  for (const row of rows) {
+    ids.push(row.id);
+    const isAnsweredDecision = row.status === "past";
+    if (isAnsweredDecision)
+      ids.push(row.chosenChoiceId);
+  }
+  return ids;
+}
+function getPlainLabel(id, graph) {
+  return graph.nodes.get(id).label.replace(/<br\s*\/?>/gi, " ");
+}
+function buildDecisionComment(ids, graph) {
+  const lines = ["%% Decisions made:"];
+  for (let i = 0;i + 1 < ids.length; i++) {
+    const isDecision = graph.nodes.get(ids[i]).kind === "question";
+    if (!isDecision)
+      continue;
+    lines.push(`%%   ${getPlainLabel(ids[i], graph)} -> ${getPlainLabel(ids[i + 1], graph)}`);
+  }
+  const hasNoDecisions = lines.length === 1;
+  if (hasNoDecisions)
+    lines.push("%%   none");
+  return lines;
+}
+function buildClassLines(declaredIds) {
+  const classIndex = buildClassStyleIndex(codeBox.value);
+  const idsByClass = new Map;
+  for (const id of declaredIds) {
+    const className = classIndex.assignments.get(id);
+    if (!className)
+      continue;
+    const classIds = idsByClass.get(className) ?? [];
+    classIds.push(id);
+    idsByClass.set(className, classIds);
+  }
+  const sourceLines = codeBox.value.split(`
+`);
+  const lines = [];
+  for (const [className, classIds] of idsByClass) {
+    const classDef = classIndex.defsByName.get(className);
+    if (classDef)
+      lines.push(`  ${sourceLines[classDef.lineIndex].trim()}`);
+    lines.push(`  class ${classIds.join(",")} ${className}`);
+  }
+  return lines;
+}
+function buildChosenPathSource(ids) {
+  const graph = editorGraph();
+  const lines = [...buildDecisionComment(ids, graph), "flowchart TD"];
+  const declaredIds = new Set;
+  for (const id of ids) {
+    const isDeclared = declaredIds.has(id);
+    if (isDeclared)
+      continue;
+    declaredIds.add(id);
+    lines.push(`  ${id}${declarationSuffixOf(graph.nodes.get(id))}`);
+  }
+  for (let i = 0;i + 1 < ids.length; i++)
+    lines.push(`  ${ids[i]} --> ${ids[i + 1]}`);
+  lines.push(...buildClassLines(declaredIds));
+  return lines.join(`
+`) + `
+`;
+}
+function findNextPathFileName(baseName, existingNames) {
+  const escapedBaseName = baseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^${escapedBaseName}-path-(\\d+)\\.mmd$`);
+  let nextNumber = 0;
+  for (const name of existingNames) {
+    const match = name.match(pattern);
+    if (!match)
+      continue;
+    const usedNumber = Number(match[1]);
+    if (usedNumber >= nextNumber)
+      nextNumber = usedNumber + 1;
+  }
+  return `${baseName}-path-${nextNumber}.mmd`;
+}
+async function writeToServerDiagrams(diagramName, source) {
+  const existingNames = await fetch("/api/diagrams").then((r) => r.json());
+  const fileName = findNextPathFileName(diagramName.replace(/\.mmd$/, ""), existingNames);
+  const response = await fetch("/api/diagrams/" + encodeURIComponent(fileName), { method: "PUT", body: source });
+  if (!response.ok)
+    throw new Error(`Writing ${fileName} failed: ${response.status} ${await response.text()}`);
+  setStatus("Wrote " + fileName);
+}
+async function selectPathFolder() {
+  if (state.pathFolderHandle)
+    return true;
+  try {
+    state.pathFolderHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+  } catch (error) {
+    const isUserCancel = error.name === "AbortError";
+    if (!isUserCancel)
+      throw error;
+    return false;
+  }
+  return true;
+}
+async function writeToOpenedFileFolder(openedFileName, source) {
+  const hasFolder = await selectPathFolder();
+  if (!hasFolder) {
+    console.log("User canceled Write chosen path");
+    return;
+  }
+  const folder = state.pathFolderHandle;
+  const existingNames = [];
+  for await (const name of folder.keys())
+    existingNames.push(name);
+  const fileName = findNextPathFileName(openedFileName.replace(/\.mmd$/, ""), existingNames);
+  const fileHandle = await folder.getFileHandle(fileName, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(source);
+  await writable.close();
+  setStatus("Wrote " + fileName);
+}
+async function writeChosenPath() {
+  const source = buildChosenPathSource(getChosenPathIds());
+  if (state.currentName) {
+    await writeToServerDiagrams(state.currentName, source);
+    return;
+  }
+  if (!state.openedFileHandle)
+    throw new Error("Save the diagram before writing a chosen path");
+  await writeToOpenedFileFolder(state.openedFileHandle.name, source);
+}
+
+// path-export-all.ts
+function collectPaths(path, usedEdges, edges, paths) {
+  const current = path[path.length - 1];
+  let hasUnusedEdge = false;
+  for (const [from, to] of edges) {
+    const edgeKey = `${from}->${to}`;
+    const isUnusedOutgoing = from === current && !usedEdges.has(edgeKey);
+    if (!isUnusedOutgoing)
+      continue;
+    hasUnusedEdge = true;
+    usedEdges.add(edgeKey);
+    path.push(to);
+    collectPaths(path, usedEdges, edges, paths);
+    path.pop();
+    usedEdges.delete(edgeKey);
+  }
+  if (!hasUnusedEdge)
+    paths.push([...path]);
+}
+function listAllPathIds(edges) {
+  const paths = [];
+  const root = findRoot(edges);
+  if (root === undefined)
+    return paths;
+  collectPaths([root], new Set, edges, paths);
+  return paths;
+}
+async function writeAllPaths() {
+  const sources = [];
+  for (const ids of listAllPathIds(parseEdges(codeBox.value)))
+    sources.push(buildChosenPathSource(ids));
+  if (state.currentName) {
+    setStatus(`Writing 0/${sources.length} paths`);
+    for (let writtenCount = 1;writtenCount <= sources.length; writtenCount++) {
+      await writeToServerDiagrams(state.currentName, sources[writtenCount - 1]);
+      setStatus(`Writing ${writtenCount}/${sources.length} paths`);
+    }
+  } else {
+    if (!state.openedFileHandle)
+      throw new Error("Save the diagram before exporting all paths");
+    const hasFolder = await selectPathFolder();
+    if (!hasFolder) {
+      console.log("User canceled Export all paths");
+      return;
+    }
+    setStatus(`Writing 0/${sources.length} paths`);
+    for (let writtenCount = 1;writtenCount <= sources.length; writtenCount++) {
+      await writeToOpenedFileFolder(state.openedFileHandle.name, sources[writtenCount - 1]);
+      setStatus(`Writing ${writtenCount}/${sources.length} paths`);
+    }
+  }
+  setStatus(`Wrote ${sources.length} paths`);
+}
+document.getElementById("exportAllPathsBtn").addEventListener("click", writeAllPaths);
+
 // editor-commit.ts
 async function commitNewStaticAfter(sourceId, graph) {
   const staticId = nextEditorId("B_NEW", graph);
@@ -2192,203 +2382,7 @@ function commitDestination() {
   applyDestination(destinationSelect.value);
 }
 
-// path-export.ts
-function getChosenPathIds() {
-  const rows = buildHistoryRows(parseEdges(codeBox.value), editorGraph());
-  const ids = [];
-  for (const row of rows) {
-    ids.push(row.id);
-    const isAnsweredDecision = row.status === "past";
-    if (isAnsweredDecision)
-      ids.push(row.chosenChoiceId);
-  }
-  return ids;
-}
-function getPlainLabel(id, graph) {
-  return graph.nodes.get(id).label.replace(/<br\s*\/?>/gi, " ");
-}
-function buildDecisionComment(ids, graph) {
-  const lines = ["%% Decisions made:"];
-  for (let i = 0;i + 1 < ids.length; i++) {
-    const isDecision = graph.nodes.get(ids[i]).kind === "question";
-    if (!isDecision)
-      continue;
-    lines.push(`%%   ${getPlainLabel(ids[i], graph)} -> ${getPlainLabel(ids[i + 1], graph)}`);
-  }
-  const hasNoDecisions = lines.length === 1;
-  if (hasNoDecisions)
-    lines.push("%%   none");
-  return lines;
-}
-function buildClassLines(declaredIds) {
-  const classIndex = buildClassStyleIndex(codeBox.value);
-  const idsByClass = new Map;
-  for (const id of declaredIds) {
-    const className = classIndex.assignments.get(id);
-    if (!className)
-      continue;
-    const classIds = idsByClass.get(className) ?? [];
-    classIds.push(id);
-    idsByClass.set(className, classIds);
-  }
-  const sourceLines = codeBox.value.split(`
-`);
-  const lines = [];
-  for (const [className, classIds] of idsByClass) {
-    const classDef = classIndex.defsByName.get(className);
-    if (classDef)
-      lines.push(`  ${sourceLines[classDef.lineIndex].trim()}`);
-    lines.push(`  class ${classIds.join(",")} ${className}`);
-  }
-  return lines;
-}
-function buildChosenPathSource(ids) {
-  const graph = editorGraph();
-  const lines = [...buildDecisionComment(ids, graph), "flowchart TD"];
-  const declaredIds = new Set;
-  for (const id of ids) {
-    const isDeclared = declaredIds.has(id);
-    if (isDeclared)
-      continue;
-    declaredIds.add(id);
-    lines.push(`  ${id}${declarationSuffixOf(graph.nodes.get(id))}`);
-  }
-  for (let i = 0;i + 1 < ids.length; i++)
-    lines.push(`  ${ids[i]} --> ${ids[i + 1]}`);
-  lines.push(...buildClassLines(declaredIds));
-  return lines.join(`
-`) + `
-`;
-}
-function findNextPathFileName(baseName, existingNames) {
-  const escapedBaseName = baseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`^${escapedBaseName}-path-(\\d+)\\.mmd$`);
-  let nextNumber = 0;
-  for (const name of existingNames) {
-    const match = name.match(pattern);
-    if (!match)
-      continue;
-    const usedNumber = Number(match[1]);
-    if (usedNumber >= nextNumber)
-      nextNumber = usedNumber + 1;
-  }
-  return `${baseName}-path-${nextNumber}.mmd`;
-}
-async function writeToServerDiagrams(diagramName, source) {
-  const existingNames = await fetch("/api/diagrams").then((r) => r.json());
-  const fileName = findNextPathFileName(diagramName.replace(/\.mmd$/, ""), existingNames);
-  const response = await fetch("/api/diagrams/" + encodeURIComponent(fileName), { method: "PUT", body: source });
-  if (!response.ok)
-    throw new Error(`Writing ${fileName} failed: ${response.status} ${await response.text()}`);
-  setStatus("Wrote " + fileName);
-}
-async function writeToOpenedFileFolder(openedFileName, source) {
-  if (!state.pathFolderHandle) {
-    try {
-      state.pathFolderHandle = await window.showDirectoryPicker({ mode: "readwrite" });
-    } catch (error) {
-      const isUserCancel = error.name === "AbortError";
-      if (!isUserCancel)
-        throw error;
-      console.log("User canceled Write chosen path");
-      return;
-    }
-  }
-  const folder = state.pathFolderHandle;
-  const existingNames = [];
-  for await (const name of folder.keys())
-    existingNames.push(name);
-  const fileName = findNextPathFileName(openedFileName.replace(/\.mmd$/, ""), existingNames);
-  const fileHandle = await folder.getFileHandle(fileName, { create: true });
-  const writable = await fileHandle.createWritable();
-  await writable.write(source);
-  await writable.close();
-  setStatus("Wrote " + fileName);
-}
-async function writeChosenPath() {
-  const source = buildChosenPathSource(getChosenPathIds());
-  if (state.currentName) {
-    await writeToServerDiagrams(state.currentName, source);
-    return;
-  }
-  if (!state.openedFileHandle)
-    throw new Error("Save the diagram before writing a chosen path");
-  await writeToOpenedFileFolder(state.openedFileHandle.name, source);
-}
-
-// editor-events.ts
-outputBox.addEventListener("click", (event) => {
-  const nodeEl = event.target.closest("g.node");
-  const id = nodeEl ? nodeIdOf(nodeEl) : null;
-  selectEditorNode(id);
-  if (id) {
-    const graph = editorGraph();
-    const node = graph.nodes.get(id);
-    if (node?.kind === "question") {
-      state.phoneFocusNodeId = id;
-      state.phoneFocusUsesDecisionContext = true;
-      state.phonePreviewChoiceId = null;
-      render();
-    } else {
-      const feedingChoice = nearestFeedingChoice(id, graph);
-      if (feedingChoice) {
-        state.phoneFocusNodeId = null;
-        state.phoneFocusUsesDecisionContext = false;
-        state.phonePreviewChoiceId = feedingChoice;
-        render();
-      }
-    }
-  }
-});
-phoneDiagramBox.addEventListener("click", async (event) => {
-  const target = event.target.closest("button[data-choose], button[data-revert], button[data-undo], button[data-reset-decisions], button[data-write-path]");
-  if (!target)
-    return;
-  const isWritePath = target.dataset.writePath !== undefined;
-  if (isWritePath) {
-    await writeChosenPath();
-    return;
-  }
-  const isResetDecisions = target.dataset.resetDecisions !== undefined;
-  if (isResetDecisions) {
-    document.getElementById("resetBtn").click();
-    return;
-  }
-  const isUndo = target.dataset.undo !== undefined;
-  if (isUndo) {
-    phonePath.pop();
-  } else if (target.dataset.choose) {
-    const choiceId = target.dataset.choose;
-    const isShowingHistory = isPhoneShowingHistory();
-    if (!isShowingHistory) {
-      const edges = parseEdges(codeBox.value);
-      const answers = findAnswersLeadingTo(parentOf(choiceId, edges), edges, editorGraph());
-      phonePath.length = 0;
-      phonePath.push(...answers);
-    }
-    phonePath.push(choiceId);
-  } else {
-    const [indexStr, choiceId] = target.dataset.revert.split(":");
-    phonePath.length = Number(indexStr);
-    phonePath.push(choiceId);
-  }
-  state.phoneFocusNodeId = null;
-  state.phoneFocusUsesDecisionContext = false;
-  state.phonePreviewChoiceId = null;
-  await render();
-  if (state.currentBottomQ) {
-    state.currentDecisionId = state.currentBottomQ;
-    selectEditorNode(state.currentBottomQ);
-    const node = diagramBox.querySelector('[id*="flowchart-' + state.currentBottomQ + '-"]');
-    const outputRect = outputBox.getBoundingClientRect();
-    const nodeRect = node.getBoundingClientRect();
-    outputBox.scrollBy({
-      left: nodeRect.left + nodeRect.width / 2 - outputRect.left - outputBox.clientWidth / 2,
-      top: nodeRect.top + nodeRect.height / 2 - outputRect.top - outputBox.clientHeight / 2,
-      behavior: "smooth"
-    });
-  }
-});
+// editor-inspector-events.ts
 outputBox.addEventListener("dblclick", (event) => {
   const nodeEl = event.target.closest("g.node");
   if (!nodeEl)
@@ -2455,6 +2449,8 @@ document.addEventListener("keydown", (event) => {
 });
 outputBox.addEventListener("scroll", positionNodeInspector);
 window.addEventListener("resize", positionNodeInspector);
+
+// editor-class-events.ts
 classPickerBtn.addEventListener("click", () => {
   classPickerList.hidden = !classPickerList.hidden;
 });
@@ -2573,6 +2569,80 @@ classesList.addEventListener("click", (event) => {
     return;
   const name = button.closest(".classes-row").dataset.className;
   setEditorActionPromise(deleteClass(name).then(renderClassesDialog));
+});
+
+// editor-events.ts
+outputBox.addEventListener("click", (event) => {
+  const nodeEl = event.target.closest("g.node");
+  const id = nodeEl ? nodeIdOf(nodeEl) : null;
+  selectEditorNode(id);
+  if (id) {
+    const graph = editorGraph();
+    const node = graph.nodes.get(id);
+    if (node?.kind === "question") {
+      state.phoneFocusNodeId = id;
+      state.phoneFocusUsesDecisionContext = true;
+      state.phonePreviewChoiceId = null;
+      render();
+    } else {
+      const feedingChoice = nearestFeedingChoice(id, graph);
+      if (feedingChoice) {
+        state.phoneFocusNodeId = null;
+        state.phoneFocusUsesDecisionContext = false;
+        state.phonePreviewChoiceId = feedingChoice;
+        render();
+      }
+    }
+  }
+});
+phoneDiagramBox.addEventListener("click", async (event) => {
+  const target = event.target.closest("button[data-choose], button[data-revert], button[data-undo], button[data-reset-decisions], button[data-write-path]");
+  if (!target)
+    return;
+  const isWritePath = target.dataset.writePath !== undefined;
+  if (isWritePath) {
+    await writeChosenPath();
+    return;
+  }
+  const isResetDecisions = target.dataset.resetDecisions !== undefined;
+  if (isResetDecisions) {
+    document.getElementById("resetBtn").click();
+    return;
+  }
+  const isUndo = target.dataset.undo !== undefined;
+  if (isUndo) {
+    phonePath.pop();
+  } else if (target.dataset.choose) {
+    const choiceId = target.dataset.choose;
+    const isShowingHistory = isPhoneShowingHistory();
+    if (!isShowingHistory) {
+      const edges = parseEdges(codeBox.value);
+      const answers = findAnswersLeadingTo(parentOf(choiceId, edges), edges, editorGraph());
+      phonePath.length = 0;
+      phonePath.push(...answers);
+    }
+    phonePath.push(choiceId);
+  } else {
+    const [indexStr, choiceId] = target.dataset.revert.split(":");
+    phonePath.length = Number(indexStr);
+    phonePath.push(choiceId);
+  }
+  state.phoneFocusNodeId = null;
+  state.phoneFocusUsesDecisionContext = false;
+  state.phonePreviewChoiceId = null;
+  await render();
+  if (state.currentBottomQ) {
+    state.currentDecisionId = state.currentBottomQ;
+    selectEditorNode(state.currentBottomQ);
+    const node = diagramBox.querySelector('[id*="flowchart-' + state.currentBottomQ + '-"]');
+    const outputRect = outputBox.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    outputBox.scrollBy({
+      left: nodeRect.left + nodeRect.width / 2 - outputRect.left - outputBox.clientWidth / 2,
+      top: nodeRect.top + nodeRect.height / 2 - outputRect.top - outputBox.clientHeight / 2,
+      behavior: "smooth"
+    });
+  }
 });
 
 // node-search.ts
@@ -2717,4 +2787,4 @@ document.getElementById("fileMenuItems").addEventListener("click", () => {
 // viewer.ts
 applyMainZoom(false);
 loadDiagram("accountability.mmd");
-Object.assign(window, { loadDiagram, codeBox, nodeIdOf, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, undoEditorAction, redoEditorAction, insertStaticBefore, insertDecisionBefore });
+Object.assign(window, { loadDiagram, codeBox, nodeIdOf, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, undoEditorAction, redoEditorAction, insertStaticBefore, insertDecisionBefore, listAllPathIds });

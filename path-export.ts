@@ -95,7 +95,7 @@ export function findNextPathFileName(baseName: string, existingNames: string[]):
   return `${baseName}-path-${nextNumber}.mmd`;
 }
 
-async function writeToServerDiagrams(diagramName: string, source: string) {
+export async function writeToServerDiagrams(diagramName: string, source: string) {
   const existingNames: string[] = await fetch('/api/diagrams').then(r => r.json());
   const fileName = findNextPathFileName(diagramName.replace(/\.mmd$/, ''), existingNames);
   const response = await fetch('/api/diagrams/' + encodeURIComponent(fileName), { method: 'PUT', body: source });
@@ -104,19 +104,27 @@ async function writeToServerDiagrams(diagramName: string, source: string) {
   setStatus('Wrote ' + fileName);
 }
 
-async function writeToOpenedFileFolder(openedFileName: string, source: string) {
-  // Chrome hides the opened file's folder, so ask for it once per opened file.
-  if (!state.pathFolderHandle) {
-    try {
-      state.pathFolderHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
-    }
-    catch (error) {
-      const isUserCancel = (error as DOMException).name === 'AbortError';
-      if (!isUserCancel)
-        throw error;
-      console.log('User canceled Write chosen path');
-      return;
-    }
+// Chrome hides the opened file's folder, so ask for it once per opened file. False when canceled.
+export async function selectPathFolder(): Promise<boolean> {
+  if (state.pathFolderHandle)
+    return true;
+  try {
+    state.pathFolderHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+  }
+  catch (error) {
+    const isUserCancel = (error as DOMException).name === 'AbortError';
+    if (!isUserCancel)
+      throw error;
+    return false;
+  }
+  return true;
+}
+
+export async function writeToOpenedFileFolder(openedFileName: string, source: string) {
+  const hasFolder = await selectPathFolder();
+  if (!hasFolder) {
+    console.log('User canceled Write chosen path');
+    return;
   }
   const folder = state.pathFolderHandle!;
   const existingNames: string[] = [];

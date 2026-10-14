@@ -5,6 +5,7 @@ import { addQuestionAfter, addBlockAfter, addChoice, insertStaticBefore, insertD
 import { removeQuestion, removeBlock, removeChoice, removeChoices, undoEditorAction, redoEditorAction } from './editor-remove.ts';
 import { applyMainZoom } from './zoom.ts';
 import { loadDiagram } from './diagram-io.ts';
+import { listAllPathIds } from './path-export-all.ts';
 import './editor-events.ts';
 import './main-events.ts';
 
@@ -13,4 +14,4 @@ import './main-events.ts';
 applyMainZoom(false);
 loadDiagram('accountability.mmd');
 
-Object.assign(window, { loadDiagram, codeBox, nodeIdOf, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, undoEditorAction, redoEditorAction, insertStaticBefore, insertDecisionBefore });
+Object.assign(window, { loadDiagram, codeBox, nodeIdOf, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, undoEditorAction, redoEditorAction, insertStaticBefore, insertDecisionBefore, listAllPathIds });
