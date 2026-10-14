@@ -10,6 +10,9 @@ import { advanceRemovalPreview, cancelQuestionRemoval, confirmQuestionRemoval, r
 import { addChoiceOnDecision, applyDestination, commitDestination, commitInsertDecisionAfter, commitInsertStaticAfter, commitNodeText } from './editor-commit.ts';
 import { assignClass, classDefByName, createClass, deleteClass, parseClassDefs, renameClass, setClassColors } from './class-defs.ts';
 import { positionNodeInspector } from './node-inspector.ts';
+import { findAnswersLeadingTo, isPhoneShowingHistory } from './phone-render.ts';
+import { parseEdges } from './diagram-source.ts';
+import { parentOf } from './graph-slice.ts';
 
 outputBox.addEventListener('click', (event) => {
   const nodeEl = (event.target as HTMLElement).closest('g.node');
@@ -38,11 +41,29 @@ outputBox.addEventListener('click', (event) => {
 
 phoneDiagramBox.addEventListener('click', async (event) => {
   // A phone choice also selects and scrolls the main view to the next open decision.
-  const target = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-choose], button[data-revert]');
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-choose], button[data-revert], button[data-undo], button[data-reset-decisions]');
   if (!target)
     return;
-  if (target.dataset.choose) {
-    phonePath.push(target.dataset.choose);
+  const isResetDecisions = target.dataset.resetDecisions !== undefined;
+  if (isResetDecisions) {
+    document.getElementById('resetBtn')!.click();
+    return;
+  }
+  const isUndo = target.dataset.undo !== undefined;
+  if (isUndo) {
+    phonePath.pop();
+  }
+  else if (target.dataset.choose) {
+    const choiceId = target.dataset.choose;
+    // A main-view jump shows a decision off the phone's path; rebuild the path so the history walk reaches it.
+    const isShowingHistory = isPhoneShowingHistory();
+    if (!isShowingHistory) {
+      const edges = parseEdges(codeBox.value);
+      const answers = findAnswersLeadingTo(parentOf(choiceId, edges), edges, editorGraph());
+      phonePath.length = 0;
+      phonePath.push(...answers);
+    }
+    phonePath.push(choiceId);
   }
   else {
     const [indexStr, choiceId] = target.dataset.revert!.split(':');
@@ -181,7 +202,8 @@ classEditorCreateBtn.addEventListener('click', () => {
     classEditorError.textContent = 'Name is required.';
     return;
   }
-  if (classDefByName(codeBox.value, name)) {
+  const existingClassDef = classDefByName(codeBox.value, name);
+  if (existingClassDef) {
     classEditorError.textContent = `Class "${name}" already exists.`;
     return;
   }
@@ -200,13 +222,17 @@ classEditorCreateBtn.addEventListener('click', () => {
 // File menu > Classes... dialog (list every class; edit, rename, or delete it)
 function renderClassesDialog() {
   const defs = parseClassDefs(codeBox.value);
-  classesList.innerHTML = defs.map(def => `
+  const rowHtmlParts: string[] = [];
+  for (const def of defs) {
+    rowHtmlParts.push(`
     <div class="classes-row" data-class-name="${def.name}">
       <input type="color" class="classes-fill" value="${def.fill}">
       <input type="color" class="classes-stroke" value="${def.stroke}">
       <input type="text" class="classes-name" value="${def.name}">
       <button type="button" class="classes-delete">Delete</button>
-    </div>`).join('');
+    </div>`);
+  }
+  classesList.innerHTML = rowHtmlParts.join('');
   classesError.textContent = '';
 }
 
@@ -223,18 +249,31 @@ classesList.addEventListener('change', (event) => {
     return;
   const name = row.dataset.className!;
   const target = event.target as HTMLInputElement;
-  if (target.classList.contains('classes-fill') || target.classList.contains('classes-stroke')) {
+  const isFillInput = target.classList.contains('classes-fill');
+  const isStrokeInput = target.classList.contains('classes-stroke');
+  const isNameInput = target.classList.contains('classes-name');
+  const isColorInput = isFillInput ? true : isStrokeInput;
+  if (isColorInput) {
     const fill = row.querySelector<HTMLInputElement>('.classes-fill')!.value;
     const stroke = row.querySelector<HTMLInputElement>('.classes-stroke')!.value;
     setEditorActionPromise(setClassColors(name, fill, stroke).then(renderClassesDialog));
   }
-  else if (target.classList.contains('classes-name')) {
+  else if (isNameInput) {
     const newName = target.value.trim();
-    if (!newName || newName === name) {
+    const isNameBlank = !newName;
+    const isNameUnchanged = newName === name;
+    const isNameUnusable = isNameBlank ? true : isNameUnchanged;
+    if (isNameUnusable) {
       target.value = name;
       return;
     }
-    if (parseClassDefs(codeBox.value).some(def => def.name === newName)) {
+    let isNameTaken = false;
+    for (const def of parseClassDefs(codeBox.value)) {
+      const isSameName = def.name === newName;
+      if (isSameName)
+        isNameTaken = true;
+    }
+    if (isNameTaken) {
       classesError.textContent = `Class "${newName}" already exists.`;
       target.value = name;
       return;

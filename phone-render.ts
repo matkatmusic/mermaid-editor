@@ -162,6 +162,41 @@ function buildPreviewRows(edges: Edge[], graph: EditorGraph): Row[] {
   return buildRowsFromIdSequence(ids, graph, activeId ?? ids[0], ids[1], siblings);
 }
 
+export function isPhoneShowingHistory() {
+  const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
+  const hasPreviewChoice = !state.functionsOnly && !!state.phonePreviewChoiceId;
+  return !hasFocusedDecision && !hasPreviewChoice;
+}
+
+// Shortest answer list that buildHistoryRows walks from the root to questionId.
+export function findAnswersLeadingTo(questionId: string, edges: Edge[], graph: EditorGraph): string[] {
+  const root = findRoot(edges);
+  const queue: { nodeId: string | undefined; answers: string[] }[] = [{ nodeId: root, answers: [] }];
+  const visited = new Set<string>();
+  for (let i = 0; i < queue.length; i++) {
+    const { nodeId, answers } = queue[i];
+    if (nodeId === undefined)
+      continue;
+    if (nodeId === questionId)
+      return answers;
+    const isVisited = visited.has(nodeId);
+    if (isVisited)
+      continue;
+    visited.add(nodeId);
+    const isQuestion = graph.nodes.get(nodeId)?.kind === 'question';
+    if (isQuestion) {
+      for (const choiceId of choicesOf(nodeId, edges))
+        queue.push({ nodeId: choicesOf(choiceId, edges)[0], answers: [...answers, choiceId] });
+      continue;
+    }
+    const nexts = choicesOf(nodeId, edges);
+    const isSingleChain = nexts.length === 1;
+    if (isSingleChain)
+      queue.push({ nodeId: nexts[0], answers });
+  }
+  throw new Error(`No phone path leads from the start to ${questionId}`);
+}
+
 function buildRows(edges: Edge[], graph: EditorGraph): Row[] {
   const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
   if (hasFocusedDecision)
@@ -238,7 +273,9 @@ export function renderPhone(edges: Edge[], graph: EditorGraph) {
   }
   if (lastPastIndex >= 0)
     footerParts.unshift('<hr class="phone-separator">');
-  phoneDiagramBox.innerHTML = `<div id="phoneHistory">${historyParts.join('')}</div><div id="phoneFooter">${footerParts.join('')}</div>`;
+  const hasAnswer = phonePath.length > 0;
+  const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo decision</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button></div>' : '';
+  phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join('')}</div><div id="phoneFooter">${footerParts.join('')}</div>`;
   const historyBox = phoneDiagramBox.querySelector<HTMLElement>('#phoneHistory');
   if (historyBox)
     historyBox.scrollTop = historyBox.scrollHeight;
