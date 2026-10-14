@@ -108,7 +108,7 @@ export function renderPhone(edges: Edge[], graph: EditorGraph) {
       footerParts.unshift('<hr class="phone-separator">');
   }
   const hasAnswer = phonePath.length > 0;
-  const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button><button type="button" class="phone-undo" data-write-path>Write chosen path</button></div>' : '';
+  const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button><button type="button" class="phone-undo" data-write-path>Write path</button></div>' : '';
   phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join('')}</div><div id="phoneFooter">${footerParts.join('')}</div>`;
   const historyBox = phoneDiagramBox.querySelector<HTMLElement>('#phoneHistory');
   if (historyBox)
