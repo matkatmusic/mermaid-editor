@@ -67,7 +67,8 @@
   #centerColumn { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
   #centerColumn > #output { flex: 1; min-height: 0; height: auto; }
   #nodeInspector { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 8px; border-top: 1px solid var(--line); font-family: monospace; }
-  #nodeInspector[hidden] { visibility: hidden; }
+  /* #nodeInspector[hidden] { visibility: hidden; } */
+  #nodeInspector[hidden] { opacity: 0.5; pointer-events: none; }
   #nodeInspector h2 { display: none; }
   #nodeTextInput { flex: 1; min-width: 0; box-sizing: border-box; resize: none; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; font: inherit; text-align: center; }
   #nodeInspector .inspector-text-row { margin-bottom: 0; }
@@ -93,7 +94,7 @@
   .class-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 2px solid #999; box-sizing: border-box; }
   #classPicker { position: relative; flex: 1; min-width: 0; }
   #classPickerBtn { display: flex; align-items: center; gap: 6px; width: 100%; box-sizing: border-box; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; background: var(--bg); color: var(--text); font: inherit; cursor: pointer; }
-  #classPickerList { position: absolute; top: 100%; left: 0; right: 0; z-index: 25; display: flex; flex-direction: column; max-height: 220px; overflow: auto; background: var(--bg); border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+  #classPickerList { position: absolute; /* top: 100%; overridden below (line 81) to open upward; kept here collapses the list to 2px */ left: 0; right: 0; z-index: 25; display: flex; flex-direction: column; max-height: 220px; overflow: auto; background: var(--bg); border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
   #classPickerList[hidden] { display: none; }
   .class-picker-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: none; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
   .class-picker-row:hover { background: var(--bg-light); }

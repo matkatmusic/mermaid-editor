@@ -20,7 +20,8 @@ export async function commitEditorSource(source: string, options?: { recordHisto
   if (!state.currentName)
     throw new Error('No diagram file is loaded to auto-save into');
   await saveDiagram();
-  selectEditorNode(null);
+  // selectEditorNode(null);
+  selectEditorNode(state.selectedEditorNodeId);
 }
 
 export function enqueueEditorAction(action: () => Promise<void>) {

@@ -696,8 +696,27 @@ async function deleteClass(name) {
 
 // source-edit.ts
 function sourceWithLinesReplaced(graph, removedLineIndexes, newLines) {
-  const kept = graph.lines.filter((_, lineIndex) => !removedLineIndexes.has(lineIndex));
-  return [...kept, ...newLines].join(`
+  const kept = [];
+  for (let lineIndex = 0;lineIndex < graph.lines.length; lineIndex++) {
+    const isRemoved = removedLineIndexes.has(lineIndex);
+    if (!isRemoved)
+      kept.push(graph.lines[lineIndex]);
+  }
+  let classBlockStart = -1;
+  for (let i = 0;i < kept.length; i++) {
+    const trimmed = kept[i].trim();
+    const isClassDef = trimmed.startsWith("classDef");
+    const isClassAssignment = trimmed.startsWith("class ");
+    const isClassLine = isClassDef || isClassAssignment;
+    if (isClassLine) {
+      classBlockStart = i;
+      break;
+    }
+  }
+  if (classBlockStart === -1)
+    return [...kept, ...newLines].join(`
+`);
+  return [...kept.slice(0, classBlockStart), ...newLines, ...kept.slice(classBlockStart)].join(`
 `);
 }
 function nextEditorId(prefix, graph) {
@@ -764,12 +783,16 @@ function renderNodeInspector() {
     graph = editorGraph();
   } catch {
     nodeInspector.hidden = true;
+    blurInspectorFocus();
     return;
   }
   const node = graph.nodes.get(state.selectedEditorNodeId ?? "");
   nodeInspector.hidden = !node;
-  if (!node)
+  if (!node) {
+    nodeTextInput.value = "";
+    blurInspectorFocus();
     return;
+  }
   const previewing = !!state.pendingRemoval;
   nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
   nodeTextInput.value = node.label;
@@ -840,6 +863,15 @@ function focusInspectorText() {
 }
 function focusInspectorDestination() {
   destinationSelect.focus();
+}
+function blurInspectorFocus() {
+  const active = document.activeElement;
+  const isFocusedElement = active instanceof HTMLElement;
+  for (const el of isFocusedElement ? [active] : []) {
+    const isInsideInspector = nodeInspector.contains(el);
+    if (isInsideInspector)
+      el.blur();
+  }
 }
 
 // graph-slice.ts
@@ -1678,7 +1710,7 @@ async function commitEditorSource(source, options) {
   if (!state.currentName)
     throw new Error("No diagram file is loaded to auto-save into");
   await saveDiagram();
-  selectEditorNode(null);
+  selectEditorNode(state.selectedEditorNodeId);
 }
 function enqueueEditorAction(action) {
   setEditorActionPromise(state.editorActionPromise.catch(() => {}).then(action));
@@ -2040,12 +2072,14 @@ function undoEditorAction() {
   if (state.editorHistoryIndex <= 0)
     return;
   state.editorHistoryIndex--;
+  selectEditorNode(null);
   runEditorAction(() => commitEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
 }
 function redoEditorAction() {
   if (state.editorHistoryIndex >= state.editorHistory.length - 1)
     return;
   state.editorHistoryIndex++;
+  selectEditorNode(null);
   runEditorAction(() => commitEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
 }
 

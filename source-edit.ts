@@ -1,9 +1,28 @@
 import type { EditorEdge, EditorGraph } from './editor-types.ts';
 import { declarationSuffixOf } from './editor-graph.ts';
 
+// New nodes go before the class block; mermaid drops classes stated before a node's declaration.
 export function sourceWithLinesReplaced(graph: EditorGraph, removedLineIndexes: Set<number>, newLines: string[]) {
-  const kept = graph.lines.filter((_, lineIndex) => !removedLineIndexes.has(lineIndex));
-  return [...kept, ...newLines].join('\n');
+  const kept: string[] = [];
+  for (let lineIndex = 0; lineIndex < graph.lines.length; lineIndex++) {
+    const isRemoved = removedLineIndexes.has(lineIndex);
+    if (!isRemoved)
+      kept.push(graph.lines[lineIndex]);
+  }
+  let classBlockStart = -1;
+  for (let i = 0; i < kept.length; i++) {
+    const trimmed = kept[i].trim();
+    const isClassDef = trimmed.startsWith('classDef');
+    const isClassAssignment = trimmed.startsWith('class ');
+    const isClassLine = isClassDef || isClassAssignment;
+    if (isClassLine) {
+      classBlockStart = i;
+      break;
+    }
+  }
+  if (classBlockStart === -1)
+    return [...kept, ...newLines].join('\n');
+  return [...kept.slice(0, classBlockStart), ...newLines, ...kept.slice(classBlockStart)].join('\n');
 }
 
 export function nextEditorId(prefix: string, graph: EditorGraph) {

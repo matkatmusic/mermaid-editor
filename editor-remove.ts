@@ -173,6 +173,8 @@ export function undoEditorAction() {
   if (state.editorHistoryIndex <= 0)
     return;
   state.editorHistoryIndex--;
+  // Clear selection before committing so the re-stamped metadata doesn't leak the current selection into the restored history entry.
+  selectEditorNode(null);
   runEditorAction(() => commitEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
 }
 
@@ -180,6 +182,8 @@ export function redoEditorAction() {
   if (state.editorHistoryIndex >= state.editorHistory.length - 1)
     return;
   state.editorHistoryIndex++;
+  // Clear selection before committing so the re-stamped metadata doesn't leak the current selection into the restored history entry.
+  selectEditorNode(null);
   runEditorAction(() => commitEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
 }
 

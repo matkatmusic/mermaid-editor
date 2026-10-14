@@ -9,11 +9,11 @@ const EDITOR_DIR = import.meta.dir;
 const DIAGRAMS_DIR = process.env.DIAGRAMS_DIR ?? resolve(EDITOR_DIR, "..", "diagrams");
 
 const portFlagIndex = process.argv.indexOf("--port");
-const PORT = portFlagIndex === -1 ? 3000 : Number(process.argv[portFlagIndex + 1]);
+const PORT = portFlagIndex === -1 ? 0 : Number(process.argv[portFlagIndex + 1]);
 const hostnameFlagIndex = process.argv.indexOf("--hostname");
 const HOSTNAME = hostnameFlagIndex === -1 ? "0.0.0.0" : process.argv[hostnameFlagIndex + 1];
 
-if (import.meta.main) Bun.serve({
+const server = import.meta.main && Bun.serve({
   port: PORT,
   hostname: HOSTNAME,
   idleTimeout: 0,
@@ -89,4 +89,4 @@ if (import.meta.main) Bun.serve({
   },
 });
 
-if (import.meta.main) console.log(`Mermaid viewer running at http://${HOSTNAME}:${PORT}`);
+if (import.meta.main) console.log(`Mermaid viewer running at http://${HOSTNAME}:${server.port}`);

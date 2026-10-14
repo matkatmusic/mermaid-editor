@@ -604,8 +604,9 @@ test("test_inline_question_text_edit_persists", async () => {
   const source = await evaluate("codeBox.value");
   // Step: the question's declaration is rewritten with brace syntax.
   assert.ok(source.includes('Q_Q1{"Can I stay calm?"}'));
-  // Step: the inspector closed after the commit.
-  assert.equal((await inspectorState()).hidden, true);
+  // Step: the edited node stays selected; the inspector keeps showing it after the commit.
+  // assert.equal((await inspectorState()).hidden, true);
+  assert.equal((await inspectorState()).hidden, false);
   await assertEditorSourceIsSavedAndValid();
 });
 
@@ -992,6 +993,22 @@ test("test_class_picker_always_shows_the_nodes_actual_class", async () => {
   await clickNode("Q_THEM_DONE_SPEAKING");
   const decisionLabel = await evaluate("document.getElementById('classPickerLabel').textContent");
   assert.equal(decisionLabel, 'decision');
+});
+
+test("test_assigning_a_class_to_a_newly_inserted_decision_colors_it", async () => {
+  // Scenario: this is the bug being fixed - a class assigned to a just-inserted node must render.
+  await resetEditorFixture();
+  await setEditorSource('flowchart TD\n  Q_OLD{"Old decision"}\n  B_START["Start"]\n  B_START --> B_END\n  B_END["End"]\n  classDef decision fill:#fff3b0,stroke:#b8860b\n  class Q_OLD decision');
+  await clickNode('B_START');
+  await clickInspectorAction('insert-decision-after');
+  await sleep(300);
+  assert.equal(await evaluate("document.getElementById('selectedNode').textContent"), 'Q_NEW_1');
+  await evaluate("document.getElementById('classPickerBtn').click()");
+  await evaluate('document.querySelector(\'#classPickerList [data-class-name="decision"]\').click()');
+  await evaluate('window.editorActionPromise');
+  await sleep(300);
+  const fill = await evaluate(`getComputedStyle(document.querySelector('#diagram [id*="flowchart-Q_NEW_1-"] path, #diagram [id*="flowchart-Q_NEW_1-"] polygon, #diagram [id*="flowchart-Q_NEW_1-"] rect')).fill`);
+  assert.equal(fill, 'rgb(255, 243, 176)');
 });
 
 test("test_unclassed_nodes_get_diagonal_stripes_in_both_views", async () => {
@@ -1638,8 +1655,9 @@ test('test_inspector_remove_choices_button_orphans_every_outgoing_branch', async
   // Step: the orphaned downstream nodes remain in the source.
   assert.ok(source.includes('B_LetGo["Let it go"]'));
   assert.ok(source.includes('Q_Q2{"Can they be calm?"}'));
-  // Step: removing all choices closed the inspector.
-  assert.equal((await inspectorState()).hidden, true);
+  // Step: Q1 itself still exists (only its choices were removed), so it stays selected.
+  // assert.equal((await inspectorState()).hidden, true);
+  assert.equal((await inspectorState()).hidden, false);
   await assertEditorSourceIsSavedAndValid();
 
   // Step: removing choices deletes a shared choice node; other nodes stay.
@@ -1883,8 +1901,9 @@ test('test_insert_static_block_before_splices_incoming_edges_with_their_labels',
   assert.ok(!source.includes('Q_CHOICE_Q2_NEW2 --> B_LetGo'));
   assert.ok(!source.includes('Q_CHOICE_Q3_NEW2 --> B_LetGo'));
   assert.ok(!source.includes('Q_CHOICE_Q4_NEW2 --> B_LetGo'));
-  // Step: the insertion closed the inspector instead of opening Destination.
-  assert.equal((await inspectorState()).hidden, true);
+  // Step: "Let it go" still exists (a new predecessor was spliced in front of it), so it stays selected.
+  // assert.equal((await inspectorState()).hidden, true);
+  assert.equal((await inspectorState()).hidden, false);
   // Step: it is a single history entry.
   assert.equal(await evaluate('editorHistory.length'), historyBefore + 1);
   // Step: undo restores the original source exactly.
@@ -1904,7 +1923,9 @@ test('test_insert_static_block_before_a_root_node_becomes_the_new_root', async (
   assert.ok(source.includes('B_NEW_1["New static block"]'));
   assert.ok(source.includes('B_NEW_1 --> B_Start'));
   assert.ok(source.includes('B_Start["Something happened.<br/>Say something, or let it go?"]'));
-  assert.equal((await inspectorState()).hidden, true);
+  // Step: "Start" still exists (a new predecessor became the root instead), so it stays selected.
+  // assert.equal((await inspectorState()).hidden, true);
+  assert.equal((await inspectorState()).hidden, false);
   assert.equal(await evaluate('editorHistory.length'), historyBefore + 1);
   await evaluate('window.undoEditorAction(); window.editorActionPromise');
   assert.equal(await evaluate('codeBox.value'), editorFixtureSource);
@@ -1933,8 +1954,9 @@ test('test_insert_decision_before_adds_one_leading_choice_and_splices_incoming_e
   assert.ok(source.includes('Q_CHOICE_Q3_NEW2 --> Q_NEW_1'));
   assert.ok(source.includes('Q_CHOICE_Q4_NEW2 --> Q_NEW_1'));
   assert.ok(!source.includes('Q_CHOICE_Q1_NEW2 --> B_LetGo'));
-  // Step: the insertion closed the inspector instead of opening Destination.
-  assert.equal((await inspectorState()).hidden, true);
+  // Step: "Let it go" still exists (a new Decision was spliced in front of it), so it stays selected.
+  // assert.equal((await inspectorState()).hidden, true);
+  assert.equal((await inspectorState()).hidden, false);
   assert.equal(await evaluate('editorHistory.length'), historyBefore + 1);
   // Step: undo restores the original source exactly.
   await evaluate('window.undoEditorAction(); window.editorActionPromise');
@@ -1954,7 +1976,9 @@ test('test_insert_decision_before_a_root_node_becomes_the_new_root', async () =>
   const decisionOutgoing = source.match(/Q_NEW_1 -->/g) || [];
   assert.equal(decisionOutgoing.length, 1);
   assert.ok(source.includes('Q_CHOICE_NEW_1_NEW --> B_Start'));
-  assert.equal((await inspectorState()).hidden, true);
+  // Step: "Start" still exists (a new Decision became the root instead), so it stays selected.
+  // assert.equal((await inspectorState()).hidden, true);
+  assert.equal((await inspectorState()).hidden, false);
   await assertEditorSourceIsSavedAndValid();
 });
 

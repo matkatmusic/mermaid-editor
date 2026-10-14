@@ -60,12 +60,16 @@ export function renderNodeInspector() {
   }
   catch {
     nodeInspector.hidden = true;
+    blurInspectorFocus();
     return;
   }
   const node = graph.nodes.get(state.selectedEditorNodeId ?? '');
   nodeInspector.hidden = !node;
-  if (!node)
+  if (!node) {
+    nodeTextInput.value = '';
+    blurInspectorFocus();
     return;
+  }
   const previewing = !!state.pendingRemoval;
   nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
   nodeTextInput.value = node.label;
@@ -171,5 +175,16 @@ export function focusInspectorText() {
 
 export function focusInspectorDestination() {
   destinationSelect.focus();
+}
+
+// visibility:hidden used to auto-blur focus; opacity+pointer-events dimming does not, so blur explicitly.
+function blurInspectorFocus() {
+  const active = document.activeElement;
+  const isFocusedElement = active instanceof HTMLElement;
+  for (const el of isFocusedElement ? [active as HTMLElement] : []) {
+    const isInsideInspector = nodeInspector.contains(el);
+    if (isInsideInspector)
+      el.blur();
+  }
 }
 
