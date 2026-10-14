@@ -23,8 +23,10 @@ export interface EditorGraph {
 }
 
 export class EditorValidationError extends Error {
-  constructor(readonly problems: string[]) {
+  readonly problems: string[];
+  constructor(problems: string[]) {
     super(`Invalid diagram:\n${problems.join('\n')}`);
+    this.problems = problems;
     this.name = 'EditorValidationError';
   }
 }
