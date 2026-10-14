@@ -13,6 +13,7 @@ import { positionNodeInspector } from './node-inspector.ts';
 import { findAnswersLeadingTo, isPhoneShowingHistory } from './phone-render.ts';
 import { parseEdges } from './diagram-source.ts';
 import { parentOf } from './graph-slice.ts';
+import { writeChosenPath } from './path-export.ts';
 
 outputBox.addEventListener('click', (event) => {
   const nodeEl = (event.target as HTMLElement).closest('g.node');
@@ -41,9 +42,14 @@ outputBox.addEventListener('click', (event) => {
 
 phoneDiagramBox.addEventListener('click', async (event) => {
   // A phone choice also selects and scrolls the main view to the next open decision.
-  const target = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-choose], button[data-revert], button[data-undo], button[data-reset-decisions]');
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-choose], button[data-revert], button[data-undo], button[data-reset-decisions], button[data-write-path]');
   if (!target)
     return;
+  const isWritePath = target.dataset.writePath !== undefined;
+  if (isWritePath) {
+    await writeChosenPath();
+    return;
+  }
   const isResetDecisions = target.dataset.resetDecisions !== undefined;
   if (isResetDecisions) {
     document.getElementById('resetBtn')!.click();

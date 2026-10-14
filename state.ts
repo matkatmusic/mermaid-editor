@@ -22,6 +22,7 @@ export const state = {
   renderId: 0,
   currentName: null as string | null,
   openedFileHandle: null as FileSystemFileHandle | null, // a disk file from File -> Open File or the Save-As dialog
+  pathFolderHandle: null as FileSystemDirectoryHandle | null, // the opened file's folder, picked on the first Write chosen path
   watcher: null as EventSource | null,
   currentBottomQ: undefined as string | undefined,
   phoneFocusNodeId: null as string | null,

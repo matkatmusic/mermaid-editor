@@ -52,7 +52,7 @@ type Row =
   | { status: 'past'; id: string; chosenChoiceId: string; declinedChoiceIds: string[]; revertIndex?: number };
 
 // Walks answered history from the root in phonePath order, so every past decision renders masked.
-function buildHistoryRows(edges: Edge[], graph: EditorGraph): Row[] {
+export function buildHistoryRows(edges: Edge[], graph: EditorGraph): Row[] {
   if (edges.length === 0) {
     // No edges to walk (e.g. a single declared node): show every declared node standalone.
     const sorted = [...graph.nodes.values()].sort((a, b) => a.lineIndex - b.lineIndex);
@@ -283,7 +283,7 @@ export function renderPhone(edges: Edge[], graph: EditorGraph) {
       footerParts.unshift('<hr class="phone-separator">');
   }
   const hasAnswer = phonePath.length > 0;
-  const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo decision</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button></div>' : '';
+  const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo decision</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button><button type="button" class="phone-undo" data-write-path>Write chosen path</button></div>' : '';
   phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join('')}</div><div id="phoneFooter">${footerParts.join('')}</div>`;
   const historyBox = phoneDiagramBox.querySelector<HTMLElement>('#phoneHistory');
   if (historyBox)

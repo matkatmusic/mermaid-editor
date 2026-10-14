@@ -68,6 +68,7 @@ openFileBtn.addEventListener('click', async () => {
     state.watcher.close();
   state.currentName = null;
   state.openedFileHandle = fileHandle;
+  state.pathFolderHandle = null;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;

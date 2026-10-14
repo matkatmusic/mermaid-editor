@@ -71,6 +71,7 @@ var state = {
   renderId: 0,
   currentName: null,
   openedFileHandle: null,
+  pathFolderHandle: null,
   watcher: null,
   currentBottomQ: undefined,
   phoneFocusNodeId: null,
@@ -1559,7 +1560,7 @@ function renderPhone(edges, graph) {
       footerParts.unshift('<hr class="phone-separator">');
   }
   const hasAnswer = phonePath.length > 0;
-  const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo decision</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button></div>' : "";
+  const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo decision</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button><button type="button" class="phone-undo" data-write-path>Write chosen path</button></div>' : "";
   phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join("")}</div><div id="phoneFooter">${footerParts.join("")}</div>`;
   const historyBox = phoneDiagramBox.querySelector("#phoneHistory");
   if (historyBox)
@@ -2191,6 +2192,91 @@ function commitDestination() {
   applyDestination(destinationSelect.value);
 }
 
+// path-export.ts
+function getChosenPathIds() {
+  const rows = buildHistoryRows(parseEdges(codeBox.value), editorGraph());
+  const ids = [];
+  for (const row of rows) {
+    ids.push(row.id);
+    const isAnsweredDecision = row.status === "past";
+    if (isAnsweredDecision)
+      ids.push(row.chosenChoiceId);
+  }
+  return ids;
+}
+function buildChosenPathSource(ids) {
+  const graph = editorGraph();
+  const lines = ["flowchart TD"];
+  const declaredIds = new Set;
+  for (const id of ids) {
+    const isDeclared = declaredIds.has(id);
+    if (isDeclared)
+      continue;
+    declaredIds.add(id);
+    lines.push(`  ${id}${declarationSuffixOf(graph.nodes.get(id))}`);
+  }
+  for (let i = 0;i + 1 < ids.length; i++)
+    lines.push(`  ${ids[i]} --> ${ids[i + 1]}`);
+  return lines.join(`
+`) + `
+`;
+}
+function findNextPathFileName(baseName, existingNames) {
+  const escapedBaseName = baseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^${escapedBaseName}-path-(\\d+)\\.mmd$`);
+  let nextNumber = 0;
+  for (const name of existingNames) {
+    const match = name.match(pattern);
+    if (!match)
+      continue;
+    const usedNumber = Number(match[1]);
+    if (usedNumber >= nextNumber)
+      nextNumber = usedNumber + 1;
+  }
+  return `${baseName}-path-${nextNumber}.mmd`;
+}
+async function writeToServerDiagrams(diagramName, source) {
+  const existingNames = await fetch("/api/diagrams").then((r) => r.json());
+  const fileName = findNextPathFileName(diagramName.replace(/\.mmd$/, ""), existingNames);
+  const response = await fetch("/api/diagrams/" + encodeURIComponent(fileName), { method: "PUT", body: source });
+  if (!response.ok)
+    throw new Error(`Writing ${fileName} failed: ${response.status} ${await response.text()}`);
+  setStatus("Wrote " + fileName);
+}
+async function writeToOpenedFileFolder(openedFileName, source) {
+  if (!state.pathFolderHandle) {
+    try {
+      state.pathFolderHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+    } catch (error) {
+      const isUserCancel = error.name === "AbortError";
+      if (!isUserCancel)
+        throw error;
+      console.log("User canceled Write chosen path");
+      return;
+    }
+  }
+  const folder = state.pathFolderHandle;
+  const existingNames = [];
+  for await (const name of folder.keys())
+    existingNames.push(name);
+  const fileName = findNextPathFileName(openedFileName.replace(/\.mmd$/, ""), existingNames);
+  const fileHandle = await folder.getFileHandle(fileName, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(source);
+  await writable.close();
+  setStatus("Wrote " + fileName);
+}
+async function writeChosenPath() {
+  const source = buildChosenPathSource(getChosenPathIds());
+  if (state.currentName) {
+    await writeToServerDiagrams(state.currentName, source);
+    return;
+  }
+  if (!state.openedFileHandle)
+    throw new Error("Save the diagram before writing a chosen path");
+  await writeToOpenedFileFolder(state.openedFileHandle.name, source);
+}
+
 // editor-events.ts
 outputBox.addEventListener("click", (event) => {
   const nodeEl = event.target.closest("g.node");
@@ -2216,9 +2302,14 @@ outputBox.addEventListener("click", (event) => {
   }
 });
 phoneDiagramBox.addEventListener("click", async (event) => {
-  const target = event.target.closest("button[data-choose], button[data-revert], button[data-undo], button[data-reset-decisions]");
+  const target = event.target.closest("button[data-choose], button[data-revert], button[data-undo], button[data-reset-decisions], button[data-write-path]");
   if (!target)
     return;
+  const isWritePath = target.dataset.writePath !== undefined;
+  if (isWritePath) {
+    await writeChosenPath();
+    return;
+  }
   const isResetDecisions = target.dataset.resetDecisions !== undefined;
   if (isResetDecisions) {
     document.getElementById("resetBtn").click();
@@ -2562,6 +2653,7 @@ openFileBtn.addEventListener("click", async () => {
     state.watcher.close();
   state.currentName = null;
   state.openedFileHandle = fileHandle;
+  state.pathFolderHandle = null;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;

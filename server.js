@@ -89,4 +89,6 @@ const server = import.meta.main && Bun.serve({
   },
 });
 
-if (import.meta.main) console.log(`Mermaid viewer running at http://${HOSTNAME}:${server.port}`);
+// Chrome's file dialogs need a secure page; localhost counts as secure, 0.0.0.0 does not.
+const shownHostname = HOSTNAME === "0.0.0.0" ? "localhost" : HOSTNAME;
+if (import.meta.main) console.log(`Mermaid viewer running at http://${shownHostname}:${server.port}`);
