@@ -1533,7 +1533,7 @@ function buildRowHtml(row, graph, edges, isMasked) {
   const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node);
   const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${encodeHtml(getLabelOf(row.id, graph))}</span></div>`;
   const wrapClass = isMasked ? "phone-decision phone-decision-past" : "phone-decision";
-  return `<div class="${wrapClass}">${question}${buildChoiceButtonsHtml(choices, row, graph)}</div>`;
+  return `<div class="${wrapClass}">${question}<div class="phone-choice-count">${choices.length} choices</div>${buildChoiceButtonsHtml(choices, row, graph)}</div>`;
 }
 function renderPhone(edges, graph) {
   classIndex = buildClassStyleIndex(codeBox.value);

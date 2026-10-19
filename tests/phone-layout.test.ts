@@ -76,7 +76,7 @@ test("test_phone_view_shows_the_start_slice", async () => {
     assert.ok(Math.abs(width - (widths.paneWidth - 16)) < 1, JSON.stringify(widths));
   // Step: the open question's two choices split the row evenly, with a visible gap between them.
   const choiceWidths = await evaluate(`JSON.stringify((() => {
-    const choices = Array.from(document.querySelectorAll('#phoneDiagram [data-active-question] + .phone-choice-row .phone-choice'));
+    const choices = Array.from(document.querySelectorAll('#phoneDiagram [data-active-question] ~ .phone-choice-row .phone-choice'));
     return { widths: choices.map(el => el.getBoundingClientRect().width) };
   })())`).then(JSON.parse);
   assert.equal(choiceWidths.widths.length, 2);

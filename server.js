@@ -21,11 +21,11 @@ const server = import.meta.main && Bun.serve({
     const url = new URL(req.url);
 
     if (url.pathname === "/") {
-      return new Response(Bun.file(resolve(EDITOR_DIR, "index.html")));
+      return new Response(Bun.file(resolve(EDITOR_DIR, "index.html")), { headers: { "Cache-Control": "no-cache" } });
     }
 
     if (url.pathname === "/viewer.js") {
-      return new Response(Bun.file(resolve(EDITOR_DIR, "viewer.js")), { headers: { "Content-Type": "text/javascript" } });
+      return new Response(Bun.file(resolve(EDITOR_DIR, "viewer.js")), { headers: { "Content-Type": "text/javascript", "Cache-Control": "no-cache" } });
     }
 
     if (url.pathname === "/mermaid.min.js") {
