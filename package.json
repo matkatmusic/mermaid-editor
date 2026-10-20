@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "bun build viewer.ts --outfile viewer.js",
-    "test": "bun run build && bun test tests/server.test.js && node --test --test-concurrency=1 --test-timeout=120000 \"tests/**/*.test.ts\""
+    "test": "bun run build && bun test tests/server.test.js && node --test --test-concurrency=1 --test-timeout=120000 \"tests/**/*.test.ts\" \"*.test.ts\" \"scripts/**/*.test.ts\""
   },
   "devDependencies": {
     "@types/node": "^26.5.1"

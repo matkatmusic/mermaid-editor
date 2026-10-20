@@ -46,11 +46,11 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
   // Step: Open file entry shows the OS open dialog and closes the menu.
   const opened = await evaluate(`(() => {
     let clicked = false;
-    const original = window.showOpenFilePicker;
-    window.showOpenFilePicker = () => { clicked = true; return new Promise(() => {}); };
+    const originalFetch = window.fetch;
+    window.fetch = (url, opts) => { if (url === '/api/open-file') { clicked = true; return new Promise(() => {}); } return originalFetch(url, opts); };
     document.getElementById('fileMenu').open = true;
     document.getElementById('openFileBtn').click();
-    window.showOpenFilePicker = original;
+    window.fetch = originalFetch;
     return JSON.stringify({ clicked, open: document.getElementById('fileMenu').open });
   })()`).then(JSON.parse);
   assert.equal(opened.clicked, true);
@@ -77,10 +77,18 @@ test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', asyn
       getFile: async () => new File([text], name),
       createWritable: async () => ({ write: async (data) => writes.push(name + ':' + data), close: async () => {} }),
     });
-    const originalOpen = window.showOpenFilePicker;
+    const originalFetch = window.fetch;
     const originalSave = window.showSaveFilePicker;
     let saveDialogs = 0;
-    window.showOpenFilePicker = async () => [fakeHandle('opened.mmd', 'flowchart TD\\n  B_OPENED[Opened]')];
+    window.fetch = async (url, opts) => {
+      if (url !== '/api/open-file')
+        return originalFetch(url, opts);
+      if (opts && opts.method === 'PUT') {
+        writes.push('opened.mmd:' + opts.body);
+        return new Response('OK');
+      }
+      return Response.json({ path: '/tmp/opened.mmd', text: 'flowchart TD\\n  B_OPENED[Opened]' });
+    };
     window.showSaveFilePicker = async () => { saveDialogs++; return fakeHandle('picked.mmd', ''); };
     document.getElementById('openFileBtn').click();
     await new Promise(r => setTimeout(r, 300));
@@ -93,7 +101,7 @@ test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', asyn
     await new Promise(r => setTimeout(r, 200));
     document.getElementById('saveBtn').click();
     await new Promise(r => setTimeout(r, 200));
-    window.showOpenFilePicker = originalOpen;
+    window.fetch = originalFetch;
     window.showSaveFilePicker = originalSave;
     return JSON.stringify({ afterOpenSave, writes, saveDialogs });
   })()`).then(JSON.parse);
@@ -107,17 +115,17 @@ test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', asyn
 });
 
 test('test_canceling_the_open_dialog_logs_a_message_and_leaves_the_diagram_unchanged', async () => {
-  // Scenario: the user dismisses the OS open dialog; the browser rejects with an AbortError.
+  // Scenario: the user dismisses the OS open dialog; the server answers 204.
   const result = await evaluate(`(async () => {
-    const originalOpen = window.showOpenFilePicker;
+    const originalFetch = window.fetch;
     const originalLog = console.log;
     const messages = [];
     const before = document.getElementById('code').value;
-    window.showOpenFilePicker = async () => { throw new DOMException('canceled', 'AbortError'); };
+    window.fetch = async (url, opts) => url === '/api/open-file' ? new Response(null, { status: 204 }) : originalFetch(url, opts);
     console.log = (...args) => { messages.push(args.join(' ')); };
     document.getElementById('openFileBtn').click();
     await new Promise(r => setTimeout(r, 200));
-    window.showOpenFilePicker = originalOpen;
+    window.fetch = originalFetch;
     console.log = originalLog;
     return JSON.stringify({ messages, unchanged: document.getElementById('code').value === before });
   })()`).then(JSON.parse);

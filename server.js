@@ -13,6 +13,8 @@ const PORT = portFlagIndex === -1 ? 0 : Number(process.argv[portFlagIndex + 1]);
 const hostnameFlagIndex = process.argv.indexOf("--hostname");
 const HOSTNAME = hostnameFlagIndex === -1 ? "0.0.0.0" : process.argv[hostnameFlagIndex + 1];
 
+let openedFilePath = null; // set only by the native Open File dialog; PUT /api/open-file writes here
+
 const server = import.meta.main && Bun.serve({
   port: PORT,
   hostname: HOSTNAME,
@@ -48,7 +50,7 @@ const server = import.meta.main && Bun.serve({
 
       if (req.method === "GET") {
         if (!(await file.exists())) return new Response("Not found", { status: 404 });
-        return new Response(file);
+        return new Response(file, { headers: { "X-Diagram-Path": resolve(DIAGRAMS_DIR, name) } });
       }
 
       if (req.method === "PUT") {
@@ -83,6 +85,25 @@ const server = import.meta.main && Bun.serve({
           "Cache-Control": "no-cache",
         },
       });
+    }
+
+    if (url.pathname === "/api/open-file" && req.method === "GET") {
+      const dialog = Bun.spawn(["osascript", "-e", 'POSIX path of (choose file with prompt "Open diagram")'], { stdout: "pipe", stderr: "pipe" });
+      const [stdout, stderr, exitCode] = await Promise.all([new Response(dialog.stdout).text(), new Response(dialog.stderr).text(), dialog.exited]);
+      if (exitCode !== 0) {
+        const userCanceled = stderr.includes("-128");
+        if (userCanceled) return new Response(null, { status: 204 });
+        throw new Error(stderr);
+      }
+      const path = stdout.trim();
+      openedFilePath = path;
+      return Response.json({ path, text: await Bun.file(path).text() });
+    }
+
+    if (url.pathname === "/api/open-file" && req.method === "PUT") {
+      if (openedFilePath === null) return new Response("No file opened", { status: 400 });
+      await Bun.write(openedFilePath, await req.text());
+      return new Response("OK");
     }
 
     return new Response("Not found", { status: 404 });

@@ -72,6 +72,7 @@ var state = {
   currentName: null,
   openedFileHandle: null,
   pathFolderHandle: null,
+  loadedPath: null,
   watcher: null,
   currentBottomQ: undefined,
   phoneFocusNodeId: null,
@@ -788,148 +789,12 @@ function blurInspectorFocus() {
   }
 }
 
-// graph-slice.ts
-function parentOf(id, edges) {
-  let found;
-  for (const edge of edges) {
-    if (edge[1] === id) {
-      found = edge;
-      break;
-    }
-  }
-  return found[0];
-}
-function contextualDecisionSliceIds(decisionId, edges) {
-  const reversed = [decisionId];
-  const visited = new Set(reversed);
-  let node = decisionId;
-  for (;; ) {
-    let incoming;
-    for (const edge of edges) {
-      const isMatch = edge[1] === node;
-      if (isMatch) {
-        incoming = edge;
-        break;
-      }
-    }
-    if (!incoming)
-      break;
-    const predecessor = incoming[0];
-    if (visited.has(predecessor))
-      break;
-    reversed.push(predecessor);
-    visited.add(predecessor);
-    const isPreviousDecision = predecessor.startsWith("Q_") && !predecessor.startsWith("Q_CHOICE");
-    if (isPreviousDecision)
-      break;
-    node = predecessor;
-  }
-  const ids = reversed.reverse();
-  for (const choice of choicesOf(decisionId, edges)) {
-    if (!visited.has(choice))
-      ids.push(choice);
-  }
-  return ids;
-}
-function sliceIds(edges) {
-  const focusNodeId = state.functionsOnly ? null : state.phoneFocusNodeId;
-  const hasFocusedDecisionContext = focusNodeId !== null && state.phoneFocusUsesDecisionContext;
-  if (hasFocusedDecisionContext)
-    return contextualDecisionSliceIds(focusNodeId, edges);
-  const last = state.functionsOnly ? undefined : state.phonePreviewChoiceId ?? phonePath[phonePath.length - 1];
-  const ids = focusNodeId ? [focusNodeId] : last ? [parentOf(last, edges), last] : [edges.map(([from]) => from).find((from) => !edges.some(([, to]) => to === from))];
-  let node = ids[ids.length - 1];
-  const visited = new Set(ids);
-  for (;; ) {
-    const next = [];
-    for (const [from, to] of edges) {
-      if (from === node)
-        next.push(to);
-    }
-    if (next.length === 0)
-      return ids;
-    if (next.length > 1)
-      return ids.concat(next);
-    node = next[0];
-    if (visited.has(node))
-      return ids;
-    ids.push(node);
-    visited.add(node);
-  }
-}
-function siblingIds(ids, edges) {
-  const hasDecisionContext = state.phoneFocusUsesDecisionContext || state.phonePreviewChoiceId || phonePath.length;
-  if (!hasDecisionContext)
-    return [];
-  const found = [];
-  for (const [from, to] of edges) {
-    const isFromFirst = from === ids[0];
-    const isNotSecond = to !== ids[1];
-    const isSibling = isFromFirst && isNotSecond;
-    if (isSibling)
-      found.push(to);
-  }
-  return found;
-}
-function choicesOf(id, edges) {
-  const found = [];
-  for (const [from, to] of edges) {
-    if (from === id)
-      found.push(to);
-  }
-  return found;
-}
-
-// zoom.ts
-function viewBoxOf(svgText) {
-  const match = svgText.match(/viewBox="[^"]*?\s([\d.]+)\s([\d.]+)"/);
-  const [, w, h] = match;
-  return { width: Number(w), height: Number(h) };
-}
-function applyMainZoom(preserveViewportCenter = true) {
-  zoomLevel.textContent = `${state.mainZoomPercent}%`;
-  zoomInBtn.disabled = state.mainZoomPercent >= MAX_MAIN_ZOOM;
-  zoomOutBtn.disabled = state.mainZoomPercent <= MIN_MAIN_ZOOM;
-  zoomResetBtn.disabled = state.mainZoomPercent === 100;
-  const svg = diagramBox.querySelector("svg");
-  const scale = state.diagramScale;
-  const hasSvg = svg !== null;
-  const hasScale = scale !== null;
-  if (!hasSvg)
-    return;
-  if (!hasScale)
-    return;
-  const oldWidth = Number.parseFloat(svg.style.width);
-  const oldHeight = Number.parseFloat(svg.style.height);
-  const centerX = outputBox.scrollLeft + outputBox.clientWidth / 2;
-  const centerY = outputBox.scrollTop + outputBox.clientHeight / 2;
-  const zoom = state.mainZoomPercent / 100;
-  const newWidth = svg.viewBox.baseVal.width * scale * zoom;
-  const newHeight = svg.viewBox.baseVal.height * scale * zoom;
-  svg.style.width = newWidth + "px";
-  svg.style.height = newHeight + "px";
-  const hadWidth = oldWidth > 0;
-  const hadHeight = oldHeight > 0;
-  if (preserveViewportCenter) {
-    if (hadWidth) {
-      if (hadHeight) {
-        outputBox.scrollLeft = centerX * newWidth / oldWidth - outputBox.clientWidth / 2;
-        outputBox.scrollTop = centerY * newHeight / oldHeight - outputBox.clientHeight / 2;
-      }
-    }
-  }
-}
-function setMainZoomPercent(percent) {
-  state.mainZoomPercent = Math.max(MIN_MAIN_ZOOM, Math.min(MAX_MAIN_ZOOM, Math.round(percent)));
-  applyMainZoom();
-}
-
 // diagram-io.ts
 function setStatus(text) {
   statusBox.textContent = text;
   function clearStatusIfUnchanged() {
     if (statusBox.textContent === text)
-      statusBox.textContent = "";
+      statusBox.textContent = state.loadedPath ?? "";
   }
   setTimeout(clearStatusIfUnchanged, 2000);
 }
@@ -982,126 +847,6 @@ function applyMainViewport(metadata, graph) {
   if (!hasSavedTop)
     outputBox.scrollTop = Math.max(0, nodeTop - 12);
 }
-async function loadDiagram(name) {
-  if (state.watcher) {
-    state.watcher.close();
-    state.watcher = null;
-  }
-  const diagramResponse = await fetch("/api/diagrams/" + encodeURIComponent(name));
-  const text = await diagramResponse.text();
-  lastSavedDiagramText = text;
-  const { metadata } = splitEditorMetadata(text);
-  restoreTypeMetadata(metadata);
-  state.currentName = name;
-  sessionStorage.setItem("loadedDiagram", name);
-  state.openedFileHandle = null;
-  phonePath.length = 0;
-  state.phoneFocusNodeId = null;
-  state.phoneFocusUsesDecisionContext = false;
-  state.phonePreviewChoiceId = null;
-  state.diagramScale = null;
-  state.currentDecisionId = metadata?.lastSelectedNodeId ?? null;
-  state.mainZoomPercent = metadata?.mainZoomPercent ?? 100;
-  codeBox.value = text;
-  resetEditorHistory(text);
-  await render();
-  applyMainZoom(false);
-  let graph = null;
-  try {
-    graph = editorGraph();
-  } catch {}
-  if (metadata) {
-    const hasSavedSelection = graph?.nodes.has(metadata.lastSelectedNodeId ?? "");
-    if (hasSavedSelection)
-      selectEditorNode(metadata.lastSelectedNodeId);
-  }
-  if (graph)
-    applyMainViewport(metadata, graph);
-  loadList();
-  createDiagramWatcher(name);
-}
-var lastSavedDiagramText = null;
-var watchedDiagramName = null;
-var pendingSaveCount = 0;
-var saveVersion = 0;
-function createDiagramWatcher(name) {
-  if (state.watcher)
-    state.watcher.close();
-  watchedDiagramName = name;
-  const source = new EventSource("/api/watch/" + encodeURIComponent(name));
-  state.watcher = source;
-  const refresh = async () => {
-    const versionAtFetchStart = saveVersion;
-    const saveInFlightAtFetchStart = pendingSaveCount > 0;
-    const diagramResponse = await fetch("/api/diagrams/" + encodeURIComponent(name));
-    const text = await diagramResponse.text();
-    const isStaleWatcher = state.watcher !== source;
-    if (isStaleWatcher)
-      return;
-    if (saveInFlightAtFetchStart)
-      return;
-    if (pendingSaveCount > 0)
-      return;
-    if (saveVersion !== versionAtFetchStart)
-      return;
-    if (text === lastSavedDiagramText)
-      return;
-    if (text !== codeBox.value) {
-      restoreTypeMetadata(splitEditorMetadata(text).metadata);
-      codeBox.value = text;
-      resetEditorHistory(text);
-    }
-    render();
-  };
-  source.onmessage = refresh;
-  source.onopen = refresh;
-}
-var MMD_FILE_TYPES = [{ description: "Mermaid diagram", accept: { "text/plain": [".mmd"] } }];
-async function saveDiagram() {
-  const needsSaveAsDialog = !state.currentName && !state.openedFileHandle;
-  if (needsSaveAsDialog) {
-    try {
-      state.openedFileHandle = await window.showSaveFilePicker({ suggestedName: "diagram.mmd", types: MMD_FILE_TYPES });
-    } catch (error) {
-      const isUserCancel = error.name === "AbortError";
-      if (!isUserCancel)
-        throw error;
-      console.log("User canceled Save");
-      return;
-    }
-  }
-  const fileHandle = state.openedFileHandle;
-  if (fileHandle) {
-    const writable = await fileHandle.createWritable();
-    await writable.write(codeBox.value);
-    await writable.close();
-    setStatus("Saved " + fileHandle.name);
-    return;
-  }
-  const name = state.currentName;
-  lastSavedDiagramText = codeBox.value;
-  pendingSaveCount++;
-  saveVersion++;
-  try {
-    await fetch("/api/diagrams/" + encodeURIComponent(name), {
-      method: "PUT",
-      body: codeBox.value
-    });
-  } finally {
-    pendingSaveCount--;
-  }
-  state.currentName = name;
-  setStatus("Saved " + name);
-  loadList();
-  const hasNoWatcher = !state.watcher;
-  if (hasNoWatcher) {
-    createDiagramWatcher(name);
-  } else {
-    const isWatchingSomethingElse = watchedDiagramName !== name;
-    if (isWatchingSomethingElse)
-      createDiagramWatcher(name);
-  }
-}
 
 // decision-nav.ts
 function decisionNodes(graph) {
@@ -1114,7 +859,8 @@ function nearestFeedingChoice(id, graph) {
     const nextFrontier = [];
     for (const nodeId of frontier) {
       const node = graph.nodes.get(nodeId);
-      const isChoiceFedByDecision = node?.kind === "choice" && graph.edges.some((edge) => edge.to === nodeId && graph.nodes.get(edge.from)?.kind === "question");
+      const isAnswerKind = node?.kind === "choice" || node?.kind === "question";
+      const isChoiceFedByDecision = isAnswerKind && graph.edges.some((edge) => edge.to === nodeId && graph.nodes.get(edge.from)?.kind === "question");
       if (isChoiceFedByDecision)
         return nodeId;
       for (const edge of graph.edges) {
@@ -1283,6 +1029,98 @@ function filterToFunctions(source) {
 `);
 }
 
+// graph-slice.ts
+function parentOf(id, edges) {
+  let found;
+  for (const edge of edges) {
+    if (edge[1] === id) {
+      found = edge;
+      break;
+    }
+  }
+  return found[0];
+}
+function contextualDecisionSliceIds(decisionId, edges) {
+  const reversed = [decisionId];
+  const visited = new Set(reversed);
+  let node = decisionId;
+  for (;; ) {
+    let incoming;
+    for (const edge of edges) {
+      const isMatch = edge[1] === node;
+      if (isMatch) {
+        incoming = edge;
+        break;
+      }
+    }
+    if (!incoming)
+      break;
+    const predecessor = incoming[0];
+    if (visited.has(predecessor))
+      break;
+    reversed.push(predecessor);
+    visited.add(predecessor);
+    const isPreviousDecision = predecessor.startsWith("Q_") && !predecessor.startsWith("Q_CHOICE");
+    if (isPreviousDecision)
+      break;
+    node = predecessor;
+  }
+  const ids = reversed.reverse();
+  for (const choice of choicesOf(decisionId, edges)) {
+    if (!visited.has(choice))
+      ids.push(choice);
+  }
+  return ids;
+}
+function sliceIds(edges) {
+  const focusNodeId = state.functionsOnly ? null : state.phoneFocusNodeId;
+  const hasFocusedDecisionContext = focusNodeId !== null && state.phoneFocusUsesDecisionContext;
+  if (hasFocusedDecisionContext)
+    return contextualDecisionSliceIds(focusNodeId, edges);
+  const last = state.functionsOnly ? undefined : state.phonePreviewChoiceId ?? phonePath[phonePath.length - 1];
+  const ids = focusNodeId ? [focusNodeId] : last ? [parentOf(last, edges), last] : [edges.map(([from]) => from).find((from) => !edges.some(([, to]) => to === from))];
+  let node = ids[ids.length - 1];
+  const visited = new Set(ids);
+  for (;; ) {
+    const next = [];
+    for (const [from, to] of edges) {
+      if (from === node)
+        next.push(to);
+    }
+    if (next.length === 0)
+      return ids;
+    if (next.length > 1)
+      return ids.concat(next);
+    node = next[0];
+    if (visited.has(node))
+      return ids;
+    ids.push(node);
+    visited.add(node);
+  }
+}
+function siblingIds(ids, edges) {
+  const hasDecisionContext = state.phoneFocusUsesDecisionContext || state.phonePreviewChoiceId || phonePath.length;
+  if (!hasDecisionContext)
+    return [];
+  const found = [];
+  for (const [from, to] of edges) {
+    const isFromFirst = from === ids[0];
+    const isNotSecond = to !== ids[1];
+    const isSibling = isFromFirst && isNotSecond;
+    if (isSibling)
+      found.push(to);
+  }
+  return found;
+}
+function choicesOf(id, edges) {
+  const found = [];
+  for (const [from, to] of edges) {
+    if (from === id)
+      found.push(to);
+  }
+  return found;
+}
+
 // node-type-colors.ts
 var UNCLASSED_STRIPE_PATTERN_ID = "unclassed-stripe-pattern";
 function addUnclassedStripePattern(svg) {
@@ -1312,6 +1150,50 @@ function applyNodeTypeColors(graph) {
     for (const shape of nodeEl.querySelectorAll("rect, path, polygon"))
       shape.style.fill = `url(#${UNCLASSED_STRIPE_PATTERN_ID})`;
   }
+}
+
+// zoom.ts
+function viewBoxOf(svgText) {
+  const match = svgText.match(/viewBox="[^"]*?\s([\d.]+)\s([\d.]+)"/);
+  const [, w, h] = match;
+  return { width: Number(w), height: Number(h) };
+}
+function applyMainZoom(preserveViewportCenter = true) {
+  zoomLevel.textContent = `${state.mainZoomPercent}%`;
+  zoomInBtn.disabled = state.mainZoomPercent >= MAX_MAIN_ZOOM;
+  zoomOutBtn.disabled = state.mainZoomPercent <= MIN_MAIN_ZOOM;
+  zoomResetBtn.disabled = state.mainZoomPercent === 100;
+  const svg = diagramBox.querySelector("svg");
+  const scale = state.diagramScale;
+  const hasSvg = svg !== null;
+  const hasScale = scale !== null;
+  if (!hasSvg)
+    return;
+  if (!hasScale)
+    return;
+  const oldWidth = Number.parseFloat(svg.style.width);
+  const oldHeight = Number.parseFloat(svg.style.height);
+  const centerX = outputBox.scrollLeft + outputBox.clientWidth / 2;
+  const centerY = outputBox.scrollTop + outputBox.clientHeight / 2;
+  const zoom = state.mainZoomPercent / 100;
+  const newWidth = svg.viewBox.baseVal.width * scale * zoom;
+  const newHeight = svg.viewBox.baseVal.height * scale * zoom;
+  svg.style.width = newWidth + "px";
+  svg.style.height = newHeight + "px";
+  const hadWidth = oldWidth > 0;
+  const hadHeight = oldHeight > 0;
+  if (preserveViewportCenter) {
+    if (hadWidth) {
+      if (hadHeight) {
+        outputBox.scrollLeft = centerX * newWidth / oldWidth - outputBox.clientWidth / 2;
+        outputBox.scrollTop = centerY * newHeight / oldHeight - outputBox.clientHeight / 2;
+      }
+    }
+  }
+}
+function setMainZoomPercent(percent) {
+  state.mainZoomPercent = Math.max(MIN_MAIN_ZOOM, Math.min(MAX_MAIN_ZOOM, Math.round(percent)));
+  applyMainZoom();
 }
 
 // phone-render.ts
@@ -1367,7 +1249,8 @@ function buildHistoryRows(edges, graph) {
       }
       rows.push({ status: "past", id: cur, chosenChoiceId: answered, declinedChoiceIds, revertIndex: pathIndex });
       pathIndex++;
-      cur = choicesOf(answered, edges)[0];
+      const isAnswerAQuestion = graph.nodes.get(answered)?.kind === "question";
+      cur = isAnswerAQuestion ? answered : choicesOf(answered, edges)[0];
       continue;
     }
     if (kind === "block")
@@ -1399,8 +1282,11 @@ function findAnswersLeadingTo(questionId, edges, graph) {
     visited.add(nodeId);
     const isQuestion = graph.nodes.get(nodeId)?.kind === "question";
     if (isQuestion) {
-      for (const choiceId of choicesOf(nodeId, edges))
-        queue.push({ nodeId: choicesOf(choiceId, edges)[0], answers: [...answers, choiceId] });
+      for (const choiceId of choicesOf(nodeId, edges)) {
+        const isChoiceAQuestion = graph.nodes.get(choiceId)?.kind === "question";
+        const nextNodeId = isChoiceAQuestion ? choiceId : choicesOf(choiceId, edges)[0];
+        queue.push({ nodeId: nextNodeId, answers: [...answers, choiceId] });
+      }
       continue;
     }
     const nexts = choicesOf(nodeId, edges);
@@ -1662,6 +1548,103 @@ darkModeToggle.addEventListener("change", () => {
   render();
 });
 
+// diagram-save.ts
+var lastSavedDiagramText = null;
+var watchedDiagramName = null;
+var pendingSaveCount = 0;
+var saveVersion = 0;
+function setLastSavedDiagramText(text) {
+  lastSavedDiagramText = text;
+}
+function createDiagramWatcher(name) {
+  if (state.watcher)
+    state.watcher.close();
+  watchedDiagramName = name;
+  const source = new EventSource("/api/watch/" + encodeURIComponent(name));
+  state.watcher = source;
+  const refresh = async () => {
+    const versionAtFetchStart = saveVersion;
+    const saveInFlightAtFetchStart = pendingSaveCount > 0;
+    const diagramResponse = await fetch("/api/diagrams/" + encodeURIComponent(name));
+    const text = await diagramResponse.text();
+    const isStaleWatcher = state.watcher !== source;
+    if (isStaleWatcher)
+      return;
+    if (saveInFlightAtFetchStart)
+      return;
+    if (pendingSaveCount > 0)
+      return;
+    if (saveVersion !== versionAtFetchStart)
+      return;
+    if (text === lastSavedDiagramText)
+      return;
+    if (text !== codeBox.value) {
+      restoreTypeMetadata(splitEditorMetadata(text).metadata);
+      codeBox.value = text;
+      resetEditorHistory(text);
+    }
+    render();
+  };
+  source.onmessage = refresh;
+  source.onopen = refresh;
+}
+var MMD_FILE_TYPES = [{ description: "Mermaid diagram", accept: { "text/plain": [".mmd"] } }];
+async function saveDiagram() {
+  const needsSaveAsDialog = !state.currentName && !state.openedFileHandle && !state.loadedPath;
+  if (needsSaveAsDialog) {
+    try {
+      state.openedFileHandle = await window.showSaveFilePicker({ suggestedName: "diagram.mmd", types: MMD_FILE_TYPES });
+    } catch (error) {
+      const isUserCancel = error.name === "AbortError";
+      if (!isUserCancel)
+        throw error;
+      console.log("User canceled Save");
+      return;
+    }
+  }
+  const fileHandle = state.openedFileHandle;
+  if (fileHandle) {
+    const writable = await fileHandle.createWritable();
+    await writable.write(codeBox.value);
+    await writable.close();
+    setStatus("Saved " + fileHandle.name);
+    return;
+  }
+  const hasNoName = !state.currentName;
+  const hasLoadedPath = !!state.loadedPath;
+  const savesToLoadedPath = hasNoName && hasLoadedPath;
+  if (savesToLoadedPath) {
+    const openFileResponse = await fetch("/api/open-file", { method: "PUT", body: codeBox.value });
+    if (!openFileResponse.ok)
+      throw new Error(await openFileResponse.text());
+    setStatus("Saved " + state.loadedPath);
+    return;
+  }
+  const name = state.currentName;
+  lastSavedDiagramText = codeBox.value;
+  pendingSaveCount++;
+  saveVersion++;
+  try {
+    await fetch("/api/diagrams/" + encodeURIComponent(name), {
+      method: "PUT",
+      body: codeBox.value
+    });
+  } finally {
+    pendingSaveCount--;
+  }
+  state.currentName = name;
+  setStatus("Saved " + name);
+  loadList();
+  const hasNoWatcher = !state.watcher;
+  if (hasNoWatcher) {
+    createDiagramWatcher(name);
+  } else {
+    const isWatchingSomethingElse = watchedDiagramName !== name;
+    if (isWatchingSomethingElse)
+      createDiagramWatcher(name);
+  }
+}
+
 // editor-actions.ts
 async function applyEditorSource(source, options) {
   source = sourceWithEditorMetadata(source);
@@ -1674,14 +1657,15 @@ async function applyEditorSource(source, options) {
     state.editorHistoryIndex = state.editorHistory.length - 1;
   }
   await render();
-  const hasSaveTarget = !!state.currentName || !!state.openedFileHandle;
+  const hasSaveTarget = !!state.currentName || !!state.openedFileHandle || !!state.loadedPath;
   if (!hasSaveTarget)
     throw new Error("No diagram file is loaded to auto-save into");
   await saveDiagram();
   selectEditorNode(state.selectedEditorNodeId);
 }
+function clearFailedAction() {}
 function appendEditorAction(action) {
-  setEditorActionPromise(state.editorActionPromise.catch(() => {}).then(action));
+  setEditorActionPromise(state.editorActionPromise.catch(clearFailedAction).then(action));
 }
 function executeEditorAction(action) {
   appendEditorAction(action);
@@ -2051,12 +2035,56 @@ function redoEditorAction() {
   executeEditorAction(() => applyEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
 }
 
+// diagram-load.ts
+async function loadDiagram(name) {
+  if (state.watcher) {
+    state.watcher.close();
+    state.watcher = null;
+  }
+  const diagramResponse = await fetch("/api/diagrams/" + encodeURIComponent(name));
+  state.loadedPath = diagramResponse.headers.get("X-Diagram-Path");
+  const text = await diagramResponse.text();
+  setLastSavedDiagramText(text);
+  const { metadata } = splitEditorMetadata(text);
+  restoreTypeMetadata(metadata);
+  state.currentName = name;
+  sessionStorage.setItem("loadedDiagram", name);
+  state.openedFileHandle = null;
+  statusBox.textContent = state.loadedPath ?? "";
+  phonePath.length = 0;
+  state.phoneFocusNodeId = null;
+  state.phoneFocusUsesDecisionContext = false;
+  state.phonePreviewChoiceId = null;
+  state.diagramScale = null;
+  state.currentDecisionId = metadata?.lastSelectedNodeId ?? null;
+  state.mainZoomPercent = metadata?.mainZoomPercent ?? 100;
+  codeBox.value = text;
+  resetEditorHistory(text);
+  await render();
+  applyMainZoom(false);
+  let graph = null;
+  try {
+    graph = editorGraph();
+  } catch {}
+  if (metadata) {
+    const hasSavedSelection = graph?.nodes.has(metadata.lastSelectedNodeId ?? "");
+    if (hasSavedSelection)
+      selectEditorNode(metadata.lastSelectedNodeId);
+  }
+  if (graph)
+    applyMainViewport(metadata, graph);
+  loadList();
+  createDiagramWatcher(name);
+}
+
 // path-export.ts
 function getChosenPathIds() {
   const rows = buildHistoryRows(parseEdges(codeBox.value), editorGraph());
   const ids = [];
   for (const row of rows) {
-    ids.push(row.id);
+    const isAlreadyListed = ids[ids.length - 1] === row.id;
+    if (!isAlreadyListed)
+      ids.push(row.id);
     const isAnsweredDecision = row.status === "past";
     if (isAnsweredDecision)
       ids.push(row.chosenChoiceId);
@@ -2614,9 +2642,28 @@ classesList.addEventListener("click", (event) => {
 });
 
 // editor-events.ts
-outputBox.addEventListener("click", (event) => {
+function selectNodeSourceLine(id) {
+  const lines = codeBox.value.split(`
+`);
+  let start = 0;
+  for (let i = 0;i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    const startsWithId = trimmed.startsWith(id);
+    const isNodeDefinition = startsWithId && ["[", "{", "("].includes(trimmed.charAt(id.length));
+    if (isNodeDefinition) {
+      codeBox.focus({ preventScroll: true });
+      codeBox.setSelectionRange(start, start + lines[i].length);
+      codeBox.blur();
+      return;
+    }
+    start += lines[i].length + 1;
+  }
+}
+var selectClickedNode = (event) => {
   const nodeEl = event.target.closest("g.node");
   const id = nodeEl ? nodeIdOf(nodeEl) : null;
+  if (id)
+    selectNodeSourceLine(id);
   selectEditorNode(id);
   if (id) {
     const graph = editorGraph();
@@ -2636,8 +2683,9 @@ outputBox.addEventListener("click", (event) => {
       }
     }
   }
-});
-phoneDiagramBox.addEventListener("click", async (event) => {
+};
+outputBox.addEventListener("click", selectClickedNode);
+var selectPhoneChoice = async (event) => {
   const target = event.target.closest("button[data-choose], button[data-revert], button[data-undo], button[data-reset-decisions], button[data-write-path]");
   if (!target)
     return;
@@ -2685,7 +2733,37 @@ phoneDiagramBox.addEventListener("click", async (event) => {
       behavior: "smooth"
     });
   }
-});
+};
+phoneDiagramBox.addEventListener("click", selectPhoneChoice);
+
+// open-file.ts
+async function openFileFromDialog() {
+  const openResponse = await fetch("/api/open-file");
+  if (openResponse.status === 204) {
+    console.log("User canceled Open File");
+    return;
+  }
+  const { path, text } = await openResponse.json();
+  if (state.watcher)
+    state.watcher.close();
+  state.currentName = null;
+  state.openedFileHandle = null;
+  state.loadedPath = path;
+  statusBox.textContent = path;
+  state.pathFolderHandle = null;
+  state.phoneFocusNodeId = null;
+  state.phoneFocusUsesDecisionContext = false;
+  state.phonePreviewChoiceId = null;
+  state.diagramScale = null;
+  state.currentDecisionId = null;
+  codeBox.value = text;
+  restoreTypeMetadata(splitEditorMetadata(codeBox.value).metadata);
+  resetEditorHistory(codeBox.value);
+  selectBox.value = "";
+  render();
+  loadList();
+  setDrawerOpen(true);
+}
 
 // node-search.ts
 var searchMatches = [];
@@ -2746,11 +2824,13 @@ function clearSearch() {
 }
 
 // main-events.ts
-document.getElementById("newBtn").addEventListener("click", () => {
+function resetEditorToNewDiagram() {
   if (state.watcher)
     state.watcher.close();
   state.currentName = null;
   state.openedFileHandle = null;
+  state.loadedPath = null;
+  statusBox.textContent = "";
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
@@ -2763,18 +2843,29 @@ document.getElementById("newBtn").addEventListener("click", () => {
   render();
   loadList();
   setDrawerOpen(true);
-});
-document.getElementById("saveBtn").addEventListener("click", saveDiagram);
-previousDecisionBtn.addEventListener("click", () => navigateDecision(-1));
-nextDecisionBtn.addEventListener("click", () => navigateDecision(1));
-searchInput.addEventListener("input", runSearch);
-searchClearBtn.addEventListener("click", clearSearch);
-searchPreviousBtn.addEventListener("click", () => cycleSearch(-1));
-searchNextBtn.addEventListener("click", () => cycleSearch(1));
-zoomInBtn.addEventListener("click", () => setMainZoomPercent(state.mainZoomPercent + MAIN_ZOOM_STEP));
-zoomOutBtn.addEventListener("click", () => setMainZoomPercent(state.mainZoomPercent - MAIN_ZOOM_STEP));
-zoomResetBtn.addEventListener("click", () => setMainZoomPercent(100));
-document.getElementById("resetBtn").addEventListener("click", () => {
+}
+function selectPreviousDecision() {
+  navigateDecision(-1);
+}
+function selectNextDecision() {
+  navigateDecision(1);
+}
+function selectPreviousSearchMatch() {
+  cycleSearch(-1);
+}
+function selectNextSearchMatch() {
+  cycleSearch(1);
+}
+function applyZoomIn() {
+  setMainZoomPercent(state.mainZoomPercent + MAIN_ZOOM_STEP);
+}
+function applyZoomOut() {
+  setMainZoomPercent(state.mainZoomPercent - MAIN_ZOOM_STEP);
+}
+function resetZoom() {
+  setMainZoomPercent(100);
+}
+function resetChosenPath() {
   chosenAnswers.clear();
   phonePath.length = 0;
   state.phoneFocusNodeId = null;
@@ -2784,47 +2875,37 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   render();
   outputBox.scrollTo({ top: 0, behavior: "smooth" });
   phoneDiagramBox.querySelector("#phoneHistory")?.scrollTo({ top: 0, behavior: "smooth" });
-});
-drawerToggle.addEventListener("click", () => setDrawerOpen(drawer.classList.contains("closed")));
-selectBox.addEventListener("change", () => loadDiagram(selectBox.value));
-openFileBtn.addEventListener("click", async () => {
-  let fileHandles;
-  try {
-    fileHandles = await window.showOpenFilePicker({ types: MMD_FILE_TYPES });
-  } catch (error) {
-    const isUserCancel = error.name === "AbortError";
-    if (!isUserCancel)
-      throw error;
-    console.log("User canceled Open File");
-    return;
-  }
-  const [fileHandle] = fileHandles;
-  const file = await fileHandle.getFile();
-  if (state.watcher)
-    state.watcher.close();
-  state.currentName = null;
-  state.openedFileHandle = fileHandle;
-  state.pathFolderHandle = null;
-  state.phoneFocusNodeId = null;
-  state.phoneFocusUsesDecisionContext = false;
-  state.phonePreviewChoiceId = null;
-  state.diagramScale = null;
-  state.currentDecisionId = null;
-  codeBox.value = await file.text();
-  restoreTypeMetadata(splitEditorMetadata(codeBox.value).metadata);
-  resetEditorHistory(codeBox.value);
-  selectBox.value = "";
-  render();
-  loadList();
-  setDrawerOpen(true);
-});
-codeBox.addEventListener("input", () => {
+}
+function toggleDrawer() {
+  setDrawerOpen(drawer.classList.contains("closed"));
+}
+function loadSelectedDiagram() {
+  loadDiagram(selectBox.value);
+}
+function renderCodeBoxEdit() {
   resetEditorHistory(codeBox.value);
   render();
-});
-document.getElementById("fileMenuItems").addEventListener("click", () => {
+}
+function closeFileMenu() {
   document.getElementById("fileMenu").open = false;
-});
+}
+document.getElementById("newBtn").addEventListener("click", resetEditorToNewDiagram);
+document.getElementById("saveBtn").addEventListener("click", saveDiagram);
+previousDecisionBtn.addEventListener("click", selectPreviousDecision);
+nextDecisionBtn.addEventListener("click", selectNextDecision);
+searchInput.addEventListener("input", runSearch);
+searchClearBtn.addEventListener("click", clearSearch);
+searchPreviousBtn.addEventListener("click", selectPreviousSearchMatch);
+searchNextBtn.addEventListener("click", selectNextSearchMatch);
+zoomInBtn.addEventListener("click", applyZoomIn);
+zoomOutBtn.addEventListener("click", applyZoomOut);
+zoomResetBtn.addEventListener("click", resetZoom);
+document.getElementById("resetBtn").addEventListener("click", resetChosenPath);
+drawerToggle.addEventListener("click", toggleDrawer);
+selectBox.addEventListener("change", loadSelectedDiagram);
+openFileBtn.addEventListener("click", openFileFromDialog);
+codeBox.addEventListener("input", renderCodeBoxEdit);
+document.getElementById("fileMenuItems").addEventListener("click", closeFileMenu);
 
 // viewer.ts
 applyMainZoom(false);

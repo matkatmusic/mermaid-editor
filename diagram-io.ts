@@ -1,17 +1,14 @@
-import { codeBox, currentFileName, diagramBox, drawer, outputBox, selectBox, statusBox } from './dom.ts';
+import { currentFileName, diagramBox, drawer, outputBox, selectBox, statusBox } from './dom.ts';
 import { positionNodeInspector } from './node-inspector.ts';
-import { phonePath, state } from './state.ts';
+import { state } from './state.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import type { EditorGraph, EditorMetadata, EditorNode } from './editor-types.ts';
-import { editorGraph, restoreTypeMetadata, splitEditorMetadata } from './editor-graph.ts';
-import { render } from './render.ts';
-import { applyMainZoom } from './zoom.ts';
 
 export function setStatus(text: string) {
   statusBox.textContent = text;
   function clearStatusIfUnchanged() {
     if (statusBox.textContent === text)
-      statusBox.textContent = '';
+      statusBox.textContent = state.loadedPath ?? '';
   }
   setTimeout(clearStatusIfUnchanged, 2000);
 }
@@ -68,147 +65,3 @@ export function applyMainViewport(metadata: EditorMetadata | null, graph: Editor
   if (!hasSavedTop)
     outputBox.scrollTop = Math.max(0, nodeTop - 12);
 }
-
-export async function loadDiagram(name: string) {
-  if (state.watcher) {
-    state.watcher.close();
-    state.watcher = null;
-  }
-  const diagramResponse = await fetch('/api/diagrams/' + encodeURIComponent(name));
-  const text = await diagramResponse.text();
-  lastSavedDiagramText = text;
-  const { metadata } = splitEditorMetadata(text);
-  restoreTypeMetadata(metadata);
-  state.currentName = name;
-  sessionStorage.setItem('loadedDiagram', name);
-  state.openedFileHandle = null;
-  phonePath.length = 0;
-  state.phoneFocusNodeId = null;
-  state.phoneFocusUsesDecisionContext = false;
-  state.phonePreviewChoiceId = null;
-  state.diagramScale = null;
-  state.currentDecisionId = metadata?.lastSelectedNodeId ?? null;
-  state.mainZoomPercent = metadata?.mainZoomPercent ?? 100;
-  codeBox.value = text;
-  resetEditorHistory(text);
-  await render();
-  applyMainZoom(false);
-  let graph: EditorGraph | null = null;
-  try {
-    graph = editorGraph();
-  }
-  catch {
-    // render() has already surfaced the validation failure.
-  }
-  if (metadata) {
-    const hasSavedSelection = graph?.nodes.has(metadata.lastSelectedNodeId ?? '');
-    if (hasSavedSelection)
-      selectEditorNode(metadata.lastSelectedNodeId);
-  }
-  if (graph)
-    applyMainViewport(metadata, graph);
-  loadList();
-  createDiagramWatcher(name);
-}
-
-let lastSavedDiagramText: string | null = null;
-let watchedDiagramName: string | null = null;
-let pendingSaveCount = 0;
-let saveVersion = 0;
-
-export function createDiagramWatcher(name: string) {
-  if (state.watcher)
-    state.watcher.close();
-  watchedDiagramName = name;
-  const source = new EventSource('/api/watch/' + encodeURIComponent(name));
-  state.watcher = source;
-  const refresh = async () => {
-    const versionAtFetchStart = saveVersion;
-    const saveInFlightAtFetchStart = pendingSaveCount > 0;
-    const diagramResponse = await fetch('/api/diagrams/' + encodeURIComponent(name));
-    const text = await diagramResponse.text();
-    const isStaleWatcher = state.watcher !== source;
-    if (isStaleWatcher)
-      return;
-    // The server may answer this GET from the file before that save's PUT lands, returning pre-edit text.
-    if (saveInFlightAtFetchStart)
-      return;
-    // A save, not an external edit, triggered this notification.
-    if (pendingSaveCount > 0)
-      return;
-    if (saveVersion !== versionAtFetchStart)
-      return;
-    if (text === lastSavedDiagramText)
-      return;
-    if (text !== codeBox.value) {
-      restoreTypeMetadata(splitEditorMetadata(text).metadata);
-      codeBox.value = text;
-      resetEditorHistory(text);
-    }
-    render();
-  };
-  source.onmessage = refresh;
-  source.onopen = refresh;
-}
-
-export const MMD_FILE_TYPES = [{ description: 'Mermaid diagram', accept: { 'text/plain': ['.mmd'] } }];
-
-export async function saveDiagram() {
-  const needsSaveAsDialog = !state.currentName && !state.openedFileHandle;
-  if (needsSaveAsDialog) {
-    try {
-      state.openedFileHandle = await (window as any).showSaveFilePicker({ suggestedName: 'diagram.mmd', types: MMD_FILE_TYPES });
-    }
-    catch (error) {
-      const isUserCancel = (error as DOMException).name === 'AbortError';
-      if (!isUserCancel)
-        throw error;
-      console.log('User canceled Save');
-      return;
-    }
-  }
-  const fileHandle = state.openedFileHandle;
-  if (fileHandle) {
-    const writable = await fileHandle.createWritable();
-    await writable.write(codeBox.value);
-    await writable.close();
-    setStatus('Saved ' + fileHandle.name);
-    return;
-  }
-  const name = state.currentName!;
-  // let name = state.currentName;
-  // if (!name) {
-  //   name = prompt('Name this diagram (letters, numbers, - and _ only):');
-  //   if (!name)
-  //     return;
-  //   const hasMmdExtension = name.endsWith('.mmd');
-  //   if (!hasMmdExtension)
-  //     name += '.mmd';
-  // }
-  lastSavedDiagramText = codeBox.value;
-  pendingSaveCount++;
-  saveVersion++;
-  try {
-    await fetch('/api/diagrams/' + encodeURIComponent(name), {
-      method: 'PUT',
-      body: codeBox.value,
-    });
-  }
-  finally {
-    pendingSaveCount--;
-  }
-  state.currentName = name;
-  setStatus('Saved ' + name);
-  loadList();
-  // Don't reopen an already-watching watcher; that raced a stale onmessage against the new one.
-  const hasNoWatcher = !state.watcher;
-  if (hasNoWatcher) {
-    createDiagramWatcher(name);
-  }
-  else {
-    const isWatchingSomethingElse = watchedDiagramName !== name;
-    if (isWatchingSomethingElse)
-      createDiagramWatcher(name);
-  }
-}
-

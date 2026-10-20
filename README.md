@@ -29,6 +29,7 @@ The editor reads the start of each node name to know what the node is. Each kind
 | `Q_CHOICE_` | Choice: one answer to a question | `[]` | `Q_CHOICE_MOOD_GOOD["Good"]` |
 
 - Name a choice `Q_CHOICE_<question>_<answer>`. `<question>` is the question name without `Q_`. The editor uses this to match each answer to its question.
+- A `Q_` decision can be a choice of the decision before it. Connect them with an arrow, for example `Q_ABOUT --> Q_BROAD_INFORMATION`. The second decision shows as a choice button of the first. After you pick it, its own choices show as buttons.
 - A `B_` block with a label like `doThing(x)` is a function call.
 - The editor rejects any other name start. It also rejects round shapes like `([ ])`.
 - New nodes get the names `B_NEW_1`, `Q_NEW_1`, and so on.

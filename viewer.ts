@@ -4,7 +4,7 @@ import { selectEditorNode } from './editor-actions.ts';
 import { addQuestionAfter, addBlockAfter, addChoice, insertStaticBefore, insertDecisionBefore } from './editor-add.ts';
 import { removeQuestion, removeBlock, removeChoice, removeChoices, undoEditorAction, redoEditorAction } from './editor-remove.ts';
 import { applyMainZoom } from './zoom.ts';
-import { loadDiagram } from './diagram-io.ts';
+import { loadDiagram } from './diagram-load.ts';
 import { listAllPathIds } from './path-export-all.ts';
 import './editor-events.ts';
 import './main-events.ts';

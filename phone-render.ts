@@ -64,7 +64,8 @@ export function buildHistoryRows(edges: Edge[], graph: EditorGraph): Row[] {
       }
       rows.push({ status: 'past', id: cur, chosenChoiceId: answered, declinedChoiceIds, revertIndex: pathIndex });
       pathIndex++;
-      cur = choicesOf(answered, edges)[0];
+      const isAnswerAQuestion = graph.nodes.get(answered)?.kind === 'question';
+      cur = isAnswerAQuestion ? answered : choicesOf(answered, edges)[0];
       continue;
     }
     if (kind === 'block')
@@ -99,8 +100,11 @@ export function findAnswersLeadingTo(questionId: string, edges: Edge[], graph: E
     visited.add(nodeId);
     const isQuestion = graph.nodes.get(nodeId)?.kind === 'question';
     if (isQuestion) {
-      for (const choiceId of choicesOf(nodeId, edges))
-        queue.push({ nodeId: choicesOf(choiceId, edges)[0], answers: [...answers, choiceId] });
+      for (const choiceId of choicesOf(nodeId, edges)) {
+        const isChoiceAQuestion = graph.nodes.get(choiceId)?.kind === 'question';
+        const nextNodeId = isChoiceAQuestion ? choiceId : choicesOf(choiceId, edges)[0];
+        queue.push({ nodeId: nextNodeId, answers: [...answers, choiceId] });
+      }
       continue;
     }
     const nexts = choicesOf(nodeId, edges);

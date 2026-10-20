@@ -3,7 +3,7 @@ import { setEditorActionPromise, sourceWithEditorMetadata } from './editor-graph
 import { codeBox, diagramBox, nodeActions, selectedNodeBox } from './dom.ts';
 import { state } from './state.ts';
 import { render } from './render.ts';
-import { saveDiagram } from './diagram-io.ts';
+import { saveDiagram } from './diagram-save.ts';
 import { renderNodeInspector } from './node-inspector.ts';
 
 export async function applyEditorSource(source: string, options?: { recordHistory?: boolean }) {
@@ -17,7 +17,7 @@ export async function applyEditorSource(source: string, options?: { recordHistor
     state.editorHistoryIndex = state.editorHistory.length - 1;
   }
   await render();
-  const hasSaveTarget = !!state.currentName || !!state.openedFileHandle;
+  const hasSaveTarget = !!state.currentName || !!state.openedFileHandle || !!state.loadedPath;
   if (!hasSaveTarget)
     throw new Error('No diagram file is loaded to auto-save into');
   await saveDiagram();
@@ -25,9 +25,11 @@ export async function applyEditorSource(source: string, options?: { recordHistor
   selectEditorNode(state.selectedEditorNodeId);
 }
 
+function clearFailedAction() {}
+
 export function appendEditorAction(action: () => Promise<void>) {
   // A rejected action must not permanently block every action queued after it.
-  setEditorActionPromise(state.editorActionPromise.catch(() => {}).then(action));
+  setEditorActionPromise(state.editorActionPromise.catch(clearFailedAction).then(action));
 }
 
 export function executeEditorAction(action: () => Promise<void>) {

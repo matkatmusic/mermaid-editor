@@ -74,7 +74,9 @@ export function isAnswerId(id: string, edges: Edge[]) {
   for (const [from, to] of edges) {
     const targetsId = to === id;
     const fromIsQuestion = from.startsWith('Q_');
-    const idIsAnswerOfFrom = id.startsWith('Q_CHOICE_' + from.replace(/^Q_/, '') + '_');
+    const fromIsDecision = fromIsQuestion && !from.startsWith('Q_CHOICE');
+    const idIsQuestion = id.startsWith('Q_') && !id.startsWith('Q_CHOICE');
+    const idIsAnswerOfFrom = id.startsWith('Q_CHOICE_' + from.replace(/^Q_/, '') + '_') || (fromIsDecision && idIsQuestion);
     const isMatch = targetsId && fromIsQuestion && idIsAnswerOfFrom;
     if (isMatch) {
       matched = true;

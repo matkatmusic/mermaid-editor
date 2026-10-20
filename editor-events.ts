@@ -12,9 +12,28 @@ import { writeChosenPath } from './path-export.ts';
 import './editor-inspector-events.ts';
 import './editor-class-events.ts';
 
-outputBox.addEventListener('click', (event) => {
+function selectNodeSourceLine(id: string) {
+  const lines = codeBox.value.split('\n');
+  let start = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    const startsWithId = trimmed.startsWith(id);
+    const isNodeDefinition = startsWithId && ['[', '{', '('].includes(trimmed.charAt(id.length));
+    if (isNodeDefinition) {
+      codeBox.focus({ preventScroll: true });
+      codeBox.setSelectionRange(start, start + lines[i].length);
+      codeBox.blur();
+      return;
+    }
+    start += lines[i].length + 1;
+  }
+}
+
+const selectClickedNode = (event: MouseEvent) => {
   const nodeEl = (event.target as HTMLElement).closest('g.node');
   const id = nodeEl ? nodeIdOf(nodeEl) : null;
+  if (id)
+    selectNodeSourceLine(id);
   selectEditorNode(id);
   if (id) {
     const graph = editorGraph();
@@ -35,9 +54,10 @@ outputBox.addEventListener('click', (event) => {
       }
     }
   }
-});
+};
+outputBox.addEventListener('click', selectClickedNode);
 
-phoneDiagramBox.addEventListener('click', async (event) => {
+const selectPhoneChoice = async (event: MouseEvent) => {
   // A phone choice also selects and scrolls the main view to the next open decision.
   const target = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-choose], button[data-revert], button[data-undo], button[data-reset-decisions], button[data-write-path]');
   if (!target)
@@ -90,4 +110,5 @@ phoneDiagramBox.addEventListener('click', async (event) => {
       behavior: 'smooth',
     });
   }
-});
+};
+phoneDiagramBox.addEventListener('click', selectPhoneChoice);

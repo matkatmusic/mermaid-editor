@@ -43,8 +43,9 @@ export function nearestFeedingChoice(id: string, graph: EditorGraph) {
     const nextFrontier: string[] = [];
     for (const nodeId of frontier) {
       const node = graph.nodes.get(nodeId);
-      const isChoiceFedByDecision = node?.kind === 'choice'
-        && graph.edges.some(edge => edge.to === nodeId && graph.nodes.get(edge.from)?.kind === 'question');
+      const isAnswerKind = node?.kind === 'choice' || node?.kind === 'question';
+      const isChoiceFedByDecision = isAnswerKind
+        &&graph.edges.some(edge => edge.to === nodeId && graph.nodes.get(edge.from)?.kind === 'question');
       if (isChoiceFedByDecision)
         return nodeId;
       for (const edge of graph.edges) {

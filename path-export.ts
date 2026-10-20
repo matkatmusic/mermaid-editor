@@ -12,7 +12,9 @@ export function getChosenPathIds(): string[] {
   const rows = buildHistoryRows(parseEdges(codeBox.value), editorGraph());
   const ids: string[] = [];
   for (const row of rows) {
-    ids.push(row.id);
+    const isAlreadyListed = ids[ids.length - 1] === row.id;
+    if (!isAlreadyListed)
+      ids.push(row.id);
     const isAnsweredDecision = row.status === 'past';
     if (isAnsweredDecision)
       ids.push(row.chosenChoiceId);
