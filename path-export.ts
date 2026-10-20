@@ -88,7 +88,8 @@ export async function writeChosenPath() {
     await writeToServerDiagrams(state.currentName, source);
     return;
   }
-  if (!state.openedFileHandle)
+  const openedFileName = state.openedFileHandle?.name ?? state.loadedPath?.split('/').pop();
+  if (!openedFileName)
     throw new Error('Save the diagram before writing a chosen path');
-  await writeToOpenedFileFolder(state.openedFileHandle.name, source);
+  await writeToOpenedFileFolder(openedFileName, source);
 }

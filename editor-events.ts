@@ -1,4 +1,4 @@
-import { codeBox, diagramBox, outputBox, phoneDiagramBox } from './dom.ts';
+import { codeBox, diagramBox, drawer, outputBox, phoneDiagramBox } from './dom.ts';
 import { getNodeId } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { getEditorGraph } from './editor-graph.ts';
@@ -13,6 +13,23 @@ import './editor-inspector-events.ts';
 import './editor-class-events.ts';
 import './editor-classes-dialog.ts';
 
+function setCodeBoxScrollToLine(lineNum: number) {
+  const style = getComputedStyle(codeBox);
+  const mirror = document.createElement('div');
+  mirror.style.cssText = `position:absolute;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;box-sizing:border-box;width:${codeBox.clientWidth}px;padding:${style.padding};font:${style.font};line-height:${style.lineHeight};`;
+  const allLines = codeBox.value.split('\n');
+  let textAbove = '';
+  for (let i = 0; i < lineNum; i++)
+    textAbove += allLines[i] + '\n';
+  mirror.textContent = textAbove;
+  const lineMarker = document.createElement('span');
+  lineMarker.textContent = 'x';
+  mirror.append(lineMarker);
+  document.body.append(mirror);
+  codeBox.scrollTop = lineMarker.offsetTop - parseFloat(style.paddingTop);
+  mirror.remove();
+}
+
 function selectNodeSourceLine(id: string) {
   const lines = codeBox.value.split('\n');
   let start = 0;
@@ -21,6 +38,15 @@ function selectNodeSourceLine(id: string) {
     const startsWithId = trimmed.startsWith(id);
     const isNodeDefinition = startsWithId && ['[', '{', '('].includes(trimmed.charAt(id.length));
     if (isNodeDefinition) {
+      // if (!drawer.classList.contains('closed')) {
+      //   const fullText = codeBox.value;
+      //   codeBox.value = fullText.slice(0, start + lines[i].length);
+      //   codeBox.scrollTop = codeBox.scrollHeight;
+      //   codeBox.value = fullText;
+      // }
+      const isDrawerOpen = !drawer.classList.contains('closed');
+      if (isDrawerOpen)
+        setCodeBoxScrollToLine(i);
       codeBox.focus({ preventScroll: true });
       codeBox.setSelectionRange(start, start + lines[i].length);
       codeBox.blur();

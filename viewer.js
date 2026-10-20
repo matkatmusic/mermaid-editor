@@ -2334,9 +2334,10 @@ async function writeChosenPath() {
     await writeToServerDiagrams(state.currentName, source);
     return;
   }
-  if (!state.openedFileHandle)
+  const openedFileName = state.openedFileHandle?.name ?? state.loadedPath?.split("/").pop();
+  if (!openedFileName)
     throw new Error("Save the diagram before writing a chosen path");
-  await writeToOpenedFileFolder(state.openedFileHandle.name, source);
+  await writeToOpenedFileFolder(openedFileName, source);
 }
 
 // path-export-all.ts
@@ -2377,7 +2378,8 @@ async function writeAllPaths() {
       setStatus(`Writing ${writtenCount}/${sources.length} paths`);
     }
   } else {
-    if (!state.openedFileHandle)
+    const openedFileName = state.openedFileHandle?.name ?? state.loadedPath?.split("/").pop();
+    if (!openedFileName)
       throw new Error("Save the diagram before exporting all paths");
     const hasFolder = await selectPathFolder();
     if (!hasFolder) {
@@ -2386,7 +2388,7 @@ async function writeAllPaths() {
     }
     setStatus(`Writing 0/${sources.length} paths`);
     for (let writtenCount = 1;writtenCount <= sources.length; writtenCount++) {
-      await writeToOpenedFileFolder(state.openedFileHandle.name, sources[writtenCount - 1]);
+      await writeToOpenedFileFolder(openedFileName, sources[writtenCount - 1]);
       setStatus(`Writing ${writtenCount}/${sources.length} paths`);
     }
   }
@@ -2880,6 +2882,24 @@ classesList.addEventListener("change", updateClassFromRow);
 classesList.addEventListener("click", removeClassFromRow);
 
 // editor-events.ts
+function setCodeBoxScrollToLine(lineNum) {
+  const style = getComputedStyle(codeBox);
+  const mirror = document.createElement("div");
+  mirror.style.cssText = `position:absolute;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;box-sizing:border-box;width:${codeBox.clientWidth}px;padding:${style.padding};font:${style.font};line-height:${style.lineHeight};`;
+  const allLines = codeBox.value.split(`
+`);
+  let textAbove = "";
+  for (let i = 0;i < lineNum; i++)
+    textAbove += allLines[i] + `
+`;
+  mirror.textContent = textAbove;
+  const lineMarker = document.createElement("span");
+  lineMarker.textContent = "x";
+  mirror.append(lineMarker);
+  document.body.append(mirror);
+  codeBox.scrollTop = lineMarker.offsetTop - parseFloat(style.paddingTop);
+  mirror.remove();
+}
 function selectNodeSourceLine(id) {
   const lines = codeBox.value.split(`
 `);
@@ -2889,6 +2909,9 @@ function selectNodeSourceLine(id) {
     const startsWithId = trimmed.startsWith(id);
     const isNodeDefinition = startsWithId && ["[", "{", "("].includes(trimmed.charAt(id.length));
     if (isNodeDefinition) {
+      const isDrawerOpen = !drawer.classList.contains("closed");
+      if (isDrawerOpen)
+        setCodeBoxScrollToLine(i);
       codeBox.focus({ preventScroll: true });
       codeBox.setSelectionRange(start, start + lines[i].length);
       codeBox.blur();

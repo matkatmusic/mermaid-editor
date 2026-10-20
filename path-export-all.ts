@@ -48,7 +48,8 @@ export async function writeAllPaths() {
     }
   }
   else {
-    if (!state.openedFileHandle)
+    const openedFileName = state.openedFileHandle?.name ?? state.loadedPath?.split('/').pop();
+    if (!openedFileName)
       throw new Error('Save the diagram before exporting all paths');
     const hasFolder = await selectPathFolder();
     if (!hasFolder) {
@@ -57,7 +58,7 @@ export async function writeAllPaths() {
     }
     setStatus(`Writing 0/${sources.length} paths`);
     for (let writtenCount = 1; writtenCount <= sources.length; writtenCount++) {
-      await writeToOpenedFileFolder(state.openedFileHandle.name, sources[writtenCount - 1]);
+      await writeToOpenedFileFolder(openedFileName, sources[writtenCount - 1]);
       setStatus(`Writing ${writtenCount}/${sources.length} paths`);
     }
   }
