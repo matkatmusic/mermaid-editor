@@ -1,11 +1,11 @@
 import { INSPECTOR_TITLES } from './editor-types.ts';
-import type { EditorGraph, EditorNode, EditorNodeKind } from './editor-types.ts';
-import { editorGraph } from './editor-graph.ts';
-import { applyEditorSource, executeEditorAction } from './editor-actions.ts';
-import { classPickerBtn, classPickerLabel, classPickerList, classPickerSwatch, codeBox, destinationRow, destinationSelect, drawer, mainBox, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeTextInput } from './dom.ts';
+import type { EditorGraph } from './editor-types.ts';
+import { getEditorGraph } from './editor-graph.ts';
+import { destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeTextInput } from './dom.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
-import { classDefByName, classOfNode, parseClassDefs } from './class-defs.ts';
-import { outgoingDestination } from './source-edit.ts';
+import { findOutgoingDestination } from './source-edit.ts';
+import { renderClassPicker } from './node-inspector-class.ts';
+import { clearInspectorFocus, updateNodeInspectorPosition } from './node-inspector-focus.ts';
 
 export function replaceDeclarationInLine(line: string, id: string, newToken: string) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -44,7 +44,7 @@ export function replaceDeclarationInLine(line: string, id: string, newToken: str
 //   label.addEventListener('blur', commit, { once: true });
 // }
 
-export function inspectorActionButton(action: string, label: string, spanTwoColumns = false) {
+export function createInspectorActionButton(action: string, label: string, spanTwoColumns = false) {
   const button = document.createElement('button');
   button.type = 'button';
   button.dataset.action = action;
@@ -56,18 +56,18 @@ export function inspectorActionButton(action: string, label: string, spanTwoColu
 export function renderNodeInspector() {
   let graph: EditorGraph;
   try {
-    graph = editorGraph();
+    graph = getEditorGraph();
   }
   catch {
     nodeInspector.hidden = true;
-    blurInspectorFocus();
+    clearInspectorFocus();
     return;
   }
   const node = graph.nodes.get(state.selectedEditorNodeId ?? '');
   nodeInspector.hidden = !node;
   if (!node) {
     nodeTextInput.value = '';
-    blurInspectorFocus();
+    clearInspectorFocus();
     return;
   }
   const previewing = !!state.pendingRemoval;
@@ -85,31 +85,31 @@ export function renderNodeInspector() {
   nodeInspectorActions.hidden = previewing;
   nodeInspectorControls.hidden = previewing;
   if (previewing) {
-    positionNodeInspector();
+    updateNodeInspectorPosition();
     return;
   }
-  const actions: HTMLButtonElement[] = [inspectorActionButton('remove', 'Remove')];
+  const actions: HTMLButtonElement[] = [createInspectorActionButton('remove', 'Remove')];
   if (node.kind === 'question')
     actions.push(
-      inspectorActionButton('add-choice', 'Add choice'),
-      inspectorActionButton('remove-choices', 'Remove choices'),
-      inspectorActionButton('insert-static-before', 'insert static block before'),
-      inspectorActionButton('insert-decision-before', 'insert Decision & leading choice before'),
+      createInspectorActionButton('add-choice', 'Add choice'),
+      createInspectorActionButton('remove-choices', 'Remove choices'),
+      createInspectorActionButton('insert-static-before', 'insert static block before'),
+      createInspectorActionButton('insert-decision-before', 'insert Decision & leading choice before'),
     );
   else if (node.kind === 'block')
     actions.push(
-      inspectorActionButton('add-decision-after', 'add Decision block after'),
-      inspectorActionButton('insert-decision-after', 'Insert decision block after'),
-      inspectorActionButton('insert-static-after', 'Insert static block after'),
-      inspectorActionButton('insert-static-before', 'insert static block before'),
-      inspectorActionButton('insert-decision-before', 'insert Decision & leading choice before'),
+      createInspectorActionButton('add-decision-after', 'add Decision block after'),
+      createInspectorActionButton('insert-decision-after', 'Insert decision block after'),
+      createInspectorActionButton('insert-static-after', 'Insert static block after'),
+      createInspectorActionButton('insert-static-before', 'insert static block before'),
+      createInspectorActionButton('insert-decision-before', 'insert Decision & leading choice before'),
     );
   else if (node.kind === 'choice')
     actions.push(
-      inspectorActionButton('add-decision-after', 'add Decision block after'),
-      inspectorActionButton('add-static-after', 'add static block after'),
-      inspectorActionButton('insert-decision-after', 'Insert decision block after'),
-      inspectorActionButton('insert-static-after', 'Insert static block after'),
+      createInspectorActionButton('add-decision-after', 'add Decision block after'),
+      createInspectorActionButton('add-static-after', 'add static block after'),
+      createInspectorActionButton('insert-decision-after', 'Insert decision block after'),
+      createInspectorActionButton('insert-static-after', 'Insert static block after'),
     );
   nodeInspectorActions.replaceChildren(...actions);
   const hasDestination = node.kind !== 'question';
@@ -119,7 +119,7 @@ export function renderNodeInspector() {
     destinationSelect.add(new Option('Terminal', ''));
     destinationSelect.add(new Option('New static block', NEW_STATIC_DESTINATION));
     destinationSelect.add(new Option('New Decision block', NEW_DECISION_DESTINATION));
-    const destination = outgoingDestination(node.id, graph);
+    const destination = findOutgoingDestination(node.id, graph);
     const candidates = Array.from(graph.nodes.values());
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i];
@@ -137,54 +137,6 @@ export function renderNodeInspector() {
   else {
     nodeInspectorDismissBtn.textContent = 'Cancel';
   }
-  positionNodeInspector();
-}
-
-export function renderClassPicker(node: EditorNode) {
-  const source = codeBox.value;
-  const className = classOfNode(source, node.id);
-  const def = className ? classDefByName(source, className) : undefined;
-  classPickerBtn.dataset.nodeId = node.id;
-  classPickerLabel.textContent = className ?? '(none)';
-  classPickerSwatch.style.background = def ? def.fill : 'transparent';
-  classPickerSwatch.style.borderColor = def ? def.stroke : '#999';
-  const rows: string[] = [];
-  for (const classDef of parseClassDefs(source))
-    rows.push(`<button type="button" class="class-picker-row" data-class-name="${classDef.name}"><span class="class-swatch" style="background:${classDef.fill};border-color:${classDef.stroke}"></span>${classDef.name}</button>`);
-  rows.push('<button type="button" class="class-picker-row" data-class-none>(none)</button>');
-  rows.push('<button type="button" class="class-picker-row" data-class-new>new...</button>');
-  classPickerList.innerHTML = rows.join('');
-  classPickerList.hidden = true;
-}
-
-export function positionNodeInspector() {
-  // The widget now sits in the page layout under #output.
-  // if (nodeInspector.hidden)
-  //   return;
-  // const drawerRect = drawer.getBoundingClientRect();
-  // const mainRect = mainBox.getBoundingClientRect();
-  // nodeInspector.style.width = '';
-  // nodeInspector.style.left = drawerRect.right + 'px';
-  // nodeInspector.style.top = mainRect.top + 'px';
-}
-
-export function focusInspectorText() {
-  nodeTextInput.focus();
-  nodeTextInput.select();
-}
-
-export function focusInspectorDestination() {
-  destinationSelect.focus();
-}
-
-// visibility:hidden used to auto-blur focus; opacity+pointer-events dimming does not, so blur explicitly.
-function blurInspectorFocus() {
-  const active = document.activeElement;
-  const isFocusedElement = active instanceof HTMLElement;
-  for (const el of isFocusedElement ? [active as HTMLElement] : []) {
-    const isInsideInspector = nodeInspector.contains(el);
-    if (isInsideInspector)
-      el.blur();
-  }
+  updateNodeInspectorPosition();
 }
 

@@ -1,13 +1,13 @@
 import { state } from './state.ts';
-import { editorGraph, setEditorActionPromise } from './editor-graph.ts';
-import { preserveInlineDecl, sourceWithLinesReplaced } from './source-edit.ts';
-import { applyEditorSource, executeEditorAction, selectEditorNode, renderRemovalPreview } from './editor-actions.ts';
-import { nodeActions } from './dom.ts';
+import { getEditorGraph } from './editor-graph.ts';
+import { setEditorActionPromise } from './editor-metadata.ts';
+import { appendInlineDecl, buildSourceWithLinesReplaced } from './source-edit.ts';
+import { applyEditorSource, selectEditorNode } from './editor-actions.ts';
 
 export function removeChoice() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const id = state.selectedEditorNodeId;
   const node = graph.nodes.get(id);
   const removedLineIndexes = new Set<number>();
@@ -21,17 +21,17 @@ export function removeChoice() {
     removedLineIndexes.add(edge.lineIndex);
     const otherEndpoint = edge.from === id ? edge.to : edge.from;
     if (otherEndpoint !== id)
-      preserveInlineDecl(edge, otherEndpoint, graph, newLines);
+      appendInlineDecl(edge, otherEndpoint, graph, newLines);
   }
   // Clear selection before committing so the saved metadata doesn't point at the node this removes.
   selectEditorNode(null);
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 export function removeBlock() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const id = state.selectedEditorNodeId;
   const node = graph.nodes.get(id);
   const removedLineIndexes = new Set<number>();
@@ -47,11 +47,11 @@ export function removeBlock() {
     removedLineIndexes.add(edge.lineIndex);
     if (edge.from === id) {
       successors.push(edge.to);
-      preserveInlineDecl(edge, edge.to, graph, newLines);
+      appendInlineDecl(edge, edge.to, graph, newLines);
     }
     else {
       predecessors.push(edge.from);
-      preserveInlineDecl(edge, edge.from, graph, newLines);
+      appendInlineDecl(edge, edge.from, graph, newLines);
     }
   }
   for (const predecessor of predecessors)
@@ -59,30 +59,13 @@ export function removeBlock() {
       newLines.push(`  ${predecessor} --> ${successor}`);
   // Clear selection before committing so the saved metadata doesn't point at the node this removes.
   selectEditorNode(null);
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
-}
-
-export function removeQuestion() {
-  if (!state.selectedEditorNodeId)
-    return;
-  const graph = editorGraph();
-  const questionId = state.selectedEditorNodeId;
-  const choices: string[] = [];
-  for (const edge of graph.edges) {
-    if (edge.from === questionId)
-      choices.push(edge.to);
-  }
-  if (!choices.length)
-    return;
-  state.pendingRemoval = { questionId, choices, index: 0 };
-  nodeActions.classList.add('removing');
-  renderRemovalPreview();
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 export function removeChoices() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const questionId = state.selectedEditorNodeId;
   const removedLineIndexes = new Set<number>();
   const newLines: string[] = [];
@@ -93,7 +76,7 @@ export function removeChoices() {
     const targetNode = graph.nodes.get(edge.to);
     const isImmediateChoice = targetNode?.kind === 'choice';
     if (!isImmediateChoice) {
-      preserveInlineDecl(edge, edge.to, graph, newLines);
+      appendInlineDecl(edge, edge.to, graph, newLines);
       continue;
     }
     const choiceNodeId = edge.to;
@@ -107,83 +90,8 @@ export function removeChoices() {
       removedLineIndexes.add(inner.lineIndex);
       const otherEndpoint = inner.from === choiceNodeId ? inner.to : inner.from;
       if (otherEndpoint !== choiceNodeId)
-        preserveInlineDecl(inner, otherEndpoint, graph, newLines);
+        appendInlineDecl(inner, otherEndpoint, graph, newLines);
     }
   }
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
-
-export function advanceRemovalPreview() {
-  if (!state.pendingRemoval)
-    return;
-  state.pendingRemoval.index = (state.pendingRemoval.index + 1) % state.pendingRemoval.choices.length;
-  renderRemovalPreview();
-}
-
-export function cancelQuestionRemoval() {
-  selectEditorNode(null);
-}
-
-export function confirmQuestionRemoval() {
-  if (!state.pendingRemoval)
-    return;
-  const { questionId, choices, index } = state.pendingRemoval;
-  const graph = editorGraph();
-  const removedLineIndexes = new Set<number>();
-  const newLines: string[] = [];
-  const qNode = graph.nodes.get(questionId);
-  if (qNode)
-    removedLineIndexes.add(qNode.lineIndex);
-  const predecessors: string[] = [];
-  for (const edge of graph.edges) {
-    if (edge.to !== questionId)
-      continue;
-    predecessors.push(edge.from);
-    removedLineIndexes.add(edge.lineIndex);
-    preserveInlineDecl(edge, edge.from, graph, newLines);
-  }
-  let keepSuccessor = choices[index];
-  for (const edge of graph.edges) {
-    if (edge.from !== questionId)
-      continue;
-    removedLineIndexes.add(edge.lineIndex);
-    const targetNode = graph.nodes.get(edge.to);
-    const isImmediateChoice = targetNode?.kind === 'choice';
-    if (!isImmediateChoice) {
-      preserveInlineDecl(edge, edge.to, graph, newLines);
-      continue;
-    }
-    removedLineIndexes.add(targetNode!.lineIndex);
-    for (const inner of graph.edges) {
-      if (inner.from !== edge.to)
-        continue;
-      removedLineIndexes.add(inner.lineIndex);
-      if (edge.to === keepSuccessor) {
-        preserveInlineDecl(inner, inner.to, graph, newLines);
-        keepSuccessor = inner.to;
-      }
-    }
-  }
-  for (const predecessor of predecessors)
-    newLines.push(`  ${predecessor} --> ${keepSuccessor}`);
-  executeEditorAction(() => applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
-}
-
-export function undoEditorAction() {
-  if (state.editorHistoryIndex <= 0)
-    return;
-  state.editorHistoryIndex--;
-  // Clear selection before committing so the re-stamped metadata doesn't leak the current selection into the restored history entry.
-  selectEditorNode(null);
-  executeEditorAction(() => applyEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
-}
-
-export function redoEditorAction() {
-  if (state.editorHistoryIndex >= state.editorHistory.length - 1)
-    return;
-  state.editorHistoryIndex++;
-  // Clear selection before committing so the re-stamped metadata doesn't leak the current selection into the restored history entry.
-  selectEditorNode(null);
-  executeEditorAction(() => applyEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
-}
-

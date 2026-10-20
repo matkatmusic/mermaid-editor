@@ -1,7 +1,7 @@
 import type { EditorGraph } from './editor-types.ts';
 import { codeBox, diagramBox } from './dom.ts';
-import { nodeIdOf } from './render-helpers.ts';
-import { buildClassStyleIndex, styleOfNode } from './class-defs.ts';
+import { getNodeId } from './render-helpers.ts';
+import { buildClassStyleIndex, findNodeStyle } from './class-style-index.ts';
 
 // Retired: colors used to come from state.typeColors/state.nodeTypes metadata (a second system
 // that fought mermaid's own `classDef`/`class` lines). Color now comes only from those lines.
@@ -48,10 +48,10 @@ export function applyNodeTypeColors(graph: EditorGraph) {
     return;
   const classIndex = buildClassStyleIndex(codeBox.value);
   for (const nodeEl of diagramBox.querySelectorAll('g.node')) {
-    const node = graph.nodes.get(nodeIdOf(nodeEl));
+    const node = graph.nodes.get(getNodeId(nodeEl));
     if (!node)
       continue; // Slice stubs and stale metadata entries are intentionally ignored.
-    const isClassed = !!styleOfNode(classIndex, node.id);
+    const isClassed = !!findNodeStyle(classIndex, node.id);
     if (isClassed)
       continue;
     addUnclassedStripePattern(svg);

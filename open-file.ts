@@ -1,10 +1,10 @@
 import { state } from './state.ts';
-import { restoreTypeMetadata, splitEditorMetadata } from './editor-graph.ts';
+import { applyTypeMetadata, splitEditorMetadata } from './editor-metadata.ts';
 import { codeBox, selectBox, statusBox } from './dom.ts';
 import { loadList, resetEditorHistory, setDrawerOpen } from './diagram-io.ts';
 import { render } from './render.ts';
 
-// The server opens the macOS file dialog so the full path is known; File -> Save writes back to that path.
+// The server opens the macOS file dialog, so the full path is known.
 export async function openFileFromDialog() {
   // let fileHandles;
   // try {
@@ -40,7 +40,7 @@ export async function openFileFromDialog() {
   state.currentDecisionId = null;
   // codeBox.value = await file.text();
   codeBox.value = text;
-  restoreTypeMetadata(splitEditorMetadata(codeBox.value).metadata);
+  applyTypeMetadata(splitEditorMetadata(codeBox.value).metadata);
   resetEditorHistory(codeBox.value);
   selectBox.value = '';
   render();

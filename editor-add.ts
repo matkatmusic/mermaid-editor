@@ -1,13 +1,15 @@
 import { state } from './state.ts';
-import { declarationSuffixOf, editorGraph, setEditorActionPromise } from './editor-graph.ts';
-import { choiceId, nextEditorId, preserveInlineDecl, sourceWithLinesReplaced } from './source-edit.ts';
+import { getEditorGraph } from './editor-graph.ts';
+import { getDeclarationSuffix } from './editor-parse.ts';
+import { setEditorActionPromise } from './editor-metadata.ts';
+import { appendInlineDecl, buildChoiceId, buildSourceWithLinesReplaced, getNextEditorId } from './source-edit.ts';
 import { applyEditorSource } from './editor-actions.ts';
 import type { EditorEdge } from './editor-types.ts';
 
 export function addQuestionAfter() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const selected = state.selectedEditorNodeId;
   const removedLineIndexes = new Set<number>();
   const successors: string[] = [];
@@ -17,9 +19,9 @@ export function addQuestionAfter() {
     successors.push(edge.to);
     removedLineIndexes.add(edge.lineIndex);
   }
-  const qId = nextEditorId('Q_NEW', graph);
-  const yesId = choiceId(qId, 'Y');
-  const noId = choiceId(qId, 'N');
+  const qId = getNextEditorId('Q_NEW', graph);
+  const yesId = buildChoiceId(qId, 'Y');
+  const noId = buildChoiceId(qId, 'N');
   const newLines = [
     `  ${selected} --> ${qId}`,
     `  ${qId}{"New question"}`,
@@ -31,19 +33,19 @@ export function addQuestionAfter() {
   for (const edge of graph.edges) {
     if (edge.from !== selected)
       continue;
-    preserveInlineDecl(edge, edge.to, graph, newLines);
+    appendInlineDecl(edge, edge.to, graph, newLines);
   }
   for (const successor of successors) {
     newLines.push(`  ${yesId} --> ${successor}`);
     newLines.push(`  ${noId} --> ${successor}`);
   }
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 export function addBlockAfter() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const selected = state.selectedEditorNodeId;
   const removedLineIndexes = new Set<number>();
   const successors: string[] = [];
@@ -53,109 +55,46 @@ export function addBlockAfter() {
       continue;
     successors.push(edge.to);
     removedLineIndexes.add(edge.lineIndex);
-    preserveInlineDecl(edge, edge.to, graph, newLines);
+    appendInlineDecl(edge, edge.to, graph, newLines);
   }
-  const bId = nextEditorId('B_NEW', graph);
+  const bId = getNextEditorId('B_NEW', graph);
   newLines.unshift(`  ${selected} --> ${bId}`, `  ${bId}["New block"]`);
   for (const successor of successors)
     newLines.push(`  ${bId} --> ${successor}`);
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
-export function insertStaticBefore() {
-  if (!state.selectedEditorNodeId)
-    return;
-  const graph = editorGraph();
-  const selected = state.selectedEditorNodeId;
-  const selectedNode = graph.nodes.get(selected)!;
-  const removedLineIndexes = new Set<number>();
-  const predecessors: EditorEdge[] = [];
-  for (const edge of graph.edges) {
-    if (edge.to !== selected)
-      continue;
-    predecessors.push(edge);
-    removedLineIndexes.add(edge.lineIndex);
-  }
-  const staticId = nextEditorId('B_NEW', graph);
-  const newLines: string[] = [`  ${staticId}["New static block"]`];
-  const restoredInlineDecls = new Set<string>();
-  const restoreInlineDecl = (edge: EditorEdge, endpointId: string) => {
-    const node = graph.nodes.get(endpointId);
-    if (node && node.lineIndex === edge.lineIndex && !restoredInlineDecls.has(endpointId)) {
-      restoredInlineDecls.add(endpointId);
-      newLines.push(`  ${endpointId}${declarationSuffixOf(node)}`);
-    }
-  };
-  if (removedLineIndexes.has(selectedNode.lineIndex))
-    newLines.push(`  ${selected}${declarationSuffixOf(selectedNode)}`);
-  restoredInlineDecls.add(selected);
-  for (const edge of predecessors)
-    restoreInlineDecl(edge, edge.from);
-  for (const edge of predecessors)
-    newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${staticId}` : `  ${edge.from} --> ${staticId}`);
-  newLines.push(`  ${staticId} --> ${selected}`);
-  // Removing one segment drops the whole chained line, so recreate its other segments and their inline declarations.
-  for (const edge of graph.edges) {
-    if (!removedLineIndexes.has(edge.lineIndex) || edge.to === selected)
-      continue;
-    restoreInlineDecl(edge, edge.from);
-    restoreInlineDecl(edge, edge.to);
-    newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${edge.to}` : `  ${edge.from} --> ${edge.to}`);
-  }
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
-}
-
-export function insertDecisionBefore() {
-  if (!state.selectedEditorNodeId)
-    return;
-  const graph = editorGraph();
-  const selected = state.selectedEditorNodeId;
-  const selectedNode = graph.nodes.get(selected)!;
-  const removedLineIndexes = new Set<number>();
-  const predecessors: EditorEdge[] = [];
-  for (const edge of graph.edges) {
-    if (edge.to !== selected)
-      continue;
-    predecessors.push(edge);
-    removedLineIndexes.add(edge.lineIndex);
-  }
-  const decisionId = nextEditorId('Q_NEW', graph);
-  const newChoiceId = choiceId(decisionId, 'NEW');
-  const newLines: string[] = [
-    `  ${decisionId}{"New Decision"}`,
-    `  ${newChoiceId}["New choice"]`,
-    `  ${decisionId} --> ${newChoiceId}`,
-  ];
-  if (removedLineIndexes.has(selectedNode.lineIndex))
-    newLines.push(`  ${selected}${declarationSuffixOf(selectedNode)}`);
-  for (const edge of predecessors)
-    preserveInlineDecl(edge, edge.from, graph, newLines);
-  for (const edge of predecessors)
-    newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${decisionId}` : `  ${edge.from} --> ${decisionId}`);
-  newLines.push(`  ${newChoiceId} --> ${selected}`);
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
-}
-
-export function choiceSuffixFromLabel(label: string) {
-  return label.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'CHOICE';
+export function getChoiceSuffixFromLabel(label: string) {
+  const upperLabel = label.trim().toUpperCase();
+  const underscored = upperLabel.replace(/[^A-Z0-9]+/g, '_');
+  const trimmed = underscored.replace(/^_+|_+$/g, '');
+  return trimmed || 'CHOICE';
 }
 
 export function addChoice() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const questionId = state.selectedEditorNodeId;
-  const labelled = graph.edges.find(e => e.from === questionId && e.label);
+  let labelled: EditorEdge | undefined;
+  for (const edge of graph.edges) {
+    const isFromQuestion = edge.from === questionId;
+    const hasLabel = !!edge.label;
+    const isLabelled = isFromQuestion && hasLabel;
+    if (isLabelled) {
+      labelled = edge;
+      break;
+    }
+  }
   const removedLineIndexes = new Set<number>();
   const newLines: string[] = [];
   if (labelled) {
     removedLineIndexes.add(labelled.lineIndex);
-    const suffix = choiceSuffixFromLabel(labelled.label!);
-    const cid = choiceId(questionId, suffix);
-    const targetSuffix = (() => {
-      const node = graph.nodes.get(labelled.to);
-      return node && node.lineIndex === labelled.lineIndex ? declarationSuffixOf(node) : '';
-    })();
+    const suffix = getChoiceSuffixFromLabel(labelled.label!);
+    const cid = buildChoiceId(questionId, suffix);
+    const targetNode = graph.nodes.get(labelled.to);
+    const isTargetOnEdgeLine = targetNode?.lineIndex === labelled.lineIndex;
+    const targetSuffix = isTargetOnEdgeLine ? getDeclarationSuffix(targetNode!) : '';
     newLines.push(
       `  ${cid}["${labelled.label}"]`,
       `  ${questionId} --> ${cid}`,
@@ -165,11 +104,10 @@ export function addChoice() {
   else {
     let suffix = 'NEW';
     let n = 1;
-    while (graph.nodes.has(choiceId(questionId, suffix)))
+    while (graph.nodes.has(buildChoiceId(questionId, suffix)))
       suffix = 'NEW' + (++n);
-    const cid = choiceId(questionId, suffix);
+    const cid = buildChoiceId(questionId, suffix);
     newLines.push(`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`);
   }
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
-

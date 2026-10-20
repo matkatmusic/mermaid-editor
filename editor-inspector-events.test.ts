@@ -12,5 +12,5 @@ test("test_inspector_events_tab_key_commits_node_text", () => {
 
 test("test_inspector_events_change_listener_commits_node_text", () => {
   assert.ok(source.includes("nodeTextInput.addEventListener('change', writeNodeTextOnChange);"));
-  assert.ok(source.includes("commitNodeText(id, text);"));
+  assert.ok(source.includes("updateNodeText(id, text);"));
 });

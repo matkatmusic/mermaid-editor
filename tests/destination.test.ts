@@ -121,11 +121,11 @@ test("test_dirty_text_then_destination_creates_two_ordered_undo_entries", async 
   let source = await evaluate('codeBox.value');
   assert.ok(source.includes('B_A["Renamed A"]'));
   assert.ok(source.includes('B_A --> Q_C'));
-  await evaluate('window.undoEditorAction(); window.editorActionPromise');
+  await evaluate('window.applyEditorUndo(); window.editorActionPromise');
   source = await evaluate('codeBox.value');
   assert.ok(source.includes('B_A["Renamed A"]'));
   assert.ok(source.includes('B_A --> B_B'));
-  await evaluate('window.undoEditorAction(); window.editorActionPromise');
+  await evaluate('window.applyEditorUndo(); window.editorActionPromise');
   source = await evaluate('codeBox.value');
   assert.ok(source.includes('B_A["A"]'));
   assert.ok(source.includes('B_A --> B_B'));

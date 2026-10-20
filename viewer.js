@@ -122,7 +122,7 @@ function parseEdges(text) {
 }
 
 // render-helpers.ts
-function walkTrail(edges) {
+function findTrail(edges) {
   const bright = new Set;
   const visited = new Set;
   let node = edges[0][0];
@@ -146,7 +146,8 @@ function walkTrail(edges) {
     }
     let chosen;
     for (const option of nextNodes) {
-      if (chosenAnswers.has(option)) {
+      const isChosen = chosenAnswers.has(option);
+      if (isChosen) {
         chosen = option;
         break;
       }
@@ -158,33 +159,34 @@ function walkTrail(edges) {
   }
   return bright;
 }
-function highlightPath() {
+function applyPathHighlight() {
   const svgNodes = diagramBox.querySelectorAll("g.node");
   const svgEdges = diagramBox.querySelectorAll("path.flowchart-link");
   const edges = parseEdges(codeBox.value);
-  const bright = chosenAnswers.size ? walkTrail(edges) : null;
+  const bright = chosenAnswers.size ? findTrail(edges) : null;
   const isDim = (id) => bright !== null && !bright.has(id);
   for (const el of svgNodes)
-    el.classList.toggle("dim", isDim(nodeIdOf(el)));
+    el.classList.toggle("dim", isDim(getNodeId(el)));
   for (const el of svgEdges) {
-    const [from, to] = edgeEndsOf(el, edges);
+    const [from, to] = getEdgeEnds(el, edges);
     el.classList.toggle("dim", isDim(from) || isDim(to));
   }
 }
-function edgeEndsOf(el, edges) {
+function getEdgeEnds(el, edges) {
   let found;
   for (const edge of edges) {
-    if (el.id.includes("L_" + edge[0] + "_" + edge[1] + "_")) {
+    const isEdgeElement = el.id.includes("L_" + edge[0] + "_" + edge[1] + "_");
+    if (isEdgeElement) {
       found = edge;
       break;
     }
   }
   return found || [];
 }
-function nodeIdOf(el) {
+function getNodeId(el) {
   return el.id.replace(/^.*flowchart-/, "").replace(/-\d+$/, "");
 }
-function showEditorValidationError(error) {
+function reportEditorValidationError(error) {
   const message = error instanceof Error ? error.message : String(error);
   errorBox.textContent = message;
   errorLog.textContent = message + `
@@ -209,7 +211,7 @@ ${problems.join(`
 var EDITOR_METADATA_FENCE = "%%%%====";
 var EDITOR_METADATA_WARNING = "DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE";
 
-// editor-graph.ts
+// editor-metadata.ts
 function splitEditorMetadata(source) {
   const headerPattern = /(?:^|\r?\n)%%%%====\r?\n%% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE\r?\n%% (\{[^\r\n]*\})\r?\n%%%%====/g;
   const matches = [...source.matchAll(headerPattern)];
@@ -218,21 +220,24 @@ function splitEditorMetadata(source) {
   let metadata = null;
   try {
     const parsed = JSON.parse(matches[matches.length - 1][1]);
-    if (parsed && typeof parsed === "object") {
+    const isObject = typeof parsed === "object";
+    const hasParsed = !!parsed;
+    const isRecord = hasParsed && isObject;
+    if (isRecord) {
       const lastSelectedNodeId = typeof parsed.lastSelectedNodeId === "string" || parsed.lastSelectedNodeId === null ? parsed.lastSelectedNodeId : null;
       metadata = {
         lastSelectedNodeId,
         outputScrollLeft: typeof parsed.outputScrollLeft === "number" ? parsed.outputScrollLeft : undefined,
         outputScrollTop: typeof parsed.outputScrollTop === "number" ? parsed.outputScrollTop : undefined,
         mainZoomPercent: typeof parsed.mainZoomPercent === "number" ? parsed.mainZoomPercent : undefined,
-        typeColors: stringRecord(parsed.typeColors),
-        nodeTypes: stringRecord(parsed.nodeTypes)
+        typeColors: getStringRecord(parsed.typeColors),
+        nodeTypes: getStringRecord(parsed.nodeTypes)
       };
     }
   } catch {}
   return { source: source.replace(headerPattern, "").replace(/\s+$/, ""), metadata };
 }
-function sourceWithEditorMetadata(source) {
+function buildSourceWithMetadata(source) {
   const body = splitEditorMetadata(source).source;
   const metadata = {
     lastSelectedNodeId: state.selectedEditorNodeId,
@@ -246,11 +251,13 @@ ${EDITOR_METADATA_FENCE}
 %% ${JSON.stringify(metadata)}
 ${EDITOR_METADATA_FENCE}`;
 }
-function stringRecord(value) {
+function getStringRecord(value) {
   const isMissing = !value;
   const isNotObject = typeof value !== "object";
+  const isMissingOrNotObject = isMissing || isNotObject;
   const isArray = Array.isArray(value);
-  if (isMissing || isNotObject || isArray)
+  const isInvalid = isMissingOrNotObject || isArray;
+  if (isInvalid)
     return;
   const result = {};
   for (const [key, entry] of Object.entries(value)) {
@@ -259,13 +266,15 @@ function stringRecord(value) {
   }
   return result;
 }
-function restoreTypeMetadata(metadata) {}
+function applyTypeMetadata(metadata) {}
 function setEditorActionPromise(promise) {
   state.editorActionPromise = promise;
   window.editorActionPromise = promise;
 }
 setEditorActionPromise(Promise.resolve());
-function stripEditorQuotes(text) {
+
+// editor-parse.ts
+function trimEditorQuotes(text) {
   return text.replace(/^"(.*)"$/, "$1");
 }
 function parseEditorToken(token) {
@@ -274,45 +283,60 @@ function parseEditorToken(token) {
     return { id: token, shape: null, label: "" };
   const id = match[1];
   const rest = match[2].trim();
-  if (rest.startsWith("{") && rest.endsWith("}"))
-    return { id, shape: "brace", label: stripEditorQuotes(rest.slice(1, -1)) };
-  if (rest.startsWith("([") && rest.endsWith("])"))
-    return { id, shape: "other", label: stripEditorQuotes(rest.slice(2, -2)) };
-  if (rest.startsWith("[") && rest.endsWith("]"))
-    return { id, shape: "rect", label: stripEditorQuotes(rest.slice(1, -1)) };
+  const startsBrace = rest.startsWith("{");
+  const endsBrace = rest.endsWith("}");
+  const isBrace = startsBrace && endsBrace;
+  if (isBrace)
+    return { id, shape: "brace", label: trimEditorQuotes(rest.slice(1, -1)) };
+  const startsRound = rest.startsWith("([");
+  const endsRound = rest.endsWith("])");
+  const isRound = startsRound && endsRound;
+  if (isRound)
+    return { id, shape: "other", label: trimEditorQuotes(rest.slice(2, -2)) };
+  const startsBracket = rest.startsWith("[");
+  const endsBracket = rest.endsWith("]");
+  const isBracket = startsBracket && endsBracket;
+  if (isBracket)
+    return { id, shape: "rect", label: trimEditorQuotes(rest.slice(1, -1)) };
   return { id, shape: null, label: "" };
 }
-function declarationRequirement(id) {
-  if (id.startsWith("Q_CHOICE"))
+function getDeclarationRequirement(id) {
+  const isChoice = id.startsWith("Q_CHOICE");
+  if (isChoice)
     return 'start with "Q_CHOICE" and use bracket shape []';
-  if (id.startsWith("Q_"))
+  const isQuestion = id.startsWith("Q_");
+  if (isQuestion)
     return 'start with "Q_" and use brace shape {}';
-  if (id.startsWith("B_"))
+  const isBlock = id.startsWith("B_");
+  if (isBlock)
     return 'start with "B_" and use bracket shape []';
   return 'use "Q_" with brace shape {} for a decision, "Q_CHOICE" with bracket shape [] for a choice, or "B_" with bracket shape [] for a static block';
 }
 function validateDeclaration(id, shape, lineNumber, problems) {
   const subject = `Line ${lineNumber}: id "${id}"`;
   if (shape === "other") {
-    problems.push(`${subject} uses unsupported rounded/stadium shape; it must ${declarationRequirement(id)}.`);
+    problems.push(`${subject} uses unsupported rounded/stadium shape; it must ${getDeclarationRequirement(id)}.`);
     return;
   }
-  if (id.startsWith("Q_CHOICE")) {
+  const isChoice = id.startsWith("Q_CHOICE");
+  if (isChoice) {
     if (shape !== "rect")
       problems.push(`${subject} is a choice and must use bracket shape [] (for example, ${id}["Choice"]).`);
     return;
   }
-  if (id.startsWith("Q_")) {
+  const isQuestion = id.startsWith("Q_");
+  if (isQuestion) {
     if (shape !== "brace")
       problems.push(`${subject} is a decision and must use brace shape {} (for example, ${id}{"Decision"}).`);
     return;
   }
-  if (id.startsWith("B_")) {
+  const isBlock = id.startsWith("B_");
+  if (isBlock) {
     if (shape !== "rect")
       problems.push(`${subject} is a static block and must use bracket shape [] (for example, ${id}["Block"]).`);
     return;
   }
-  problems.push(`${subject} has a non-compliant prefix; it must ${declarationRequirement(id)}.`);
+  problems.push(`${subject} has a non-compliant prefix; it must ${getDeclarationRequirement(id)}.`);
 }
 function parseEditorEdgeLine(line) {
   const separator = /\s--\s(?:"([^"]*)"|(.+?))\s-->\s|\s-->/g;
@@ -327,28 +351,44 @@ function parseEditorEdgeLine(line) {
   if (tokens.length === 0)
     return null;
   tokens.push(line.slice(tokenStart).trim());
-  if (tokens.some((token) => !token))
+  let hasEmptyToken = false;
+  for (const token of tokens) {
+    const isEmpty = !token;
+    if (isEmpty) {
+      hasEmptyToken = true;
+      break;
+    }
+  }
+  if (hasEmptyToken)
     return null;
-  return tokens.slice(0, -1).map((fromToken, index) => ({ fromToken, label: labels[index], toToken: tokens[index + 1] }));
+  const segments = [];
+  for (let index = 0;index < tokens.length - 1; index++)
+    segments.push({ fromToken: tokens[index], label: labels[index], toToken: tokens[index + 1] });
+  return segments;
 }
-function declarationSuffixOf(node) {
+function getDeclarationSuffix(node) {
   if (node.kind === "question")
     return `{"${node.label}"}`;
   if (node.kind === "choice")
     return `["${node.label}"]`;
   return `["${node.label}"]`;
 }
-function editorGraph() {
+
+// editor-graph.ts
+function storeDeclaration(declLines, token, lineIndex) {
+  const isDeclaration = !!token.shape;
+  const isNew = !declLines.has(token.id);
+  const shouldStore = isDeclaration && isNew;
+  if (shouldStore)
+    declLines.set(token.id, { shape: token.shape, label: token.label, lineIndex });
+}
+function getEditorGraph() {
   const lines = codeBox.value.split(`
 `);
   const declLines = new Map;
   const edges = [];
   const references = new Map;
   const problems = [];
-  const recordDecl = (token, lineIndex) => {
-    if (token.shape && !declLines.has(token.id))
-      declLines.set(token.id, { shape: token.shape, label: token.label, lineIndex });
-  };
   for (let lineIndex = 0;lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex].trim();
     const isSkippable = !line || line.startsWith("flowchart") || line.startsWith("classDef") || line.startsWith("class ") || line.startsWith("%%");
@@ -371,7 +411,7 @@ function editorGraph() {
     } else {
       const decl = parseEditorToken(line);
       if (decl.shape) {
-        recordDecl(decl, lineIndex);
+        storeDeclaration(declLines, decl, lineIndex);
         validateDeclaration(decl.id, decl.shape, lineIndex + 1, problems);
       }
     }
@@ -379,12 +419,12 @@ function editorGraph() {
   for (const [id, lineIndex] of references) {
     const isUndeclared = !declLines.has(id);
     if (isUndeclared)
-      problems.push(`Line ${lineIndex + 1}: id "${id}" must be declared on its own standalone line and ${declarationRequirement(id)}.`);
+      problems.push(`Line ${lineIndex + 1}: id "${id}" must be declared on its own standalone line and ${getDeclarationRequirement(id)}.`);
   }
   const uniqueProblems = [...new Set(problems)];
   if (uniqueProblems.length) {
     const error = new EditorValidationError(uniqueProblems);
-    showEditorValidationError(error);
+    reportEditorValidationError(error);
     throw error;
   }
   const nodes = new Map;
@@ -395,391 +435,16 @@ function editorGraph() {
   return { lines, nodes, edges };
 }
 
-// class-defs.ts
-var CLASSDEF_LINE_RE = /^(\s*)classDef\s+(\S+)\s+(.+?)\s*$/;
-var CLASS_LINE_RE = /^(\s*)class\s+(\S+)\s+(\S+)\s*$/;
-function isCommented(line) {
-  return line.trim().startsWith("%%");
-}
-function parseStyleProps(styleText) {
-  const order = [];
-  const props = {};
-  for (const part of styleText.split(",")) {
-    const trimmed = part.trim();
-    if (!trimmed)
-      continue;
-    const colonIndex = trimmed.indexOf(":");
-    if (colonIndex === -1)
-      continue;
-    const key = trimmed.slice(0, colonIndex).trim();
-    const value = trimmed.slice(colonIndex + 1).trim();
-    if (!(key in props))
-      order.push(key);
-    props[key] = value;
-  }
-  return { order, props };
-}
-function styleText(order, props) {
-  return order.map((key) => `${key}:${props[key]}`).join(",");
-}
-function parseClassDefs(source) {
-  const defs = [];
-  const lines = source.split(`
-`);
-  for (let i = 0;i < lines.length; i++) {
-    if (isCommented(lines[i]))
-      continue;
-    const match = lines[i].match(CLASSDEF_LINE_RE);
-    if (!match)
-      continue;
-    const { props } = parseStyleProps(match[3]);
-    defs.push({ name: match[2], fill: props.fill ?? "", stroke: props.stroke ?? "", lineIndex: i });
-  }
-  return defs;
-}
-function classDefByName(source, name) {
-  for (const def of parseClassDefs(source)) {
-    const isNamedClass = def.name === name;
-    if (isNamedClass)
-      return def;
-  }
-  return;
-}
-function classOfNode(source, nodeId) {
-  let found = null;
-  for (const line of source.split(`
-`)) {
-    if (isCommented(line))
-      continue;
-    const match = line.match(CLASS_LINE_RE);
-    if (!match)
-      continue;
-    if (match[2].split(",").includes(nodeId))
-      found = match[3];
-  }
-  return found;
-}
-function buildClassStyleIndex(source) {
-  const assignments = new Map;
-  for (const line of source.split(`
-`)) {
-    if (isCommented(line))
-      continue;
-    const match = line.match(CLASS_LINE_RE);
-    if (!match)
-      continue;
-    for (const id of match[2].split(","))
-      assignments.set(id, match[3]);
-  }
-  const defsByName = new Map(parseClassDefs(source).map((def) => [def.name, def]));
-  return { assignments, defsByName };
-}
-function styleOfNode(index, nodeId) {
-  const name = index.assignments.get(nodeId);
-  if (!name)
-    return null;
-  const def = index.defsByName.get(name);
-  if (!def)
-    return null;
-  return { name, fill: def.fill, stroke: def.stroke };
-}
-function withClassLineRemoved(lines, nodeId) {
-  return lines.map((line) => {
-    if (isCommented(line))
-      return line;
-    const match = line.match(CLASS_LINE_RE);
-    if (!match)
-      return line;
-    const ids = match[2].split(",");
-    const withoutId = ids.filter((id) => id !== nodeId);
-    if (withoutId.length === ids.length)
-      return line;
-    if (withoutId.length === 0)
-      return `%% ${line.trim()}`;
-    return `${match[1]}class ${withoutId.join(",")} ${match[3]}`;
-  });
-}
-function withAssignedClass(source, nodeId, className) {
-  const lines = withClassLineRemoved(source.split(`
-`), nodeId);
-  if (className === null)
-    return lines.join(`
-`);
-  let assigned = false;
-  let lastClassLineIndex = -1;
-  for (let i = 0;i < lines.length; i++) {
-    if (isCommented(lines[i]))
-      continue;
-    const match = lines[i].match(CLASS_LINE_RE);
-    if (!match)
-      continue;
-    lastClassLineIndex = i;
-    if (match[3] === className) {
-      lines[i] = `${match[1]}class ${match[2]},${nodeId} ${className}`;
-      assigned = true;
-    }
-  }
-  if (!assigned) {
-    const newLine = `class ${nodeId} ${className}`;
-    if (lastClassLineIndex === -1)
-      lines.push(newLine);
-    else
-      lines.splice(lastClassLineIndex + 1, 0, newLine);
-  }
-  return lines.join(`
-`);
-}
-function withCreatedClass(source, name, fill, stroke) {
-  const lines = source.split(`
-`);
-  const newLine = `classDef ${name} fill:${fill},stroke:${stroke}`;
-  let lastClassDefLineIndex = -1;
-  for (let i = 0;i < lines.length; i++) {
-    if (isCommented(lines[i]))
-      continue;
-    if (lines[i].match(CLASSDEF_LINE_RE))
-      lastClassDefLineIndex = i;
-  }
-  if (lastClassDefLineIndex === -1)
-    lines.push(newLine);
-  else
-    lines.splice(lastClassDefLineIndex + 1, 0, newLine);
-  return lines.join(`
-`);
-}
-function withClassColors(source, name, fill, stroke) {
-  return source.split(`
-`).map((line) => {
-    if (isCommented(line))
-      return line;
-    const match = line.match(CLASSDEF_LINE_RE);
-    if (!match || match[2] !== name)
-      return line;
-    const { order, props } = parseStyleProps(match[3]);
-    if (!order.includes("fill"))
-      order.push("fill");
-    if (!order.includes("stroke"))
-      order.push("stroke");
-    props.fill = fill;
-    props.stroke = stroke;
-    return `${match[1]}classDef ${name} ${styleText(order, props)}`;
-  }).join(`
-`);
-}
-function withRenamedClass(source, oldName, newName) {
-  return source.split(`
-`).map((line) => {
-    if (isCommented(line))
-      return line;
-    const classDefMatch = line.match(CLASSDEF_LINE_RE);
-    if (classDefMatch && classDefMatch[2] === oldName)
-      return `${classDefMatch[1]}classDef ${newName} ${classDefMatch[3]}`;
-    const classMatch = line.match(CLASS_LINE_RE);
-    if (classMatch && classMatch[3] === oldName)
-      return `${classMatch[1]}class ${classMatch[2]} ${newName}`;
-    return line;
-  }).join(`
-`);
-}
-function withDeletedClass(source, name) {
-  return source.split(`
-`).map((line) => {
-    if (isCommented(line))
-      return line;
-    const match = line.match(CLASSDEF_LINE_RE);
-    if (!match || match[2] !== name)
-      return line;
-    return `%% ${line.trim()}`;
-  }).join(`
-`);
-}
-async function assignClass(nodeId, className) {
-  await applyEditorSource(withAssignedClass(codeBox.value, nodeId, className));
-}
-async function createClass(name, fill, stroke) {
-  await applyEditorSource(withCreatedClass(codeBox.value, name, fill, stroke));
-}
-async function setClassColors(name, fill, stroke) {
-  await applyEditorSource(withClassColors(codeBox.value, name, fill, stroke));
-}
-async function renameClass(oldName, newName) {
-  await applyEditorSource(withRenamedClass(codeBox.value, oldName, newName));
-}
-async function deleteClass(name) {
-  await applyEditorSource(withDeletedClass(codeBox.value, name));
-}
-
-// source-edit.ts
-function sourceWithLinesReplaced(graph, removedLineIndexes, newLines) {
-  const kept = [];
-  for (let lineIndex = 0;lineIndex < graph.lines.length; lineIndex++) {
-    const isRemoved = removedLineIndexes.has(lineIndex);
-    if (!isRemoved)
-      kept.push(graph.lines[lineIndex]);
-  }
-  let classBlockStart = -1;
-  for (let i = 0;i < kept.length; i++) {
-    const trimmed = kept[i].trim();
-    const isClassDef = trimmed.startsWith("classDef");
-    const isClassAssignment = trimmed.startsWith("class ");
-    const isClassLine = isClassDef || isClassAssignment;
-    if (isClassLine) {
-      classBlockStart = i;
-      break;
-    }
-  }
-  if (classBlockStart === -1)
-    return [...kept, ...newLines].join(`
-`);
-  return [...kept.slice(0, classBlockStart), ...newLines, ...kept.slice(classBlockStart)].join(`
-`);
-}
-function nextEditorId(prefix, graph) {
-  let n = 1;
-  while (graph.nodes.has(`${prefix}_${n}`))
-    n++;
-  return `${prefix}_${n}`;
-}
-function choiceId(questionId, suffix) {
-  return `Q_CHOICE_${questionId.replace(/^Q_/, "")}_${suffix}`;
-}
-function outgoingDestination(id, graph) {
-  return graph.edges.find((edge) => edge.from === id)?.to;
-}
-function sourceWithOutgoingChanged(id, destination, graph) {
-  const removedLineIndexes = new Set;
-  const restoredIds = new Set;
-  const newLines = [];
-  for (const edge of graph.edges) {
-    if (edge.from !== id)
-      continue;
-    removedLineIndexes.add(edge.lineIndex);
-    for (const endpointId of [edge.from, edge.to]) {
-      const endpoint = graph.nodes.get(endpointId);
-      if (endpoint && endpoint.lineIndex === edge.lineIndex && !restoredIds.has(endpointId)) {
-        restoredIds.add(endpointId);
-        newLines.push(`  ${endpointId}${declarationSuffixOf(endpoint)}`);
-      }
-    }
-  }
-  if (destination)
-    newLines.push(`  ${id} --> ${destination}`);
-  return sourceWithLinesReplaced(graph, removedLineIndexes, newLines);
-}
-function replaceOutgoing(id, destination, graph) {
-  return sourceWithOutgoingChanged(id, destination, graph);
-}
-function removeOutgoing(id, graph) {
-  return sourceWithOutgoingChanged(id, undefined, graph);
-}
-function preserveInlineDecl(edge, keepEndpointId, graph, newLines) {
-  const node = graph.nodes.get(keepEndpointId);
-  if (node && node.lineIndex === edge.lineIndex)
-    newLines.push(`  ${keepEndpointId}${declarationSuffixOf(node)}`);
-}
-
-// node-inspector.ts
-function replaceDeclarationInLine(line, id, newToken) {
-  const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`${escapedId}(\\{[^}]*\\}|\\[[^\\]]*\\]|\\(\\[[^\\]]*\\]\\))`);
-  return line.replace(re, newToken);
-}
-function inspectorActionButton(action, label, spanTwoColumns = false) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.dataset.action = action;
-  button.textContent = label;
-  button.classList.toggle("span-2", spanTwoColumns);
-  return button;
-}
-function renderNodeInspector() {
-  let graph;
-  try {
-    graph = editorGraph();
-  } catch {
-    nodeInspector.hidden = true;
-    blurInspectorFocus();
-    return;
-  }
-  const node = graph.nodes.get(state.selectedEditorNodeId ?? "");
-  nodeInspector.hidden = !node;
-  if (!node) {
-    nodeTextInput.value = "";
-    blurInspectorFocus();
-    return;
-  }
-  const previewing = !!state.pendingRemoval;
-  nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
-  nodeTextInput.value = node.label;
-  nodeClassRow.hidden = previewing;
-  if (!previewing)
-    renderClassPicker(node);
-  nodeInspectorRemovalPreview.hidden = !previewing;
-  nodeInspectorActions.hidden = previewing;
-  nodeInspectorControls.hidden = previewing;
-  if (previewing) {
-    positionNodeInspector();
-    return;
-  }
-  const actions = [inspectorActionButton("remove", "Remove")];
-  if (node.kind === "question")
-    actions.push(inspectorActionButton("add-choice", "Add choice"), inspectorActionButton("remove-choices", "Remove choices"), inspectorActionButton("insert-static-before", "insert static block before"), inspectorActionButton("insert-decision-before", "insert Decision & leading choice before"));
-  else if (node.kind === "block")
-    actions.push(inspectorActionButton("add-decision-after", "add Decision block after"), inspectorActionButton("insert-decision-after", "Insert decision block after"), inspectorActionButton("insert-static-after", "Insert static block after"), inspectorActionButton("insert-static-before", "insert static block before"), inspectorActionButton("insert-decision-before", "insert Decision & leading choice before"));
-  else if (node.kind === "choice")
-    actions.push(inspectorActionButton("add-decision-after", "add Decision block after"), inspectorActionButton("add-static-after", "add static block after"), inspectorActionButton("insert-decision-after", "Insert decision block after"), inspectorActionButton("insert-static-after", "Insert static block after"));
-  nodeInspectorActions.replaceChildren(...actions);
-  const hasDestination = node.kind !== "question";
-  destinationRow.hidden = !hasDestination;
-  destinationSelect.replaceChildren();
-  if (hasDestination) {
-    destinationSelect.add(new Option("Terminal", ""));
-    destinationSelect.add(new Option("New static block", NEW_STATIC_DESTINATION));
-    destinationSelect.add(new Option("New Decision block", NEW_DECISION_DESTINATION));
-    const destination = outgoingDestination(node.id, graph);
-    const candidates = Array.from(graph.nodes.values());
-    for (let i = 0;i < candidates.length; i++) {
-      const candidate = candidates[i];
-      const isSelf = candidate.id === node.id;
-      const isHiddenChoice = candidate.kind === "choice" && candidate.id !== destination;
-      if (isSelf)
-        continue;
-      if (isHiddenChoice)
-        continue;
-      destinationSelect.add(new Option(`${candidate.label} (${candidate.id})`, candidate.id));
-    }
-    destinationSelect.value = destination ?? "";
-    nodeInspectorDismissBtn.textContent = destination ? "Cancel" : "Close";
-  } else {
-    nodeInspectorDismissBtn.textContent = "Cancel";
-  }
-  positionNodeInspector();
-}
-function renderClassPicker(node) {
-  const source = codeBox.value;
-  const className = classOfNode(source, node.id);
-  const def = className ? classDefByName(source, className) : undefined;
-  classPickerBtn.dataset.nodeId = node.id;
-  classPickerLabel.textContent = className ?? "(none)";
-  classPickerSwatch.style.background = def ? def.fill : "transparent";
-  classPickerSwatch.style.borderColor = def ? def.stroke : "#999";
-  const rows = [];
-  for (const classDef of parseClassDefs(source))
-    rows.push(`<button type="button" class="class-picker-row" data-class-name="${classDef.name}"><span class="class-swatch" style="background:${classDef.fill};border-color:${classDef.stroke}"></span>${classDef.name}</button>`);
-  rows.push('<button type="button" class="class-picker-row" data-class-none>(none)</button>');
-  rows.push('<button type="button" class="class-picker-row" data-class-new>new...</button>');
-  classPickerList.innerHTML = rows.join("");
-  classPickerList.hidden = true;
-}
-function positionNodeInspector() {}
-function focusInspectorText() {
+// node-inspector-focus.ts
+function updateNodeInspectorPosition() {}
+function setInspectorTextFocus() {
   nodeTextInput.focus();
   nodeTextInput.select();
 }
-function focusInspectorDestination() {
+function setInspectorDestinationFocus() {
   destinationSelect.focus();
 }
-function blurInspectorFocus() {
+function clearInspectorFocus() {
   const active = document.activeElement;
   const isFocusedElement = active instanceof HTMLElement;
   for (const el of isFocusedElement ? [active] : []) {
@@ -800,7 +465,7 @@ function setStatus(text) {
 }
 function setDrawerOpen(open) {
   drawer.classList.toggle("closed", !open);
-  positionNodeInspector();
+  updateNodeInspectorPosition();
 }
 async function loadList() {
   currentFileName.textContent = state.currentName ?? "";
@@ -848,23 +513,35 @@ function applyMainViewport(metadata, graph) {
     outputBox.scrollTop = Math.max(0, nodeTop - 12);
 }
 
-// decision-nav.ts
-function decisionNodes(graph) {
-  return [...graph.nodes.values()].filter((node) => node.kind === "question").sort((a, b) => a.lineIndex - b.lineIndex);
-}
-function nearestFeedingChoice(id, graph) {
+// decision-search.ts
+function findNearestFeedingChoice(id, graph) {
   const visited = new Set([id]);
   let frontier = [id];
   while (frontier.length) {
     const nextFrontier = [];
     for (const nodeId of frontier) {
       const node = graph.nodes.get(nodeId);
-      const isAnswerKind = node?.kind === "choice" || node?.kind === "question";
-      const isChoiceFedByDecision = isAnswerKind && graph.edges.some((edge) => edge.to === nodeId && graph.nodes.get(edge.from)?.kind === "question");
+      const isChoice = node?.kind === "choice";
+      const isQuestion = node?.kind === "question";
+      const isAnswerKind = isChoice || isQuestion;
+      let isFedByDecision = false;
+      for (const edge of graph.edges) {
+        const targetsNode = edge.to === nodeId;
+        const isFromDecision = graph.nodes.get(edge.from)?.kind === "question";
+        const isFeeder = targetsNode && isFromDecision;
+        if (isFeeder) {
+          isFedByDecision = true;
+          break;
+        }
+      }
+      const isChoiceFedByDecision = isAnswerKind && isFedByDecision;
       if (isChoiceFedByDecision)
         return nodeId;
       for (const edge of graph.edges) {
-        if (edge.to !== nodeId || visited.has(edge.from))
+        const isOtherNode = edge.to !== nodeId;
+        const isVisited = visited.has(edge.from);
+        const shouldSkip = isOtherNode || isVisited;
+        if (shouldSkip)
           continue;
         visited.add(edge.from);
         nextFrontier.push(edge.from);
@@ -874,30 +551,75 @@ function nearestFeedingChoice(id, graph) {
   }
   return null;
 }
-function discardInvalidPhonePreview(graph) {
-  if (state.phoneFocusNodeId && graph.nodes.get(state.phoneFocusNodeId)?.kind !== "question") {
+
+// decision-nav.ts
+function compareLineIndex(a, b) {
+  return a.lineIndex - b.lineIndex;
+}
+function listDecisionNodes(graph) {
+  const decisions = [];
+  for (const node of graph.nodes.values()) {
+    const isQuestion = node.kind === "question";
+    if (isQuestion)
+      decisions.push(node);
+  }
+  decisions.sort(compareLineIndex);
+  return decisions;
+}
+function clearInvalidPhonePreview(graph) {
+  const hasFocus = !!state.phoneFocusNodeId;
+  const isFocusNotQuestion = graph.nodes.get(state.phoneFocusNodeId ?? "")?.kind !== "question";
+  const isFocusInvalid = hasFocus && isFocusNotQuestion;
+  if (isFocusInvalid) {
     state.phoneFocusNodeId = null;
     state.phoneFocusUsesDecisionContext = false;
   }
-  if (state.phonePreviewChoiceId && nearestFeedingChoice(state.phonePreviewChoiceId, graph) !== state.phonePreviewChoiceId)
+  const hasPreview = !!state.phonePreviewChoiceId;
+  if (!hasPreview)
+    return;
+  const feedingChoice = findNearestFeedingChoice(state.phonePreviewChoiceId, graph);
+  const isPreviewInvalid = feedingChoice !== state.phonePreviewChoiceId;
+  if (isPreviewInvalid)
     state.phonePreviewChoiceId = null;
 }
 function updateDecisionCounter(graph) {
-  const decisions = decisionNodes(graph);
+  const decisions = listDecisionNodes(graph);
   if (decisions.length === 0) {
     state.currentDecisionId = null;
     decisionCounter.textContent = "0 / 0";
     return decisions;
   }
-  if (!decisions.some((node) => node.id === state.currentDecisionId)) {
-    const selectedDecision = decisions.find((node) => node.id === state.selectedEditorNodeId);
-    state.currentDecisionId = selectedDecision?.id ?? decisions[0].id;
+  let hasCurrentDecision = false;
+  for (const node of decisions) {
+    const isCurrent = node.id === state.currentDecisionId;
+    if (isCurrent) {
+      hasCurrentDecision = true;
+      break;
+    }
   }
-  const current = decisions.findIndex((node) => node.id === state.currentDecisionId) + 1;
+  if (!hasCurrentDecision) {
+    let selectedDecisionId;
+    for (const node of decisions) {
+      const isSelected = node.id === state.selectedEditorNodeId;
+      if (isSelected) {
+        selectedDecisionId = node.id;
+        break;
+      }
+    }
+    state.currentDecisionId = selectedDecisionId ?? decisions[0].id;
+  }
+  let current = 0;
+  for (let i = 0;i < decisions.length; i++) {
+    const isCurrent = decisions[i].id === state.currentDecisionId;
+    if (isCurrent) {
+      current = i + 1;
+      break;
+    }
+  }
   decisionCounter.textContent = `${current} / ${decisions.length}`;
   return decisions;
 }
-function centerNodeInViewport(container, diagram, id) {
+function moveNodeToViewportCenter(container, diagram, id) {
   const node = diagram.querySelector('[id*="flowchart-' + id + '-"]');
   if (!node)
     return;
@@ -906,12 +628,12 @@ function centerNodeInViewport(container, diagram, id) {
   container.scrollLeft += nodeRect.left + nodeRect.width / 2 - containerRect.left - container.clientWidth / 2;
   container.scrollTop += nodeRect.top + nodeRect.height / 2 - containerRect.top - container.clientHeight / 2;
 }
-async function navigateDecision(step) {
+async function moveToDecision(step) {
   let graph;
   try {
-    graph = editorGraph();
+    graph = getEditorGraph();
   } catch (error) {
-    showEditorValidationError(error);
+    reportEditorValidationError(error);
     return;
   }
   const decisions = updateDecisionCounter(graph);
@@ -921,7 +643,14 @@ async function navigateDecision(step) {
   }
   const selected = graph.nodes.get(state.selectedEditorNodeId ?? "");
   const anchorId = selected?.kind === "question" ? selected.id : state.currentDecisionId;
-  const currentIndex = decisions.findIndex((node) => node.id === anchorId);
+  let currentIndex = -1;
+  for (let i = 0;i < decisions.length; i++) {
+    const isAnchor = decisions[i].id === anchorId;
+    if (isAnchor) {
+      currentIndex = i;
+      break;
+    }
+  }
   const nextIndex = (currentIndex + step + decisions.length) % decisions.length;
   const decision = decisions[nextIndex];
   state.currentDecisionId = decision.id;
@@ -933,7 +662,7 @@ async function navigateDecision(step) {
   await render();
   selectEditorNode(decision.id);
   updateDecisionCounter(graph);
-  centerNodeInViewport(outputBox, diagramBox, decision.id);
+  moveNodeToViewportCenter(outputBox, diagramBox, decision.id);
 }
 
 // function-routing.ts
@@ -1121,6 +850,107 @@ function choicesOf(id, edges) {
   return found;
 }
 
+// class-lines.ts
+var CLASSDEF_LINE_RE = /^(\s*)classDef\s+(\S+)\s+(.+?)\s*$/;
+var CLASS_LINE_RE = /^(\s*)class\s+(\S+)\s+(\S+)\s*$/;
+function isCommented(line) {
+  return line.trim().startsWith("%%");
+}
+function parseStyleProps(styleText) {
+  const order = [];
+  const props = {};
+  for (const part of styleText.split(",")) {
+    const trimmed = part.trim();
+    if (!trimmed)
+      continue;
+    const colonIndex = trimmed.indexOf(":");
+    if (colonIndex === -1)
+      continue;
+    const key = trimmed.slice(0, colonIndex).trim();
+    const value = trimmed.slice(colonIndex + 1).trim();
+    if (!(key in props))
+      order.push(key);
+    props[key] = value;
+  }
+  return { order, props };
+}
+function buildStyleText(order, props) {
+  const parts = [];
+  for (const key of order)
+    parts.push(`${key}:${props[key]}`);
+  return parts.join(",");
+}
+function parseClassDefs(source) {
+  const defs = [];
+  const lines = source.split(`
+`);
+  for (let i = 0;i < lines.length; i++) {
+    const isLineCommented = isCommented(lines[i]);
+    if (isLineCommented)
+      continue;
+    const match = lines[i].match(CLASSDEF_LINE_RE);
+    if (!match)
+      continue;
+    const { props } = parseStyleProps(match[3]);
+    defs.push({ name: match[2], fill: props.fill ?? "", stroke: props.stroke ?? "", lineIndex: i });
+  }
+  return defs;
+}
+function findClassDef(source, name) {
+  for (const def of parseClassDefs(source)) {
+    const isNamedClass = def.name === name;
+    if (isNamedClass)
+      return def;
+  }
+  return;
+}
+function findClassOfNode(source, nodeId) {
+  let found = null;
+  for (const line of source.split(`
+`)) {
+    const isLineCommented = isCommented(line);
+    if (isLineCommented)
+      continue;
+    const match = line.match(CLASS_LINE_RE);
+    if (!match)
+      continue;
+    const ids = match[2].split(",");
+    const listsNode = ids.includes(nodeId);
+    if (listsNode)
+      found = match[3];
+  }
+  return found;
+}
+
+// class-style-index.ts
+function buildClassStyleIndex(source) {
+  const assignments = new Map;
+  for (const line of source.split(`
+`)) {
+    const isLineCommented = isCommented(line);
+    if (isLineCommented)
+      continue;
+    const match = line.match(CLASS_LINE_RE);
+    if (!match)
+      continue;
+    for (const id of match[2].split(","))
+      assignments.set(id, match[3]);
+  }
+  const defsByName = new Map;
+  for (const def of parseClassDefs(source))
+    defsByName.set(def.name, def);
+  return { assignments, defsByName };
+}
+function findNodeStyle(index, nodeId) {
+  const name = index.assignments.get(nodeId);
+  if (!name)
+    return null;
+  const def = index.defsByName.get(name);
+  if (!def)
+    return null;
+  return { name, fill: def.fill, stroke: def.stroke };
+}
+
 // node-type-colors.ts
 var UNCLASSED_STRIPE_PATTERN_ID = "unclassed-stripe-pattern";
 function addUnclassedStripePattern(svg) {
@@ -1140,10 +970,10 @@ function applyNodeTypeColors(graph) {
     return;
   const classIndex = buildClassStyleIndex(codeBox.value);
   for (const nodeEl of diagramBox.querySelectorAll("g.node")) {
-    const node = graph.nodes.get(nodeIdOf(nodeEl));
+    const node = graph.nodes.get(getNodeId(nodeEl));
     if (!node)
       continue;
-    const isClassed = !!styleOfNode(classIndex, node.id);
+    const isClassed = !!findNodeStyle(classIndex, node.id);
     if (isClassed)
       continue;
     addUnclassedStripePattern(svg);
@@ -1212,9 +1042,12 @@ function findRoot(edges) {
   }
   return;
 }
+function compareNodesByLine(a, b) {
+  return a.lineIndex - b.lineIndex;
+}
 function buildHistoryRows(edges, graph) {
   if (edges.length === 0) {
-    const sorted = [...graph.nodes.values()].sort((a, b) => a.lineIndex - b.lineIndex);
+    const sorted = [...graph.nodes.values()].sort(compareNodesByLine);
     const standaloneRows = [];
     for (const node of sorted) {
       const isBlock = node.kind === "block";
@@ -1367,7 +1200,7 @@ function buildRows(edges, graph) {
 var UNCLASSED_PHONE_STYLE = "background:repeating-linear-gradient(45deg, #f4b4b4 0 8px, #fde8e8 8px 16px)";
 var classIndex = { assignments: new Map, defsByName: new Map };
 function getPhoneNodeAppearance(node) {
-  const classStyle = styleOfNode(classIndex, node.id);
+  const classStyle = findNodeStyle(classIndex, node.id);
   if (!classStyle)
     return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: "" };
   return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}`, labelStyle: "" };
@@ -1466,8 +1299,8 @@ function renderPhone(edges, graph) {
 async function render() {
   errorBox.textContent = "";
   try {
-    const graph = editorGraph();
-    discardInvalidPhonePreview(graph);
+    const graph = getEditorGraph();
+    clearInvalidPhonePreview(graph);
     updateDecisionCounter(graph);
     const edges = parseEdges(codeBox.value);
     let phonePathIsStale = false;
@@ -1518,7 +1351,7 @@ async function render() {
     renderPhone(phoneEdges, graph);
     applyNodeTypeColors(graph);
     renderEditorSelection();
-    highlightPath();
+    applyPathHighlight();
     if (edges.length > 0) {
       const scale = state.diagramScale;
       const mainZoom = state.mainZoomPercent / 100;
@@ -1529,24 +1362,26 @@ async function render() {
     }
     outputBox.scrollLeft = regularViewport.left;
     outputBox.scrollTop = regularViewport.top;
-    positionNodeInspector();
+    updateNodeInspectorPosition();
     errorLog.textContent = "";
     errorLog.classList.remove("open");
   } catch (err) {
     state.currentDecisionId = null;
     decisionCounter.textContent = "0 / 0";
-    showEditorValidationError(err);
+    reportEditorValidationError(err);
   }
 }
-functionsOnlyToggle.addEventListener("change", () => {
+function applyFunctionsOnlyToggle() {
   state.functionsOnly = functionsOnlyToggle.checked;
   render();
-});
-darkModeToggle.addEventListener("change", () => {
+}
+function applyDarkModeToggle() {
   document.body.classList.toggle("dark", darkModeToggle.checked);
   mermaid.initialize(getMermaidOptions());
   render();
-});
+}
+functionsOnlyToggle.addEventListener("change", applyFunctionsOnlyToggle);
+darkModeToggle.addEventListener("change", applyDarkModeToggle);
 
 // diagram-save.ts
 var lastSavedDiagramText = null;
@@ -1579,7 +1414,7 @@ function createDiagramWatcher(name) {
     if (text === lastSavedDiagramText)
       return;
     if (text !== codeBox.value) {
-      restoreTypeMetadata(splitEditorMetadata(text).metadata);
+      applyTypeMetadata(splitEditorMetadata(text).metadata);
       codeBox.value = text;
       resetEditorHistory(text);
     }
@@ -1645,9 +1480,183 @@ async function saveDiagram() {
   }
 }
 
+// source-edit.ts
+function buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines) {
+  const kept = [];
+  for (let lineIndex = 0;lineIndex < graph.lines.length; lineIndex++) {
+    const isRemoved = removedLineIndexes.has(lineIndex);
+    if (!isRemoved)
+      kept.push(graph.lines[lineIndex]);
+  }
+  let classBlockStart = -1;
+  for (let i = 0;i < kept.length; i++) {
+    const trimmed = kept[i].trim();
+    const isClassDef = trimmed.startsWith("classDef");
+    const isClassAssignment = trimmed.startsWith("class ");
+    const isClassLine = isClassDef || isClassAssignment;
+    if (isClassLine) {
+      classBlockStart = i;
+      break;
+    }
+  }
+  if (classBlockStart === -1)
+    return [...kept, ...newLines].join(`
+`);
+  return [...kept.slice(0, classBlockStart), ...newLines, ...kept.slice(classBlockStart)].join(`
+`);
+}
+function getNextEditorId(prefix, graph) {
+  let n = 1;
+  while (graph.nodes.has(`${prefix}_${n}`))
+    n++;
+  return `${prefix}_${n}`;
+}
+function buildChoiceId(questionId, suffix) {
+  return `Q_CHOICE_${questionId.replace(/^Q_/, "")}_${suffix}`;
+}
+function findOutgoingDestination(id, graph) {
+  for (const edge of graph.edges) {
+    const isOutgoing = edge.from === id;
+    if (isOutgoing)
+      return edge.to;
+  }
+  return;
+}
+function buildSourceWithOutgoingChanged(id, destination, graph) {
+  const removedLineIndexes = new Set;
+  const restoredIds = new Set;
+  const newLines = [];
+  for (const edge of graph.edges) {
+    if (edge.from !== id)
+      continue;
+    removedLineIndexes.add(edge.lineIndex);
+    for (const endpointId of [edge.from, edge.to]) {
+      const endpoint = graph.nodes.get(endpointId);
+      const isOnEdgeLine = endpoint?.lineIndex === edge.lineIndex;
+      const isNotRestored = !restoredIds.has(endpointId);
+      const shouldRestore = isOnEdgeLine && isNotRestored;
+      if (shouldRestore) {
+        restoredIds.add(endpointId);
+        newLines.push(`  ${endpointId}${getDeclarationSuffix(endpoint)}`);
+      }
+    }
+  }
+  if (destination)
+    newLines.push(`  ${id} --> ${destination}`);
+  return buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines);
+}
+function replaceOutgoing(id, destination, graph) {
+  return buildSourceWithOutgoingChanged(id, destination, graph);
+}
+function removeOutgoing(id, graph) {
+  return buildSourceWithOutgoingChanged(id, undefined, graph);
+}
+function appendInlineDecl(edge, keepEndpointId, graph, newLines) {
+  const node = graph.nodes.get(keepEndpointId);
+  const isOnEdgeLine = node?.lineIndex === edge.lineIndex;
+  if (isOnEdgeLine)
+    newLines.push(`  ${keepEndpointId}${getDeclarationSuffix(node)}`);
+}
+
+// node-inspector-class.ts
+function renderClassPicker(node) {
+  const source = codeBox.value;
+  const className = findClassOfNode(source, node.id);
+  const def = className ? findClassDef(source, className) : undefined;
+  classPickerBtn.dataset.nodeId = node.id;
+  classPickerLabel.textContent = className ?? "(none)";
+  classPickerSwatch.style.background = def ? def.fill : "transparent";
+  classPickerSwatch.style.borderColor = def ? def.stroke : "#999";
+  const rows = [];
+  for (const classDef of parseClassDefs(source))
+    rows.push(`<button type="button" class="class-picker-row" data-class-name="${classDef.name}"><span class="class-swatch" style="background:${classDef.fill};border-color:${classDef.stroke}"></span>${classDef.name}</button>`);
+  rows.push('<button type="button" class="class-picker-row" data-class-none>(none)</button>');
+  rows.push('<button type="button" class="class-picker-row" data-class-new>new...</button>');
+  classPickerList.innerHTML = rows.join("");
+  classPickerList.hidden = true;
+}
+
+// node-inspector.ts
+function replaceDeclarationInLine(line, id, newToken) {
+  const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`${escapedId}(\\{[^}]*\\}|\\[[^\\]]*\\]|\\(\\[[^\\]]*\\]\\))`);
+  return line.replace(re, newToken);
+}
+function createInspectorActionButton(action, label, spanTwoColumns = false) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.action = action;
+  button.textContent = label;
+  button.classList.toggle("span-2", spanTwoColumns);
+  return button;
+}
+function renderNodeInspector() {
+  let graph;
+  try {
+    graph = getEditorGraph();
+  } catch {
+    nodeInspector.hidden = true;
+    clearInspectorFocus();
+    return;
+  }
+  const node = graph.nodes.get(state.selectedEditorNodeId ?? "");
+  nodeInspector.hidden = !node;
+  if (!node) {
+    nodeTextInput.value = "";
+    clearInspectorFocus();
+    return;
+  }
+  const previewing = !!state.pendingRemoval;
+  nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
+  nodeTextInput.value = node.label;
+  nodeClassRow.hidden = previewing;
+  if (!previewing)
+    renderClassPicker(node);
+  nodeInspectorRemovalPreview.hidden = !previewing;
+  nodeInspectorActions.hidden = previewing;
+  nodeInspectorControls.hidden = previewing;
+  if (previewing) {
+    updateNodeInspectorPosition();
+    return;
+  }
+  const actions = [createInspectorActionButton("remove", "Remove")];
+  if (node.kind === "question")
+    actions.push(createInspectorActionButton("add-choice", "Add choice"), createInspectorActionButton("remove-choices", "Remove choices"), createInspectorActionButton("insert-static-before", "insert static block before"), createInspectorActionButton("insert-decision-before", "insert Decision & leading choice before"));
+  else if (node.kind === "block")
+    actions.push(createInspectorActionButton("add-decision-after", "add Decision block after"), createInspectorActionButton("insert-decision-after", "Insert decision block after"), createInspectorActionButton("insert-static-after", "Insert static block after"), createInspectorActionButton("insert-static-before", "insert static block before"), createInspectorActionButton("insert-decision-before", "insert Decision & leading choice before"));
+  else if (node.kind === "choice")
+    actions.push(createInspectorActionButton("add-decision-after", "add Decision block after"), createInspectorActionButton("add-static-after", "add static block after"), createInspectorActionButton("insert-decision-after", "Insert decision block after"), createInspectorActionButton("insert-static-after", "Insert static block after"));
+  nodeInspectorActions.replaceChildren(...actions);
+  const hasDestination = node.kind !== "question";
+  destinationRow.hidden = !hasDestination;
+  destinationSelect.replaceChildren();
+  if (hasDestination) {
+    destinationSelect.add(new Option("Terminal", ""));
+    destinationSelect.add(new Option("New static block", NEW_STATIC_DESTINATION));
+    destinationSelect.add(new Option("New Decision block", NEW_DECISION_DESTINATION));
+    const destination = findOutgoingDestination(node.id, graph);
+    const candidates = Array.from(graph.nodes.values());
+    for (let i = 0;i < candidates.length; i++) {
+      const candidate = candidates[i];
+      const isSelf = candidate.id === node.id;
+      const isHiddenChoice = candidate.kind === "choice" && candidate.id !== destination;
+      if (isSelf)
+        continue;
+      if (isHiddenChoice)
+        continue;
+      destinationSelect.add(new Option(`${candidate.label} (${candidate.id})`, candidate.id));
+    }
+    destinationSelect.value = destination ?? "";
+    nodeInspectorDismissBtn.textContent = destination ? "Cancel" : "Close";
+  } else {
+    nodeInspectorDismissBtn.textContent = "Cancel";
+  }
+  updateNodeInspectorPosition();
+}
+
 // editor-actions.ts
 async function applyEditorSource(source, options) {
-  source = sourceWithEditorMetadata(source);
+  source = buildSourceWithMetadata(source);
   await mermaid.parse(source);
   codeBox.value = source;
   const recordHistory = options?.recordHistory !== false;
@@ -1709,7 +1718,7 @@ function renderRemovalPreview() {
 function addQuestionAfter() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const selected = state.selectedEditorNodeId;
   const removedLineIndexes = new Set;
   const successors = [];
@@ -1719,9 +1728,9 @@ function addQuestionAfter() {
     successors.push(edge.to);
     removedLineIndexes.add(edge.lineIndex);
   }
-  const qId = nextEditorId("Q_NEW", graph);
-  const yesId = choiceId(qId, "Y");
-  const noId = choiceId(qId, "N");
+  const qId = getNextEditorId("Q_NEW", graph);
+  const yesId = buildChoiceId(qId, "Y");
+  const noId = buildChoiceId(qId, "N");
   const newLines = [
     `  ${selected} --> ${qId}`,
     `  ${qId}{"New question"}`,
@@ -1733,18 +1742,18 @@ function addQuestionAfter() {
   for (const edge of graph.edges) {
     if (edge.from !== selected)
       continue;
-    preserveInlineDecl(edge, edge.to, graph, newLines);
+    appendInlineDecl(edge, edge.to, graph, newLines);
   }
   for (const successor of successors) {
     newLines.push(`  ${yesId} --> ${successor}`);
     newLines.push(`  ${noId} --> ${successor}`);
   }
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function addBlockAfter() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const selected = state.selectedEditorNodeId;
   const removedLineIndexes = new Set;
   const successors = [];
@@ -1754,18 +1763,156 @@ function addBlockAfter() {
       continue;
     successors.push(edge.to);
     removedLineIndexes.add(edge.lineIndex);
-    preserveInlineDecl(edge, edge.to, graph, newLines);
+    appendInlineDecl(edge, edge.to, graph, newLines);
   }
-  const bId = nextEditorId("B_NEW", graph);
+  const bId = getNextEditorId("B_NEW", graph);
   newLines.unshift(`  ${selected} --> ${bId}`, `  ${bId}["New block"]`);
   for (const successor of successors)
     newLines.push(`  ${bId} --> ${successor}`);
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
+function getChoiceSuffixFromLabel(label) {
+  const upperLabel = label.trim().toUpperCase();
+  const underscored = upperLabel.replace(/[^A-Z0-9]+/g, "_");
+  const trimmed = underscored.replace(/^_+|_+$/g, "");
+  return trimmed || "CHOICE";
+}
+function addChoice() {
+  if (!state.selectedEditorNodeId)
+    return;
+  const graph = getEditorGraph();
+  const questionId = state.selectedEditorNodeId;
+  let labelled;
+  for (const edge of graph.edges) {
+    const isFromQuestion = edge.from === questionId;
+    const hasLabel = !!edge.label;
+    const isLabelled = isFromQuestion && hasLabel;
+    if (isLabelled) {
+      labelled = edge;
+      break;
+    }
+  }
+  const removedLineIndexes = new Set;
+  const newLines = [];
+  if (labelled) {
+    removedLineIndexes.add(labelled.lineIndex);
+    const suffix = getChoiceSuffixFromLabel(labelled.label);
+    const cid = buildChoiceId(questionId, suffix);
+    const targetNode = graph.nodes.get(labelled.to);
+    const isTargetOnEdgeLine = targetNode?.lineIndex === labelled.lineIndex;
+    const targetSuffix = isTargetOnEdgeLine ? getDeclarationSuffix(targetNode) : "";
+    newLines.push(`  ${cid}["${labelled.label}"]`, `  ${questionId} --> ${cid}`, `  ${cid} --> ${labelled.to}${targetSuffix}`);
+  } else {
+    let suffix = "NEW";
+    let n = 1;
+    while (graph.nodes.has(buildChoiceId(questionId, suffix)))
+      suffix = "NEW" + ++n;
+    const cid = buildChoiceId(questionId, suffix);
+    newLines.push(`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`);
+  }
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+}
+
+// editor-insert-after.ts
+async function createStaticAfter(sourceId, graph) {
+  const staticId = getNextEditorId("B_NEW", graph);
+  const source = `${replaceOutgoing(sourceId, staticId, graph)}
+  ${staticId}["New static block"]`;
+  await applyEditorSource(source);
+  state.focusDestinationAfterTextId = staticId;
+  selectEditorNode(staticId);
+  setInspectorTextFocus();
+}
+async function insertStaticAfterNode(sourceId, graph) {
+  const staticId = getNextEditorId("B_NEW", graph);
+  const oldDestination = findOutgoingDestination(sourceId, graph);
+  const newLines = [`  ${staticId}["New static block"]`];
+  if (oldDestination)
+    newLines.push(`  ${staticId} --> ${oldDestination}`);
+  const source = `${replaceOutgoing(sourceId, staticId, graph)}
+${newLines.join(`
+`)}`;
+  await applyEditorSource(source);
+  state.focusDestinationAfterTextId = staticId;
+  selectEditorNode(staticId);
+  setInspectorTextFocus();
+}
+function appendInlineDeclaration(newLines, restoredIds, graph, edge, endpointId) {
+  const node = graph.nodes.get(endpointId);
+  const isOnEdgeLine = node?.lineIndex === edge.lineIndex;
+  const isNotRestored = !restoredIds.has(endpointId);
+  const shouldRestore = isOnEdgeLine && isNotRestored;
+  if (shouldRestore) {
+    restoredIds.add(endpointId);
+    newLines.push(`  ${endpointId}${getDeclarationSuffix(node)}`);
+  }
+}
+async function insertDecisionAfterNode(sourceId, graph) {
+  const removedLineIndexes = new Set;
+  const successors = [];
+  for (const edge of graph.edges) {
+    if (edge.from !== sourceId)
+      continue;
+    successors.push(edge);
+    removedLineIndexes.add(edge.lineIndex);
+  }
+  const decisionId = getNextEditorId("Q_NEW", graph);
+  const yesId = buildChoiceId(decisionId, "Y");
+  const noId = buildChoiceId(decisionId, "N");
+  const newLines = [
+    `  ${decisionId}{"New Decision"}`,
+    `  ${yesId}["Yes"]`,
+    `  ${noId}["No"]`,
+    `  ${sourceId} --> ${decisionId}`,
+    `  ${decisionId} --> ${yesId}`,
+    `  ${decisionId} --> ${noId}`
+  ];
+  const restoredIds = new Set;
+  for (const edge of successors) {
+    appendInlineDeclaration(newLines, restoredIds, graph, edge, edge.to);
+    newLines.push(`  ${yesId} --> ${edge.to}`);
+  }
+  for (const edge of graph.edges) {
+    const isOnRemovedLine = removedLineIndexes.has(edge.lineIndex);
+    const isFromSource = edge.from === sourceId;
+    const shouldKeep = isOnRemovedLine && !isFromSource;
+    if (!shouldKeep)
+      continue;
+    appendInlineDeclaration(newLines, restoredIds, graph, edge, edge.from);
+    appendInlineDeclaration(newLines, restoredIds, graph, edge, edge.to);
+    newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${edge.to}` : `  ${edge.from} --> ${edge.to}`);
+  }
+  await applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines));
+  selectEditorNode(decisionId);
+  setInspectorTextFocus();
+}
+async function createDecisionAfter(sourceId, graph) {
+  await insertDecisionAfterNode(sourceId, graph);
+}
+async function appendChoiceToDecision(questionId, graph) {
+  const removedLineIndexes = new Set;
+  let suffix = "NEW";
+  let n = 1;
+  while (graph.nodes.has(buildChoiceId(questionId, suffix)))
+    suffix = "NEW" + ++n;
+  const cid = buildChoiceId(questionId, suffix);
+  const newLines = [`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`];
+  await applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines));
+  selectEditorNode(questionId);
+}
+function addChoiceOnDecision() {
+  if (!state.selectedEditorNodeId)
+    return;
+  const graph = getEditorGraph();
+  const questionId = state.selectedEditorNodeId;
+  setEditorActionPromise(appendChoiceToDecision(questionId, graph));
+}
+
+// editor-insert-before.ts
 function insertStaticBefore() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const selected = state.selectedEditorNodeId;
   const selectedNode = graph.nodes.get(selected);
   const removedLineIndexes = new Set;
@@ -1776,37 +1923,34 @@ function insertStaticBefore() {
     predecessors.push(edge);
     removedLineIndexes.add(edge.lineIndex);
   }
-  const staticId = nextEditorId("B_NEW", graph);
+  const staticId = getNextEditorId("B_NEW", graph);
   const newLines = [`  ${staticId}["New static block"]`];
-  const restoredInlineDecls = new Set;
-  const restoreInlineDecl = (edge, endpointId) => {
-    const node = graph.nodes.get(endpointId);
-    if (node && node.lineIndex === edge.lineIndex && !restoredInlineDecls.has(endpointId)) {
-      restoredInlineDecls.add(endpointId);
-      newLines.push(`  ${endpointId}${declarationSuffixOf(node)}`);
-    }
-  };
-  if (removedLineIndexes.has(selectedNode.lineIndex))
-    newLines.push(`  ${selected}${declarationSuffixOf(selectedNode)}`);
-  restoredInlineDecls.add(selected);
+  const restoredIds = new Set;
+  const isSelectedOnRemovedLine = removedLineIndexes.has(selectedNode.lineIndex);
+  if (isSelectedOnRemovedLine)
+    newLines.push(`  ${selected}${getDeclarationSuffix(selectedNode)}`);
+  restoredIds.add(selected);
   for (const edge of predecessors)
-    restoreInlineDecl(edge, edge.from);
+    appendInlineDeclaration(newLines, restoredIds, graph, edge, edge.from);
   for (const edge of predecessors)
     newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${staticId}` : `  ${edge.from} --> ${staticId}`);
   newLines.push(`  ${staticId} --> ${selected}`);
   for (const edge of graph.edges) {
-    if (!removedLineIndexes.has(edge.lineIndex) || edge.to === selected)
+    const isOnRemovedLine = removedLineIndexes.has(edge.lineIndex);
+    const isIntoSelected = edge.to === selected;
+    const shouldKeep = isOnRemovedLine && !isIntoSelected;
+    if (!shouldKeep)
       continue;
-    restoreInlineDecl(edge, edge.from);
-    restoreInlineDecl(edge, edge.to);
+    appendInlineDeclaration(newLines, restoredIds, graph, edge, edge.from);
+    appendInlineDeclaration(newLines, restoredIds, graph, edge, edge.to);
     newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${edge.to}` : `  ${edge.from} --> ${edge.to}`);
   }
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function insertDecisionBefore() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const selected = state.selectedEditorNodeId;
   const selectedNode = graph.nodes.get(selected);
   const removedLineIndexes = new Set;
@@ -1817,58 +1961,29 @@ function insertDecisionBefore() {
     predecessors.push(edge);
     removedLineIndexes.add(edge.lineIndex);
   }
-  const decisionId = nextEditorId("Q_NEW", graph);
-  const newChoiceId = choiceId(decisionId, "NEW");
+  const decisionId = getNextEditorId("Q_NEW", graph);
+  const newChoiceId = buildChoiceId(decisionId, "NEW");
   const newLines = [
     `  ${decisionId}{"New Decision"}`,
     `  ${newChoiceId}["New choice"]`,
     `  ${decisionId} --> ${newChoiceId}`
   ];
-  if (removedLineIndexes.has(selectedNode.lineIndex))
-    newLines.push(`  ${selected}${declarationSuffixOf(selectedNode)}`);
+  const isSelectedOnRemovedLine = removedLineIndexes.has(selectedNode.lineIndex);
+  if (isSelectedOnRemovedLine)
+    newLines.push(`  ${selected}${getDeclarationSuffix(selectedNode)}`);
   for (const edge of predecessors)
-    preserveInlineDecl(edge, edge.from, graph, newLines);
+    appendInlineDecl(edge, edge.from, graph, newLines);
   for (const edge of predecessors)
     newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${decisionId}` : `  ${edge.from} --> ${decisionId}`);
   newLines.push(`  ${newChoiceId} --> ${selected}`);
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
-}
-function choiceSuffixFromLabel(label) {
-  return label.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "CHOICE";
-}
-function addChoice() {
-  if (!state.selectedEditorNodeId)
-    return;
-  const graph = editorGraph();
-  const questionId = state.selectedEditorNodeId;
-  const labelled = graph.edges.find((e) => e.from === questionId && e.label);
-  const removedLineIndexes = new Set;
-  const newLines = [];
-  if (labelled) {
-    removedLineIndexes.add(labelled.lineIndex);
-    const suffix = choiceSuffixFromLabel(labelled.label);
-    const cid = choiceId(questionId, suffix);
-    const targetSuffix = (() => {
-      const node = graph.nodes.get(labelled.to);
-      return node && node.lineIndex === labelled.lineIndex ? declarationSuffixOf(node) : "";
-    })();
-    newLines.push(`  ${cid}["${labelled.label}"]`, `  ${questionId} --> ${cid}`, `  ${cid} --> ${labelled.to}${targetSuffix}`);
-  } else {
-    let suffix = "NEW";
-    let n = 1;
-    while (graph.nodes.has(choiceId(questionId, suffix)))
-      suffix = "NEW" + ++n;
-    const cid = choiceId(questionId, suffix);
-    newLines.push(`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`);
-  }
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 
 // editor-remove.ts
 function removeChoice() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const id = state.selectedEditorNodeId;
   const node = graph.nodes.get(id);
   const removedLineIndexes = new Set;
@@ -1882,15 +1997,15 @@ function removeChoice() {
     removedLineIndexes.add(edge.lineIndex);
     const otherEndpoint = edge.from === id ? edge.to : edge.from;
     if (otherEndpoint !== id)
-      preserveInlineDecl(edge, otherEndpoint, graph, newLines);
+      appendInlineDecl(edge, otherEndpoint, graph, newLines);
   }
   selectEditorNode(null);
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function removeBlock() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const id = state.selectedEditorNodeId;
   const node = graph.nodes.get(id);
   const removedLineIndexes = new Set;
@@ -1906,38 +2021,22 @@ function removeBlock() {
     removedLineIndexes.add(edge.lineIndex);
     if (edge.from === id) {
       successors.push(edge.to);
-      preserveInlineDecl(edge, edge.to, graph, newLines);
+      appendInlineDecl(edge, edge.to, graph, newLines);
     } else {
       predecessors.push(edge.from);
-      preserveInlineDecl(edge, edge.from, graph, newLines);
+      appendInlineDecl(edge, edge.from, graph, newLines);
     }
   }
   for (const predecessor of predecessors)
     for (const successor of successors)
       newLines.push(`  ${predecessor} --> ${successor}`);
   selectEditorNode(null);
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
-}
-function removeQuestion() {
-  if (!state.selectedEditorNodeId)
-    return;
-  const graph = editorGraph();
-  const questionId = state.selectedEditorNodeId;
-  const choices = [];
-  for (const edge of graph.edges) {
-    if (edge.from === questionId)
-      choices.push(edge.to);
-  }
-  if (!choices.length)
-    return;
-  state.pendingRemoval = { questionId, choices, index: 0 };
-  nodeActions.classList.add("removing");
-  renderRemovalPreview();
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
 function removeChoices() {
   if (!state.selectedEditorNodeId)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const questionId = state.selectedEditorNodeId;
   const removedLineIndexes = new Set;
   const newLines = [];
@@ -1948,7 +2047,7 @@ function removeChoices() {
     const targetNode = graph.nodes.get(edge.to);
     const isImmediateChoice = targetNode?.kind === "choice";
     if (!isImmediateChoice) {
-      preserveInlineDecl(edge, edge.to, graph, newLines);
+      appendInlineDecl(edge, edge.to, graph, newLines);
       continue;
     }
     const choiceNodeId = edge.to;
@@ -1962,25 +2061,43 @@ function removeChoices() {
       removedLineIndexes.add(inner.lineIndex);
       const otherEndpoint = inner.from === choiceNodeId ? inner.to : inner.from;
       if (otherEndpoint !== choiceNodeId)
-        preserveInlineDecl(inner, otherEndpoint, graph, newLines);
+        appendInlineDecl(inner, otherEndpoint, graph, newLines);
     }
   }
-  setEditorActionPromise(applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
 }
-function advanceRemovalPreview() {
+
+// editor-remove-question.ts
+function removeQuestion() {
+  if (!state.selectedEditorNodeId)
+    return;
+  const graph = getEditorGraph();
+  const questionId = state.selectedEditorNodeId;
+  const choices = [];
+  for (const edge of graph.edges) {
+    if (edge.from === questionId)
+      choices.push(edge.to);
+  }
+  if (!choices.length)
+    return;
+  state.pendingRemoval = { questionId, choices, index: 0 };
+  nodeActions.classList.add("removing");
+  renderRemovalPreview();
+}
+function moveRemovalPreview() {
   if (!state.pendingRemoval)
     return;
   state.pendingRemoval.index = (state.pendingRemoval.index + 1) % state.pendingRemoval.choices.length;
   renderRemovalPreview();
 }
-function cancelQuestionRemoval() {
+function clearQuestionRemoval() {
   selectEditorNode(null);
 }
-function confirmQuestionRemoval() {
+function applyQuestionRemoval() {
   if (!state.pendingRemoval)
     return;
   const { questionId, choices, index } = state.pendingRemoval;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const removedLineIndexes = new Set;
   const newLines = [];
   const qNode = graph.nodes.get(questionId);
@@ -1992,7 +2109,7 @@ function confirmQuestionRemoval() {
       continue;
     predecessors.push(edge.from);
     removedLineIndexes.add(edge.lineIndex);
-    preserveInlineDecl(edge, edge.from, graph, newLines);
+    appendInlineDecl(edge, edge.from, graph, newLines);
   }
   let keepSuccessor = choices[index];
   for (const edge of graph.edges) {
@@ -2002,7 +2119,7 @@ function confirmQuestionRemoval() {
     const targetNode = graph.nodes.get(edge.to);
     const isImmediateChoice = targetNode?.kind === "choice";
     if (!isImmediateChoice) {
-      preserveInlineDecl(edge, edge.to, graph, newLines);
+      appendInlineDecl(edge, edge.to, graph, newLines);
       continue;
     }
     removedLineIndexes.add(targetNode.lineIndex);
@@ -2011,28 +2128,37 @@ function confirmQuestionRemoval() {
         continue;
       removedLineIndexes.add(inner.lineIndex);
       if (edge.to === keepSuccessor) {
-        preserveInlineDecl(inner, inner.to, graph, newLines);
+        appendInlineDecl(inner, inner.to, graph, newLines);
         keepSuccessor = inner.to;
       }
     }
   }
   for (const predecessor of predecessors)
     newLines.push(`  ${predecessor} --> ${keepSuccessor}`);
-  executeEditorAction(() => applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  const newSource = buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines);
+  function applyRemovedQuestionSource() {
+    return applyEditorSource(newSource);
+  }
+  executeEditorAction(applyRemovedQuestionSource);
 }
-function undoEditorAction() {
+
+// editor-history.ts
+function applyHistoryEntry() {
+  return applyEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false });
+}
+function applyEditorUndo() {
   if (state.editorHistoryIndex <= 0)
     return;
   state.editorHistoryIndex--;
   selectEditorNode(null);
-  executeEditorAction(() => applyEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
+  executeEditorAction(applyHistoryEntry);
 }
-function redoEditorAction() {
+function applyEditorRedo() {
   if (state.editorHistoryIndex >= state.editorHistory.length - 1)
     return;
   state.editorHistoryIndex++;
   selectEditorNode(null);
-  executeEditorAction(() => applyEditorSource(state.editorHistory[state.editorHistoryIndex], { recordHistory: false }));
+  executeEditorAction(applyHistoryEntry);
 }
 
 // diagram-load.ts
@@ -2046,7 +2172,7 @@ async function loadDiagram(name) {
   const text = await diagramResponse.text();
   setLastSavedDiagramText(text);
   const { metadata } = splitEditorMetadata(text);
-  restoreTypeMetadata(metadata);
+  applyTypeMetadata(metadata);
   state.currentName = name;
   sessionStorage.setItem("loadedDiagram", name);
   state.openedFileHandle = null;
@@ -2064,7 +2190,7 @@ async function loadDiagram(name) {
   applyMainZoom(false);
   let graph = null;
   try {
-    graph = editorGraph();
+    graph = getEditorGraph();
   } catch {}
   if (metadata) {
     const hasSavedSelection = graph?.nodes.has(metadata.lastSelectedNodeId ?? "");
@@ -2077,9 +2203,64 @@ async function loadDiagram(name) {
   createDiagramWatcher(name);
 }
 
+// path-write.ts
+function findNextPathFileName(baseName, existingNames) {
+  const escapedBaseName = baseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^${escapedBaseName}-path-(\\d+)\\.mmd$`);
+  let nextNumber = 0;
+  for (const name of existingNames) {
+    const match = name.match(pattern);
+    if (!match)
+      continue;
+    const usedNumber = Number(match[1]);
+    if (usedNumber >= nextNumber)
+      nextNumber = usedNumber + 1;
+  }
+  return `${baseName}-path-${nextNumber}.mmd`;
+}
+async function writeToServerDiagrams(diagramName, source) {
+  const listResponse = await fetch("/api/diagrams");
+  const existingNames = await listResponse.json();
+  const fileName = findNextPathFileName(diagramName.replace(/\.mmd$/, ""), existingNames);
+  const response = await fetch("/api/diagrams/" + encodeURIComponent(fileName), { method: "PUT", body: source });
+  if (!response.ok)
+    throw new Error(`Writing ${fileName} failed: ${response.status} ${await response.text()}`);
+  setStatus("Wrote " + fileName);
+}
+async function selectPathFolder() {
+  if (state.pathFolderHandle)
+    return true;
+  try {
+    state.pathFolderHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+  } catch (error) {
+    const isUserCancel = error.name === "AbortError";
+    if (!isUserCancel)
+      throw error;
+    return false;
+  }
+  return true;
+}
+async function writeToOpenedFileFolder(openedFileName, source) {
+  const hasFolder = await selectPathFolder();
+  if (!hasFolder) {
+    console.log("User canceled Write chosen path");
+    return;
+  }
+  const folder = state.pathFolderHandle;
+  const existingNames = [];
+  for await (const name of folder.keys())
+    existingNames.push(name);
+  const fileName = findNextPathFileName(openedFileName.replace(/\.mmd$/, ""), existingNames);
+  const fileHandle = await folder.getFileHandle(fileName, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(source);
+  await writable.close();
+  setStatus("Wrote " + fileName);
+}
+
 // path-export.ts
 function getChosenPathIds() {
-  const rows = buildHistoryRows(parseEdges(codeBox.value), editorGraph());
+  const rows = buildHistoryRows(parseEdges(codeBox.value), getEditorGraph());
   const ids = [];
   for (const row of rows) {
     const isAlreadyListed = ids[ids.length - 1] === row.id;
@@ -2130,7 +2311,7 @@ function buildClassLines(declaredIds) {
   return lines;
 }
 function buildChosenPathSource(ids) {
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const lines = [...buildDecisionComment(ids, graph), "flowchart TD"];
   const declaredIds = new Set;
   for (const id of ids) {
@@ -2138,7 +2319,7 @@ function buildChosenPathSource(ids) {
     if (isDeclared)
       continue;
     declaredIds.add(id);
-    lines.push(`  ${id}${declarationSuffixOf(graph.nodes.get(id))}`);
+    lines.push(`  ${id}${getDeclarationSuffix(graph.nodes.get(id))}`);
   }
   for (let i = 0;i + 1 < ids.length; i++)
     lines.push(`  ${ids[i]} --> ${ids[i + 1]}`);
@@ -2146,58 +2327,6 @@ function buildChosenPathSource(ids) {
   return lines.join(`
 `) + `
 `;
-}
-function findNextPathFileName(baseName, existingNames) {
-  const escapedBaseName = baseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`^${escapedBaseName}-path-(\\d+)\\.mmd$`);
-  let nextNumber = 0;
-  for (const name of existingNames) {
-    const match = name.match(pattern);
-    if (!match)
-      continue;
-    const usedNumber = Number(match[1]);
-    if (usedNumber >= nextNumber)
-      nextNumber = usedNumber + 1;
-  }
-  return `${baseName}-path-${nextNumber}.mmd`;
-}
-async function writeToServerDiagrams(diagramName, source) {
-  const existingNames = await fetch("/api/diagrams").then((r) => r.json());
-  const fileName = findNextPathFileName(diagramName.replace(/\.mmd$/, ""), existingNames);
-  const response = await fetch("/api/diagrams/" + encodeURIComponent(fileName), { method: "PUT", body: source });
-  if (!response.ok)
-    throw new Error(`Writing ${fileName} failed: ${response.status} ${await response.text()}`);
-  setStatus("Wrote " + fileName);
-}
-async function selectPathFolder() {
-  if (state.pathFolderHandle)
-    return true;
-  try {
-    state.pathFolderHandle = await window.showDirectoryPicker({ mode: "readwrite" });
-  } catch (error) {
-    const isUserCancel = error.name === "AbortError";
-    if (!isUserCancel)
-      throw error;
-    return false;
-  }
-  return true;
-}
-async function writeToOpenedFileFolder(openedFileName, source) {
-  const hasFolder = await selectPathFolder();
-  if (!hasFolder) {
-    console.log("User canceled Write chosen path");
-    return;
-  }
-  const folder = state.pathFolderHandle;
-  const existingNames = [];
-  for await (const name of folder.keys())
-    existingNames.push(name);
-  const fileName = findNextPathFileName(openedFileName.replace(/\.mmd$/, ""), existingNames);
-  const fileHandle = await folder.getFileHandle(fileName, { create: true });
-  const writable = await fileHandle.createWritable();
-  await writable.write(source);
-  await writable.close();
-  setStatus("Wrote " + fileName);
 }
 async function writeChosenPath() {
   const source = buildChosenPathSource(getChosenPathIds());
@@ -2266,94 +2395,7 @@ async function writeAllPaths() {
 document.getElementById("exportAllPathsBtn").addEventListener("click", writeAllPaths);
 
 // editor-commit.ts
-async function commitNewStaticAfter(sourceId, graph) {
-  const staticId = nextEditorId("B_NEW", graph);
-  const source = `${replaceOutgoing(sourceId, staticId, graph)}
-  ${staticId}["New static block"]`;
-  await applyEditorSource(source);
-  state.focusDestinationAfterTextId = staticId;
-  selectEditorNode(staticId);
-  focusInspectorText();
-}
-async function commitInsertStaticAfter(sourceId, graph) {
-  const staticId = nextEditorId("B_NEW", graph);
-  const oldDestination = outgoingDestination(sourceId, graph);
-  const newLines = [`  ${staticId}["New static block"]`];
-  if (oldDestination)
-    newLines.push(`  ${staticId} --> ${oldDestination}`);
-  const source = `${replaceOutgoing(sourceId, staticId, graph)}
-${newLines.join(`
-`)}`;
-  await applyEditorSource(source);
-  state.focusDestinationAfterTextId = staticId;
-  selectEditorNode(staticId);
-  focusInspectorText();
-}
-async function commitInsertDecisionAfter(sourceId, graph) {
-  const removedLineIndexes = new Set;
-  const successors = [];
-  for (const edge of graph.edges) {
-    if (edge.from !== sourceId)
-      continue;
-    successors.push(edge);
-    removedLineIndexes.add(edge.lineIndex);
-  }
-  const decisionId = nextEditorId("Q_NEW", graph);
-  const yesId = choiceId(decisionId, "Y");
-  const noId = choiceId(decisionId, "N");
-  const newLines = [
-    `  ${decisionId}{"New Decision"}`,
-    `  ${yesId}["Yes"]`,
-    `  ${noId}["No"]`,
-    `  ${sourceId} --> ${decisionId}`,
-    `  ${decisionId} --> ${yesId}`,
-    `  ${decisionId} --> ${noId}`
-  ];
-  const restoredInlineDecls = new Set;
-  const restoreInlineDecl = (edge, endpointId) => {
-    const node = graph.nodes.get(endpointId);
-    if (node && node.lineIndex === edge.lineIndex && !restoredInlineDecls.has(endpointId)) {
-      restoredInlineDecls.add(endpointId);
-      newLines.push(`  ${endpointId}${declarationSuffixOf(node)}`);
-    }
-  };
-  for (const edge of successors) {
-    restoreInlineDecl(edge, edge.to);
-    newLines.push(`  ${yesId} --> ${edge.to}`);
-  }
-  for (const edge of graph.edges) {
-    if (!removedLineIndexes.has(edge.lineIndex) || edge.from === sourceId)
-      continue;
-    restoreInlineDecl(edge, edge.from);
-    restoreInlineDecl(edge, edge.to);
-    newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${edge.to}` : `  ${edge.from} --> ${edge.to}`);
-  }
-  await applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines));
-  selectEditorNode(decisionId);
-  focusInspectorText();
-}
-async function commitNewDecisionAfter(sourceId, graph) {
-  await commitInsertDecisionAfter(sourceId, graph);
-}
-async function commitAddChoiceOnDecision(questionId, graph) {
-  const removedLineIndexes = new Set;
-  let suffix = "NEW";
-  let n = 1;
-  while (graph.nodes.has(choiceId(questionId, suffix)))
-    suffix = "NEW" + ++n;
-  const cid = choiceId(questionId, suffix);
-  const newLines = [`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`];
-  await applyEditorSource(sourceWithLinesReplaced(graph, removedLineIndexes, newLines));
-  selectEditorNode(questionId);
-}
-function addChoiceOnDecision() {
-  if (!state.selectedEditorNodeId)
-    return;
-  const graph = editorGraph();
-  const questionId = state.selectedEditorNodeId;
-  setEditorActionPromise(commitAddChoiceOnDecision(questionId, graph));
-}
-function commitNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.value.trim()) {
+function updateNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.value.trim()) {
   if (!id)
     return;
   const advance = state.advanceAfterDecisionText?.decisionId === id ? state.advanceAfterDecisionText : null;
@@ -2362,8 +2404,8 @@ function commitNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.va
     state.advanceAfterDecisionText = null;
   if (focusDestination)
     state.focusDestinationAfterTextId = null;
-  appendEditorAction(async () => {
-    const graph = editorGraph();
+  async function applyNodeTextUpdate() {
+    const graph = getEditorGraph();
     const node = graph.nodes.get(id);
     if (!node)
       return;
@@ -2376,42 +2418,50 @@ function commitNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.va
     }
     if (advance) {
       selectEditorNode(advance.choiceId);
-      focusInspectorDestination();
+      setInspectorDestinationFocus();
     } else if (focusDestination) {
       selectEditorNode(id);
-      focusInspectorDestination();
+      setInspectorDestinationFocus();
     }
-  });
+  }
+  appendEditorAction(applyNodeTextUpdate);
 }
 function applyDestination(destination) {
   const id = state.selectedEditorNodeId;
   if (!id)
     return;
-  const graph = editorGraph();
+  const graph = getEditorGraph();
   const node = graph.nodes.get(id);
-  if (!node || node.kind === "question")
+  const isMissing = !node;
+  const isQuestion = node?.kind === "question";
+  const isUnsupported = isMissing || isQuestion;
+  if (isUnsupported)
     return;
   const createsStatic = destination === NEW_STATIC_DESTINATION;
   const createsDecision = destination === NEW_DECISION_DESTINATION;
-  if (!createsStatic && !createsDecision && outgoingDestination(id, graph) === (destination || undefined))
+  const createsNothing = !createsStatic && !createsDecision;
+  const isSameDestination = findOutgoingDestination(id, graph) === (destination || undefined);
+  const isUnchanged = createsNothing && isSameDestination;
+  if (isUnchanged)
     return;
   const text = nodeTextInput.value.trim();
   if (text !== node.label)
-    commitNodeText(id, text);
-  appendEditorAction(async () => {
-    const currentGraph = editorGraph();
+    updateNodeText(id, text);
+  async function applyDestinationChange() {
+    const currentGraph = getEditorGraph();
     if (createsStatic)
-      await commitNewStaticAfter(id, currentGraph);
+      await createStaticAfter(id, currentGraph);
     else if (createsDecision)
-      await commitNewDecisionAfter(id, currentGraph);
+      await createDecisionAfter(id, currentGraph);
     else {
       const source = destination ? replaceOutgoing(id, destination, currentGraph) : removeOutgoing(id, currentGraph);
       await applyEditorSource(source);
     }
-    centerNodeInViewport(outputBox, diagramBox, id);
-  });
+    moveNodeToViewportCenter(outputBox, diagramBox, id);
+  }
+  appendEditorAction(applyDestinationChange);
 }
-function commitDestination() {
+function applyDestinationSelection() {
   applyDestination(destinationSelect.value);
 }
 
@@ -2420,7 +2470,7 @@ function openNodeTextEditor(event) {
   const nodeEl = event.target.closest("g.node");
   if (!nodeEl)
     return;
-  selectEditorNode(nodeIdOf(nodeEl));
+  selectEditorNode(getNodeId(nodeEl));
   nodeTextInput.focus();
   nodeTextInput.select();
 }
@@ -2431,16 +2481,16 @@ document.getElementById("removeQuestionBtn").addEventListener("click", removeQue
 document.getElementById("removeBlockBtn").addEventListener("click", removeBlock);
 document.getElementById("addChoiceBtn").addEventListener("click", addChoice);
 document.getElementById("removeChoiceBtn").addEventListener("click", removeChoice);
-document.getElementById("nextRemovalPathBtn").addEventListener("click", advanceRemovalPreview);
-document.getElementById("confirmRemoveQuestionBtn").addEventListener("click", confirmQuestionRemoval);
-document.getElementById("cancelRemoveQuestionBtn").addEventListener("click", cancelQuestionRemoval);
-document.getElementById("editorUndoBtn").addEventListener("click", undoEditorAction);
-document.getElementById("editorRedoBtn").addEventListener("click", redoEditorAction);
+document.getElementById("nextRemovalPathBtn").addEventListener("click", moveRemovalPreview);
+document.getElementById("confirmRemoveQuestionBtn").addEventListener("click", applyQuestionRemoval);
+document.getElementById("cancelRemoveQuestionBtn").addEventListener("click", clearQuestionRemoval);
+document.getElementById("editorUndoBtn").addEventListener("click", applyEditorUndo);
+document.getElementById("editorRedoBtn").addEventListener("click", applyEditorRedo);
 function clearEditorSelection() {
   selectEditorNode(null);
 }
 document.getElementById("nodeInspectorDismissBtn").addEventListener("click", clearEditorSelection);
-destinationSelect.addEventListener("change", commitDestination);
+destinationSelect.addEventListener("change", applyDestinationSelection);
 function dispatchInspectorAction(event) {
   const button = event.target.closest("button[data-action]");
   const action = button?.dataset.action;
@@ -2449,17 +2499,17 @@ function dispatchInspectorAction(event) {
   else if (action === "insert-static-after") {
     if (!state.selectedEditorNodeId)
       return;
-    setEditorActionPromise(commitInsertStaticAfter(state.selectedEditorNodeId, editorGraph()));
+    setEditorActionPromise(insertStaticAfterNode(state.selectedEditorNodeId, getEditorGraph()));
   } else if (action === "insert-decision-after") {
     if (!state.selectedEditorNodeId)
       return;
-    setEditorActionPromise(commitInsertDecisionAfter(state.selectedEditorNodeId, editorGraph()));
+    setEditorActionPromise(insertDecisionAfterNode(state.selectedEditorNodeId, getEditorGraph()));
   } else if (action === "add-decision-after")
     applyDestination(NEW_DECISION_DESTINATION);
   else if (action === "add-choice")
     addChoiceOnDecision();
   else if (action === "remove") {
-    const kind = editorGraph().nodes.get(state.selectedEditorNodeId ?? "")?.kind;
+    const kind = getEditorGraph().nodes.get(state.selectedEditorNodeId ?? "")?.kind;
     if (kind === "question")
       removeQuestion();
     else if (kind === "block")
@@ -2481,7 +2531,7 @@ function writeNodeTextOnCommitKey(event) {
   if (!isCommitKey)
     return;
   event.preventDefault();
-  commitNodeText();
+  updateNodeText();
 }
 nodeTextInput.addEventListener("keydown", writeNodeTextOnCommitKey);
 var isPointerPressed = false;
@@ -2499,11 +2549,11 @@ function writeNodeTextOnChange() {
   const id = state.selectedEditorNodeId;
   const text = nodeTextInput.value.trim();
   if (!isPointerPressed) {
-    commitNodeText(id, text);
+    updateNodeText(id, text);
     return;
   }
   function writeNodeTextLater() {
-    commitNodeText(id, text);
+    updateNodeText(id, text);
   }
   function scheduleCommitAfterClick() {
     setTimeout(writeNodeTextLater);
@@ -2517,63 +2567,178 @@ function clearSelectionOnEscape(event) {
   selectEditorNode(null);
 }
 document.addEventListener("keydown", clearSelectionOnEscape);
-outputBox.addEventListener("scroll", positionNodeInspector);
-window.addEventListener("resize", positionNodeInspector);
+outputBox.addEventListener("scroll", updateNodeInspectorPosition);
+window.addEventListener("resize", updateNodeInspectorPosition);
 
-// editor-class-events.ts
-classPickerBtn.addEventListener("click", () => {
-  classPickerList.hidden = !classPickerList.hidden;
-});
-document.addEventListener("click", (event) => {
-  const insidePicker = event.target.closest("#classPicker");
-  if (!insidePicker)
-    classPickerList.hidden = true;
-});
-classPickerList.addEventListener("click", (event) => {
-  const button = event.target.closest("button.class-picker-row");
-  if (!button)
-    return;
-  const nodeId = classPickerBtn.dataset.nodeId;
-  classPickerList.hidden = true;
-  if (button.dataset.className)
-    setEditorActionPromise(assignClass(nodeId, button.dataset.className));
-  else if (button.dataset.classNone !== undefined)
-    setEditorActionPromise(assignClass(nodeId, null));
-  else if (button.dataset.classNew !== undefined)
-    openClassEditor(nodeId);
-});
-var classEditorAssignNodeId = null;
-function openClassEditor(assignToNodeId) {
-  classEditorAssignNodeId = assignToNodeId;
-  classEditorName.value = "";
-  classEditorFill.value = "#ffffff";
-  classEditorStroke.value = "#000000";
-  classEditorError.textContent = "";
-  classEditorDialog.showModal();
+// class-source.ts
+function buildLinesWithoutNodeClass(lines, nodeId) {
+  const result = [];
+  for (const line of lines) {
+    const isLineCommented = isCommented(line);
+    const match = line.match(CLASS_LINE_RE);
+    const hasNoMatch = !match;
+    const isUnrelated = isLineCommented || hasNoMatch;
+    if (isUnrelated) {
+      result.push(line);
+      continue;
+    }
+    const ids = match[2].split(",");
+    const withoutId = [];
+    for (const id of ids) {
+      const isOtherNode = id !== nodeId;
+      if (isOtherNode)
+        withoutId.push(id);
+    }
+    const isUnchanged = withoutId.length === ids.length;
+    if (isUnchanged) {
+      result.push(line);
+      continue;
+    }
+    const isEmpty = withoutId.length === 0;
+    if (isEmpty)
+      result.push(`%% ${line.trim()}`);
+    else
+      result.push(`${match[1]}class ${withoutId.join(",")} ${match[3]}`);
+  }
+  return result;
 }
-classEditorCancelBtn.addEventListener("click", () => classEditorDialog.close());
-classEditorCreateBtn.addEventListener("click", () => {
-  const name = classEditorName.value.trim();
-  if (!name) {
-    classEditorError.textContent = "Name is required.";
-    return;
+function buildSourceWithAssignedClass(source, nodeId, className) {
+  const lines = buildLinesWithoutNodeClass(source.split(`
+`), nodeId);
+  if (className === null)
+    return lines.join(`
+`);
+  let assigned = false;
+  let lastClassLineIndex = -1;
+  for (let i = 0;i < lines.length; i++) {
+    const isLineCommented = isCommented(lines[i]);
+    if (isLineCommented)
+      continue;
+    const match = lines[i].match(CLASS_LINE_RE);
+    if (!match)
+      continue;
+    lastClassLineIndex = i;
+    if (match[3] === className) {
+      lines[i] = `${match[1]}class ${match[2]},${nodeId} ${className}`;
+      assigned = true;
+    }
   }
-  const existingClassDef = classDefByName(codeBox.value, name);
-  if (existingClassDef) {
-    classEditorError.textContent = `Class "${name}" already exists.`;
-    return;
+  if (!assigned) {
+    const newLine = `class ${nodeId} ${className}`;
+    if (lastClassLineIndex === -1)
+      lines.push(newLine);
+    else
+      lines.splice(lastClassLineIndex + 1, 0, newLine);
   }
-  classEditorError.textContent = "";
-  const assignToNodeId = classEditorAssignNodeId;
-  setEditorActionPromise((async () => {
-    await createClass(name, classEditorFill.value, classEditorStroke.value);
-    if (assignToNodeId)
-      await assignClass(assignToNodeId, name);
-    if (classesDialog.open)
-      renderClassesDialog();
-  })());
-  classEditorDialog.close();
-});
+  return lines.join(`
+`);
+}
+function buildSourceWithCreatedClass(source, name, fill, stroke) {
+  const lines = source.split(`
+`);
+  const newLine = `classDef ${name} fill:${fill},stroke:${stroke}`;
+  let lastClassDefLineIndex = -1;
+  for (let i = 0;i < lines.length; i++) {
+    const isLineCommented = isCommented(lines[i]);
+    if (isLineCommented)
+      continue;
+    const isClassDefLine = CLASSDEF_LINE_RE.test(lines[i]);
+    if (isClassDefLine)
+      lastClassDefLineIndex = i;
+  }
+  if (lastClassDefLineIndex === -1)
+    lines.push(newLine);
+  else
+    lines.splice(lastClassDefLineIndex + 1, 0, newLine);
+  return lines.join(`
+`);
+}
+function buildSourceWithClassColors(source, name, fill, stroke) {
+  const result = [];
+  for (const line of source.split(`
+`)) {
+    const isLineCommented = isCommented(line);
+    const match = line.match(CLASSDEF_LINE_RE);
+    const isOtherClass = match?.[2] !== name;
+    const isUnrelated = isLineCommented || isOtherClass;
+    if (isUnrelated) {
+      result.push(line);
+      continue;
+    }
+    const { order, props } = parseStyleProps(match[3]);
+    const hasFill = order.includes("fill");
+    if (!hasFill)
+      order.push("fill");
+    const hasStroke = order.includes("stroke");
+    if (!hasStroke)
+      order.push("stroke");
+    props.fill = fill;
+    props.stroke = stroke;
+    result.push(`${match[1]}classDef ${name} ${buildStyleText(order, props)}`);
+  }
+  return result.join(`
+`);
+}
+function buildSourceWithRenamedClass(source, oldName, newName) {
+  const result = [];
+  for (const line of source.split(`
+`)) {
+    const isLineCommented = isCommented(line);
+    if (isLineCommented) {
+      result.push(line);
+      continue;
+    }
+    const classDefMatch = line.match(CLASSDEF_LINE_RE);
+    const isRenamedDef = classDefMatch?.[2] === oldName;
+    if (isRenamedDef) {
+      result.push(`${classDefMatch[1]}classDef ${newName} ${classDefMatch[3]}`);
+      continue;
+    }
+    const classMatch = line.match(CLASS_LINE_RE);
+    const isRenamedAssignment = classMatch?.[3] === oldName;
+    if (isRenamedAssignment)
+      result.push(`${classMatch[1]}class ${classMatch[2]} ${newName}`);
+    else
+      result.push(line);
+  }
+  return result.join(`
+`);
+}
+function buildSourceWithDeletedClass(source, name) {
+  const result = [];
+  for (const line of source.split(`
+`)) {
+    const isLineCommented = isCommented(line);
+    const match = line.match(CLASSDEF_LINE_RE);
+    const isOtherClass = match?.[2] !== name;
+    const isUnrelated = isLineCommented || isOtherClass;
+    if (isUnrelated)
+      result.push(line);
+    else
+      result.push(`%% ${line.trim()}`);
+  }
+  return result.join(`
+`);
+}
+
+// class-defs.ts
+async function setNodeClass(nodeId, className) {
+  await applyEditorSource(buildSourceWithAssignedClass(codeBox.value, nodeId, className));
+}
+async function createClass(name, fill, stroke) {
+  await applyEditorSource(buildSourceWithCreatedClass(codeBox.value, name, fill, stroke));
+}
+async function setClassColors(name, fill, stroke) {
+  await applyEditorSource(buildSourceWithClassColors(codeBox.value, name, fill, stroke));
+}
+async function renameClass(oldName, newName) {
+  await applyEditorSource(buildSourceWithRenamedClass(codeBox.value, oldName, newName));
+}
+async function removeClass(name) {
+  await applyEditorSource(buildSourceWithDeletedClass(codeBox.value, name));
+}
+
+// editor-classes-render.ts
 function renderClassesDialog() {
   const defs = parseClassDefs(codeBox.value);
   const rowHtmlParts = [];
@@ -2589,14 +2754,82 @@ function renderClassesDialog() {
   classesList.innerHTML = rowHtmlParts.join("");
   classesError.textContent = "";
 }
-classesMenuBtn.addEventListener("click", () => {
+
+// editor-class-events.ts
+function toggleClassPickerList() {
+  classPickerList.hidden = !classPickerList.hidden;
+}
+function clearClassPickerOnOutsideClick(event) {
+  const insidePicker = event.target.closest("#classPicker");
+  if (!insidePicker)
+    classPickerList.hidden = true;
+}
+function selectClassPickerRow(event) {
+  const button = event.target.closest("button.class-picker-row");
+  if (!button)
+    return;
+  const nodeId = classPickerBtn.dataset.nodeId;
+  classPickerList.hidden = true;
+  if (button.dataset.className)
+    setEditorActionPromise(setNodeClass(nodeId, button.dataset.className));
+  else if (button.dataset.classNone !== undefined)
+    setEditorActionPromise(setNodeClass(nodeId, null));
+  else if (button.dataset.classNew !== undefined)
+    openClassEditor(nodeId);
+}
+classPickerBtn.addEventListener("click", toggleClassPickerList);
+document.addEventListener("click", clearClassPickerOnOutsideClick);
+classPickerList.addEventListener("click", selectClassPickerRow);
+var classEditorAssignNodeId = null;
+function openClassEditor(assignToNodeId) {
+  classEditorAssignNodeId = assignToNodeId;
+  classEditorName.value = "";
+  classEditorFill.value = "#ffffff";
+  classEditorStroke.value = "#000000";
+  classEditorError.textContent = "";
+  classEditorDialog.showModal();
+}
+function closeClassEditor() {
+  classEditorDialog.close();
+}
+function createClassFromEditor() {
+  const name = classEditorName.value.trim();
+  if (!name) {
+    classEditorError.textContent = "Name is required.";
+    return;
+  }
+  const existingClassDef = findClassDef(codeBox.value, name);
+  if (existingClassDef) {
+    classEditorError.textContent = `Class "${name}" already exists.`;
+    return;
+  }
+  classEditorError.textContent = "";
+  const assignToNodeId = classEditorAssignNodeId;
+  setEditorActionPromise((async () => {
+    await createClass(name, classEditorFill.value, classEditorStroke.value);
+    if (assignToNodeId)
+      await setNodeClass(assignToNodeId, name);
+    if (classesDialog.open)
+      renderClassesDialog();
+  })());
+  classEditorDialog.close();
+}
+classEditorCancelBtn.addEventListener("click", closeClassEditor);
+classEditorCreateBtn.addEventListener("click", createClassFromEditor);
+
+// editor-classes-dialog.ts
+function openClassesDialog() {
   document.getElementById("fileMenu").removeAttribute("open");
   renderClassesDialog();
   classesDialog.showModal();
-});
-classesCloseBtn.addEventListener("click", () => classesDialog.close());
-classesNewBtn.addEventListener("click", () => openClassEditor(null));
-classesList.addEventListener("change", (event) => {
+}
+function closeClassesDialog() {
+  classesDialog.close();
+}
+function openNewClassEditor() {
+  openClassEditor(null);
+}
+function updateClassFromRow(event) {
   const row = event.target.closest(".classes-row");
   if (!row)
     return;
@@ -2632,14 +2865,19 @@ classesList.addEventListener("change", (event) => {
     }
     setEditorActionPromise(renameClass(name, newName).then(renderClassesDialog));
   }
-});
-classesList.addEventListener("click", (event) => {
+}
+function removeClassFromRow(event) {
   const button = event.target.closest(".classes-delete");
   if (!button)
     return;
   const name = button.closest(".classes-row").dataset.className;
-  setEditorActionPromise(deleteClass(name).then(renderClassesDialog));
-});
+  setEditorActionPromise(removeClass(name).then(renderClassesDialog));
+}
+classesMenuBtn.addEventListener("click", openClassesDialog);
+classesCloseBtn.addEventListener("click", closeClassesDialog);
+classesNewBtn.addEventListener("click", openNewClassEditor);
+classesList.addEventListener("change", updateClassFromRow);
+classesList.addEventListener("click", removeClassFromRow);
 
 // editor-events.ts
 function selectNodeSourceLine(id) {
@@ -2661,12 +2899,12 @@ function selectNodeSourceLine(id) {
 }
 var selectClickedNode = (event) => {
   const nodeEl = event.target.closest("g.node");
-  const id = nodeEl ? nodeIdOf(nodeEl) : null;
+  const id = nodeEl ? getNodeId(nodeEl) : null;
   if (id)
     selectNodeSourceLine(id);
   selectEditorNode(id);
   if (id) {
-    const graph = editorGraph();
+    const graph = getEditorGraph();
     const node = graph.nodes.get(id);
     if (node?.kind === "question") {
       state.phoneFocusNodeId = id;
@@ -2674,7 +2912,7 @@ var selectClickedNode = (event) => {
       state.phonePreviewChoiceId = null;
       render();
     } else {
-      const feedingChoice = nearestFeedingChoice(id, graph);
+      const feedingChoice = findNearestFeedingChoice(id, graph);
       if (feedingChoice) {
         state.phoneFocusNodeId = null;
         state.phoneFocusUsesDecisionContext = false;
@@ -2707,7 +2945,7 @@ var selectPhoneChoice = async (event) => {
     const isShowingHistory = isPhoneShowingHistory();
     if (!isShowingHistory) {
       const edges = parseEdges(codeBox.value);
-      const answers = findAnswersLeadingTo(parentOf(choiceId, edges), edges, editorGraph());
+      const answers = findAnswersLeadingTo(parentOf(choiceId, edges), edges, getEditorGraph());
       phonePath.length = 0;
       phonePath.push(...answers);
     }
@@ -2757,7 +2995,7 @@ async function openFileFromDialog() {
   state.diagramScale = null;
   state.currentDecisionId = null;
   codeBox.value = text;
-  restoreTypeMetadata(splitEditorMetadata(codeBox.value).metadata);
+  applyTypeMetadata(splitEditorMetadata(codeBox.value).metadata);
   resetEditorHistory(codeBox.value);
   selectBox.value = "";
   render();
@@ -2769,11 +3007,23 @@ async function openFileFromDialog() {
 var searchMatches = [];
 var searchIndex = 0;
 var searchRunId = 0;
-function matchingNodes(graph, query) {
+function compareNodesByLine2(a, b) {
+  return a.lineIndex - b.lineIndex;
+}
+function findMatchingNodes(graph, query) {
+  const matches = [];
   if (query === "")
-    return [];
+    return matches;
   const needle = query.toLowerCase();
-  return [...graph.nodes.values()].filter((node) => node.id.toLowerCase().includes(needle) || node.label.toLowerCase().includes(needle)).sort((a, b) => a.lineIndex - b.lineIndex);
+  for (const node of graph.nodes.values()) {
+    const idMatches = node.id.toLowerCase().includes(needle);
+    const labelMatches = node.label.toLowerCase().includes(needle);
+    const isMatch = idMatches || labelMatches;
+    if (isMatch)
+      matches.push(node);
+  }
+  matches.sort(compareNodesByLine2);
+  return matches;
 }
 function updateSearchControls() {
   const hasText = searchInput.value !== "";
@@ -2785,7 +3035,7 @@ function updateSearchControls() {
   searchNextBtn.hidden = !hasSeveralMatches;
   searchCounter.textContent = `${current} / ${searchMatches.length}`;
 }
-async function jumpToSearchMatch() {
+async function moveToSearchMatch() {
   const runId = ++searchRunId;
   const id = searchMatches[searchIndex].id;
   selectEditorNode(id);
@@ -2793,27 +3043,27 @@ async function jumpToSearchMatch() {
   if (runId !== searchRunId)
     return;
   selectEditorNode(id);
-  centerNodeInViewport(outputBox, diagramBox, id);
+  moveNodeToViewportCenter(outputBox, diagramBox, id);
 }
-async function runSearch() {
+async function executeSearch() {
   let graph;
   try {
-    graph = editorGraph();
+    graph = getEditorGraph();
   } catch (error) {
-    showEditorValidationError(error);
+    reportEditorValidationError(error);
     return;
   }
-  searchMatches = matchingNodes(graph, searchInput.value);
+  searchMatches = findMatchingNodes(graph, searchInput.value);
   searchIndex = 0;
   updateSearchControls();
   if (searchMatches.length === 0)
     return;
-  await jumpToSearchMatch();
+  await moveToSearchMatch();
 }
-async function cycleSearch(step) {
+async function moveSearchSelection(step) {
   searchIndex = (searchIndex + step + searchMatches.length) % searchMatches.length;
   updateSearchControls();
-  await jumpToSearchMatch();
+  await moveToSearchMatch();
 }
 function clearSearch() {
   searchInput.value = "";
@@ -2836,7 +3086,7 @@ function resetEditorToNewDiagram() {
   state.phonePreviewChoiceId = null;
   state.diagramScale = null;
   state.currentDecisionId = null;
-  restoreTypeMetadata(null);
+  applyTypeMetadata(null);
   codeBox.value = `flowchart TD
   B_NEW[New idea]`;
   resetEditorHistory(codeBox.value);
@@ -2845,16 +3095,16 @@ function resetEditorToNewDiagram() {
   setDrawerOpen(true);
 }
 function selectPreviousDecision() {
-  navigateDecision(-1);
+  moveToDecision(-1);
 }
 function selectNextDecision() {
-  navigateDecision(1);
+  moveToDecision(1);
 }
 function selectPreviousSearchMatch() {
-  cycleSearch(-1);
+  moveSearchSelection(-1);
 }
 function selectNextSearchMatch() {
-  cycleSearch(1);
+  moveSearchSelection(1);
 }
 function applyZoomIn() {
   setMainZoomPercent(state.mainZoomPercent + MAIN_ZOOM_STEP);
@@ -2871,7 +3121,7 @@ function resetChosenPath() {
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
-  highlightPath();
+  applyPathHighlight();
   render();
   outputBox.scrollTo({ top: 0, behavior: "smooth" });
   phoneDiagramBox.querySelector("#phoneHistory")?.scrollTo({ top: 0, behavior: "smooth" });
@@ -2893,7 +3143,7 @@ document.getElementById("newBtn").addEventListener("click", resetEditorToNewDiag
 document.getElementById("saveBtn").addEventListener("click", saveDiagram);
 previousDecisionBtn.addEventListener("click", selectPreviousDecision);
 nextDecisionBtn.addEventListener("click", selectNextDecision);
-searchInput.addEventListener("input", runSearch);
+searchInput.addEventListener("input", executeSearch);
 searchClearBtn.addEventListener("click", clearSearch);
 searchPreviousBtn.addEventListener("click", selectPreviousSearchMatch);
 searchNextBtn.addEventListener("click", selectNextSearchMatch);
@@ -2910,4 +3160,4 @@ document.getElementById("fileMenuItems").addEventListener("click", closeFileMenu
 // viewer.ts
 applyMainZoom(false);
 loadDiagram(sessionStorage.getItem("loadedDiagram") ?? "accountability.mmd");
-Object.assign(window, { loadDiagram, codeBox, nodeIdOf, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, undoEditorAction, redoEditorAction, insertStaticBefore, insertDecisionBefore, listAllPathIds });
+Object.assign(window, { loadDiagram, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds });

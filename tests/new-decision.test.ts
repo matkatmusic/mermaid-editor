@@ -59,7 +59,7 @@ test('test_add_choice_on_inspector_appends_a_new_terminal_choice_without_touchin
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  Q_Q{"Q"}\n  Q_CHOICE_Q_A["A"]\n  B_END["End"]\n  Q_Q --> Q_CHOICE_Q_A\n  Q_CHOICE_Q_A --> B_END');
   await clickNode('Q_Q');
-  const beforeCount = await evaluate('editorGraph().edges.filter(e => e.from === "Q_Q").length');
+  const beforeCount = await evaluate('getEditorGraph().edges.filter(e => e.from === "Q_Q").length');
   await clickInspectorAction('add-choice');
   const source = await evaluate('codeBox.value');
   // Step: a brand-new terminal choice is appended, growing Q's branch count by one.
@@ -70,7 +70,7 @@ test('test_add_choice_on_inspector_appends_a_new_terminal_choice_without_touchin
   assert.ok(source.includes('Q_Q --> Q_CHOICE_Q_A'));
   assert.ok(source.includes('Q_CHOICE_Q_A["A"]'));
   assert.ok(source.includes('Q_CHOICE_Q_A --> B_END'));
-  const afterCount = await evaluate('editorGraph().edges.filter(e => e.from === "Q_Q").length');
+  const afterCount = await evaluate('getEditorGraph().edges.filter(e => e.from === "Q_Q").length');
   assert.equal(afterCount, beforeCount + 1);
   await assertEditorSourceIsSavedAndValid();
 });

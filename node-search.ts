@@ -1,22 +1,33 @@
 import type { EditorGraph, EditorNode } from './editor-types.ts';
-import { editorGraph } from './editor-graph.ts';
+import { getEditorGraph } from './editor-graph.ts';
 import { diagramBox, outputBox, searchClearBtn, searchCounter, searchInput, searchNextBtn, searchPreviousBtn } from './dom.ts';
-import { showEditorValidationError } from './render-helpers.ts';
+import { reportEditorValidationError } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { render } from './render.ts';
-import { centerNodeInViewport } from './decision-nav.ts';
+import { moveNodeToViewportCenter } from './decision-nav.ts';
 
 let searchMatches: EditorNode[] = [];
 let searchIndex = 0;
 let searchRunId = 0;
 
-function matchingNodes(graph: EditorGraph, query: string) {
+function compareNodesByLine(a: EditorNode, b: EditorNode) {
+  return a.lineIndex - b.lineIndex;
+}
+
+function findMatchingNodes(graph: EditorGraph, query: string) {
+  const matches: EditorNode[] = [];
   if (query === '')
-    return [];
+    return matches;
   const needle = query.toLowerCase();
-  return [...graph.nodes.values()]
-    .filter(node => node.id.toLowerCase().includes(needle) || node.label.toLowerCase().includes(needle))
-    .sort((a, b) => a.lineIndex - b.lineIndex);
+  for (const node of graph.nodes.values()) {
+    const idMatches = node.id.toLowerCase().includes(needle);
+    const labelMatches = node.label.toLowerCase().includes(needle);
+    const isMatch = idMatches || labelMatches;
+    if (isMatch)
+      matches.push(node);
+  }
+  matches.sort(compareNodesByLine);
+  return matches;
 }
 
 function updateSearchControls() {
@@ -30,7 +41,7 @@ function updateSearchControls() {
   searchCounter.textContent = `${current} / ${searchMatches.length}`;
 }
 
-async function jumpToSearchMatch() {
+async function moveToSearchMatch() {
   const runId = ++searchRunId;
   const id = searchMatches[searchIndex].id;
   selectEditorNode(id);
@@ -39,30 +50,30 @@ async function jumpToSearchMatch() {
   if (runId !== searchRunId)
     return;
   selectEditorNode(id);
-  centerNodeInViewport(outputBox, diagramBox, id);
+  moveNodeToViewportCenter(outputBox, diagramBox, id);
 }
 
-export async function runSearch() {
+export async function executeSearch() {
   let graph: EditorGraph;
   try {
-    graph = editorGraph();
+    graph = getEditorGraph();
   }
   catch (error) {
-    showEditorValidationError(error);
+    reportEditorValidationError(error);
     return;
   }
-  searchMatches = matchingNodes(graph, searchInput.value);
+  searchMatches = findMatchingNodes(graph, searchInput.value);
   searchIndex = 0;
   updateSearchControls();
   if (searchMatches.length === 0)
     return;
-  await jumpToSearchMatch();
+  await moveToSearchMatch();
 }
 
-export async function cycleSearch(step: 1 | -1) {
+export async function moveSearchSelection(step: 1 | -1) {
   searchIndex = (searchIndex + step + searchMatches.length) % searchMatches.length;
   updateSearchControls();
-  await jumpToSearchMatch();
+  await moveToSearchMatch();
 }
 
 export function clearSearch() {

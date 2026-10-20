@@ -4,7 +4,8 @@ import { parseEdges } from './diagram-source.ts';
 import { setStatus } from './diagram-io.ts';
 import { state } from './state.ts';
 import { findRoot } from './phone-render.ts';
-import { buildChosenPathSource, selectPathFolder,writeToOpenedFileFolder, writeToServerDiagrams } from './path-export.ts';
+import { buildChosenPathSource } from './path-export.ts';
+import { selectPathFolder, writeToOpenedFileFolder, writeToServerDiagrams } from './path-write.ts';
 
 // Depth first: each edge is used once per path; a path ends where no unused edge leaves the node.
 function collectPaths(path: string[], usedEdges: Set<string>, edges: Edge[], paths: string[][]) {

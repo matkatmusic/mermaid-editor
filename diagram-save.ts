@@ -1,6 +1,6 @@
 import { codeBox } from './dom.ts';
 import { state } from './state.ts';
-import { restoreTypeMetadata, splitEditorMetadata } from './editor-graph.ts';
+import { applyTypeMetadata, splitEditorMetadata } from './editor-metadata.ts';
 import { render } from './render.ts';
 import { loadList, resetEditorHistory, setStatus } from './diagram-io.ts';
 
@@ -38,7 +38,7 @@ export function createDiagramWatcher(name: string) {
     if (text === lastSavedDiagramText)
       return;
     if (text !== codeBox.value) {
-      restoreTypeMetadata(splitEditorMetadata(text).metadata);
+      applyTypeMetadata(splitEditorMetadata(text).metadata);
       codeBox.value = text;
       resetEditorHistory(text);
     }

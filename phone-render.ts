@@ -1,5 +1,5 @@
 import type { Edge } from './dom.ts';
-import type { EditorGraph } from './editor-types.ts';
+import type { EditorGraph, EditorNode } from './editor-types.ts';
 import { phonePath, state } from './state.ts';
 import { choicesOf } from './graph-slice.ts';
 
@@ -24,11 +24,15 @@ export type Row =
   | { status: 'active'; id: string }
   | { status: 'past'; id: string; chosenChoiceId: string; declinedChoiceIds: string[]; revertIndex?: number };
 
+function compareNodesByLine(a: EditorNode, b: EditorNode) {
+  return a.lineIndex - b.lineIndex;
+}
+
 // Walks answered history from the root in phonePath order, so every past decision renders masked.
 export function buildHistoryRows(edges: Edge[], graph: EditorGraph): Row[] {
   if (edges.length === 0) {
     // No edges to walk (e.g. a single declared node): show every declared node standalone.
-    const sorted = [...graph.nodes.values()].sort((a, b) => a.lineIndex - b.lineIndex);
+    const sorted = [...graph.nodes.values()].sort(compareNodesByLine);
     const standaloneRows: Row[] = [];
     for (const node of sorted) {
       const isBlock = node.kind === 'block';

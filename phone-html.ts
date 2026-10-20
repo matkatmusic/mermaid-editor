@@ -3,7 +3,7 @@ import type { Edge } from './dom.ts';
 import type { EditorGraph, EditorNode } from './editor-types.ts';
 import { phonePath } from './state.ts';
 import { choicesOf } from './graph-slice.ts';
-import { buildClassStyleIndex, styleOfNode, type ClassStyleIndex } from './class-defs.ts';
+import { buildClassStyleIndex, findNodeStyle, type ClassStyleIndex } from './class-style-index.ts';
 import type { Row } from './phone-render.ts';
 import { buildRows } from './phone-rows.ts';
 
@@ -14,7 +14,7 @@ let classIndex: ClassStyleIndex = { assignments: new Map(), defsByName: new Map(
 
 // Color now comes from the node's mermaid class, not state.typeColors/state.nodeTypes.
 function getPhoneNodeAppearance(node: EditorNode) {
-  const classStyle = styleOfNode(classIndex, node.id);
+  const classStyle = findNodeStyle(classIndex, node.id);
   if (!classStyle)
     return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: '' };
   return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}`, labelStyle: '' };

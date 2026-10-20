@@ -59,12 +59,12 @@ test("test_question_removal_preview_cancel_confirm_undo_and_redo_persist", async
   await evaluate(`mermaid.parse(${JSON.stringify(source)})`);
 
   // Step: undo brings Q1 back.
-  await evaluate("window.undoEditorAction(); window.editorActionPromise");
+  await evaluate("window.applyEditorUndo(); window.editorActionPromise");
   source = await evaluate("codeBox.value");
   assert.ok(source.includes('Q_Q1{"Can I be calm?"}'));
 
   // Step: redo removes it again.
-  await evaluate("window.redoEditorAction(); window.editorActionPromise");
+  await evaluate("window.applyEditorRedo(); window.editorActionPromise");
   source = await evaluate("codeBox.value");
   assert.ok(!source.includes('Q_Q1{"Can I be calm?"}'));
 });

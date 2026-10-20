@@ -1,18 +1,23 @@
 import { destinationSelect, nodeInspectorActions, nodeTextInput, outputBox } from './dom.ts';
-import { nodeIdOf } from './render-helpers.ts';
+import { getNodeId } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
-import { editorGraph, setEditorActionPromise } from './editor-graph.ts';
+import { getEditorGraph } from './editor-graph.ts';
+import { setEditorActionPromise } from './editor-metadata.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
-import { addBlockAfter, addChoice, addQuestionAfter, insertDecisionBefore, insertStaticBefore } from './editor-add.ts';
-import { advanceRemovalPreview, cancelQuestionRemoval, confirmQuestionRemoval, redoEditorAction, removeBlock, removeChoice, removeChoices, removeQuestion, undoEditorAction } from './editor-remove.ts';
-import { addChoiceOnDecision, applyDestination, commitDestination, commitInsertDecisionAfter, commitInsertStaticAfter, commitNodeText } from './editor-commit.ts';
-import { positionNodeInspector } from './node-inspector.ts';
+import { addBlockAfter, addChoice, addQuestionAfter } from './editor-add.ts';
+import { insertDecisionBefore, insertStaticBefore } from './editor-insert-before.ts';
+import { removeBlock, removeChoice, removeChoices } from './editor-remove.ts';
+import { applyQuestionRemoval, clearQuestionRemoval, moveRemovalPreview, removeQuestion } from './editor-remove-question.ts';
+import { applyEditorRedo, applyEditorUndo } from './editor-history.ts';
+import { applyDestination, applyDestinationSelection, updateNodeText } from './editor-commit.ts';
+import { addChoiceOnDecision, insertDecisionAfterNode, insertStaticAfterNode } from './editor-insert-after.ts';
+import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 
 function openNodeTextEditor(event: MouseEvent) {
   const nodeEl = (event.target as HTMLElement).closest('g.node');
   if (!nodeEl)
     return;
-  selectEditorNode(nodeIdOf(nodeEl));
+  selectEditorNode(getNodeId(nodeEl));
   nodeTextInput.focus();
   nodeTextInput.select();
 }
@@ -24,16 +29,16 @@ document.getElementById('removeQuestionBtn')!.addEventListener('click', removeQu
 document.getElementById('removeBlockBtn')!.addEventListener('click', removeBlock);
 document.getElementById('addChoiceBtn')!.addEventListener('click', addChoice);
 document.getElementById('removeChoiceBtn')!.addEventListener('click', removeChoice);
-document.getElementById('nextRemovalPathBtn')!.addEventListener('click', advanceRemovalPreview);
-document.getElementById('confirmRemoveQuestionBtn')!.addEventListener('click', confirmQuestionRemoval);
-document.getElementById('cancelRemoveQuestionBtn')!.addEventListener('click', cancelQuestionRemoval);
-document.getElementById('editorUndoBtn')!.addEventListener('click', undoEditorAction);
-document.getElementById('editorRedoBtn')!.addEventListener('click', redoEditorAction);
+document.getElementById('nextRemovalPathBtn')!.addEventListener('click', moveRemovalPreview);
+document.getElementById('confirmRemoveQuestionBtn')!.addEventListener('click', applyQuestionRemoval);
+document.getElementById('cancelRemoveQuestionBtn')!.addEventListener('click', clearQuestionRemoval);
+document.getElementById('editorUndoBtn')!.addEventListener('click', applyEditorUndo);
+document.getElementById('editorRedoBtn')!.addEventListener('click', applyEditorRedo);
 function clearEditorSelection() {
   selectEditorNode(null);
 }
 document.getElementById('nodeInspectorDismissBtn')!.addEventListener('click', clearEditorSelection);
-destinationSelect.addEventListener('change', commitDestination);
+destinationSelect.addEventListener('change', applyDestinationSelection);
 function dispatchInspectorAction(event: MouseEvent) {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-action]');
   const action = button?.dataset.action;
@@ -42,19 +47,19 @@ function dispatchInspectorAction(event: MouseEvent) {
   else if (action === 'insert-static-after') {
     if (!state.selectedEditorNodeId)
       return;
-    setEditorActionPromise(commitInsertStaticAfter(state.selectedEditorNodeId, editorGraph()));
+    setEditorActionPromise(insertStaticAfterNode(state.selectedEditorNodeId, getEditorGraph()));
   }
   else if (action === 'insert-decision-after') {
     if (!state.selectedEditorNodeId)
       return;
-    setEditorActionPromise(commitInsertDecisionAfter(state.selectedEditorNodeId, editorGraph()));
+    setEditorActionPromise(insertDecisionAfterNode(state.selectedEditorNodeId, getEditorGraph()));
   }
   else if (action === 'add-decision-after')
     applyDestination(NEW_DECISION_DESTINATION);
   else if (action === 'add-choice')
     addChoiceOnDecision();
   else if (action === 'remove') {
-    const kind = editorGraph().nodes.get(state.selectedEditorNodeId ?? '')?.kind;
+    const kind = getEditorGraph().nodes.get(state.selectedEditorNodeId ?? '')?.kind;
     if (kind === 'question')
       removeQuestion();
     else if (kind === 'block')
@@ -77,7 +82,7 @@ function writeNodeTextOnCommitKey(event: KeyboardEvent) {
   if (!isCommitKey)
     return;
   event.preventDefault();
-  commitNodeText();
+  updateNodeText();
 }
 nodeTextInput.addEventListener('keydown', writeNodeTextOnCommitKey);
 let isPointerPressed = false;
@@ -96,11 +101,11 @@ function writeNodeTextOnChange() {
   const id = state.selectedEditorNodeId;
   const text = nodeTextInput.value.trim();
   if (!isPointerPressed) {
-    commitNodeText(id, text);
+    updateNodeText(id, text);
     return;
   }
   function writeNodeTextLater() {
-    commitNodeText(id, text);
+    updateNodeText(id, text);
   }
   function scheduleCommitAfterClick() {
     setTimeout(writeNodeTextLater);
@@ -115,5 +120,5 @@ function clearSelectionOnEscape(event: KeyboardEvent) {
   selectEditorNode(null);
 }
 document.addEventListener('keydown', clearSelectionOnEscape);
-outputBox.addEventListener('scroll', positionNodeInspector);
-window.addEventListener('resize', positionNodeInspector);
+outputBox.addEventListener('scroll', updateNodeInspectorPosition);
+window.addEventListener('resize', updateNodeInspectorPosition);

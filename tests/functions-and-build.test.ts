@@ -26,7 +26,7 @@ test('test_functions_only_toggle_filters_both_views_to_functions_and_restores_on
   // phone views; turning the toggle back off restores the original diagram.
   // Step: build the code-flow diagram inline; B_SETUP is a non-function step between two functions.
   await setEditorSource('flowchart TD\n  B_MAIN["main()"]\n  B_SETUP["prepare data"]\n  B_PARSE["parse()"]\n  B_DONE["cleanup()"]\n  B_MAIN --> B_SETUP\n  B_SETUP --> B_PARSE\n  B_PARSE --> B_DONE');
-  const mainNodeIds = () => evaluate("JSON.stringify(Array.from(document.querySelectorAll('#diagram g.node')).map(nodeIdOf).sort())").then(JSON.parse);
+  const mainNodeIds = () => evaluate("JSON.stringify(Array.from(document.querySelectorAll('#diagram g.node')).map(getNodeId).sort())").then(JSON.parse);
   const mainHasEdge = (fragment: string) => evaluate(`JSON.stringify(Array.from(document.querySelectorAll('#diagram path.flowchart-link')).some(el => el.id.includes(${JSON.stringify(fragment)})))`).then(JSON.parse);
   const phoneNodeOrder = () => evaluate("JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram [data-node-id]')).map(el => el.dataset.nodeId))").then(JSON.parse);
   // Step: with the toggle off, the main view shows every node, including the non-function step.

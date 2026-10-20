@@ -1,5 +1,5 @@
 declare const mermaid: any;
-import { setEditorActionPromise, sourceWithEditorMetadata } from './editor-graph.ts';
+import { buildSourceWithMetadata, setEditorActionPromise } from './editor-metadata.ts';
 import { codeBox, diagramBox, nodeActions, selectedNodeBox } from './dom.ts';
 import { state } from './state.ts';
 import { render } from './render.ts';
@@ -7,7 +7,7 @@ import { saveDiagram } from './diagram-save.ts';
 import { renderNodeInspector } from './node-inspector.ts';
 
 export async function applyEditorSource(source: string, options?: { recordHistory?: boolean }) {
-  source = sourceWithEditorMetadata(source);
+  source = buildSourceWithMetadata(source);
   await mermaid.parse(source);
   codeBox.value = source;
   const recordHistory = options?.recordHistory !== false;

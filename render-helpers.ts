@@ -3,7 +3,7 @@ import type { Edge } from './dom.ts';
 import { chosenAnswers } from './state.ts';
 import { parseEdges } from './diagram-source.ts';
 
-export function walkTrail(edges: Edge[]) {
+export function findTrail(edges: Edge[]) {
   const bright = new Set<string>();
   const visited = new Set<string>();
   let node: string | undefined = edges[0][0];
@@ -27,7 +27,8 @@ export function walkTrail(edges: Edge[]) {
     }
     let chosen: string | undefined;
     for (const option of nextNodes) {
-      if (chosenAnswers.has(option)) {
+      const isChosen = chosenAnswers.has(option);
+      if (isChosen) {
         chosen = option;
         break;
       }
@@ -40,24 +41,25 @@ export function walkTrail(edges: Edge[]) {
   return bright;
 }
 
-export function highlightPath() {
+export function applyPathHighlight() {
   const svgNodes = diagramBox.querySelectorAll('g.node');
   const svgEdges = diagramBox.querySelectorAll('path.flowchart-link');
   const edges = parseEdges(codeBox.value);
-  const bright = chosenAnswers.size ? walkTrail(edges) : null;
+  const bright = chosenAnswers.size ? findTrail(edges) : null;
   const isDim = (id: string | undefined) => bright !== null && !bright.has(id!);
   for (const el of svgNodes)
-    el.classList.toggle('dim', isDim(nodeIdOf(el)));
+    el.classList.toggle('dim', isDim(getNodeId(el)));
   for (const el of svgEdges) {
-    const [from, to] = edgeEndsOf(el, edges);
+    const [from, to] = getEdgeEnds(el, edges);
     el.classList.toggle('dim', isDim(from) || isDim(to));
   }
 }
 
-export function edgeEndsOf(el: Element, edges: Edge[]) {
+export function getEdgeEnds(el: Element, edges: Edge[]) {
   let found;
   for (const edge of edges) {
-    if (el.id.includes('L_' + edge[0] + '_' + edge[1] + '_')) {
+    const isEdgeElement = el.id.includes('L_' + edge[0] + '_' + edge[1] + '_');
+    if (isEdgeElement) {
       found = edge;
       break;
     }
@@ -65,7 +67,7 @@ export function edgeEndsOf(el: Element, edges: Edge[]) {
   return found || [];
 }
 
-export function nodeIdOf(el: Element) {
+export function getNodeId(el: Element) {
   return el.id.replace(/^.*flowchart-/, '').replace(/-\d+$/, '');
 }
 
@@ -86,8 +88,8 @@ export function isAnswerId(id: string, edges: Edge[]) {
   return matched;
 }
 
-export function scrollToNextQuestion(edges: Edge[]) {
-  const bright = [...walkTrail(edges)];
+export function moveToNextQuestion(edges: Edge[]) {
+  const bright = [...findTrail(edges)];
   bright.reverse();
   let nextQuestion;
   for (const id of bright) {
@@ -106,7 +108,7 @@ export function scrollToNextQuestion(edges: Edge[]) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-export function showEditorValidationError(error: unknown) {
+export function reportEditorValidationError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   errorBox.textContent = message;
   errorLog.textContent = message + '\n';

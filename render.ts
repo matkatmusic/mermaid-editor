@@ -1,24 +1,24 @@
 declare const mermaid: any;
 import { codeBox, darkModeToggle, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, getMermaidOptions, outputBox } from './dom.ts';
-import { editorGraph } from './editor-graph.ts';
-import { discardInvalidPhonePreview, updateDecisionCounter } from './decision-nav.ts';
+import { getEditorGraph } from './editor-graph.ts';
+import { clearInvalidPhonePreview, updateDecisionCounter } from './decision-nav.ts';
 import { parseEdges } from './diagram-source.ts';
 import { filterToFunctions } from './function-routing.ts';
 import { sliceIds } from './graph-slice.ts';
 import { phonePath, state } from './state.ts';
 import { applyNodeTypeColors } from './node-type-colors.ts';
 import { renderEditorSelection } from './editor-actions.ts';
-import { highlightPath, showEditorValidationError } from './render-helpers.ts';
+import { applyPathHighlight, reportEditorValidationError } from './render-helpers.ts';
 import { /* baseScale, */ viewBoxOf } from './zoom.ts';
 import { renderPhone } from './phone-html.ts';
-import { positionNodeInspector } from './node-inspector.ts';
+import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 
 export async function render() {
   errorBox.textContent = '';
   try {
     // Validate first; invalid diagrams only show their editor error, not editing or rendering.
-    const graph = editorGraph();
-    discardInvalidPhonePreview(graph);
+    const graph = getEditorGraph();
+    clearInvalidPhonePreview(graph);
     updateDecisionCounter(graph);
     const edges = parseEdges(codeBox.value);
     // drop a phonePath that no longer matches the diagram, like resetBtn does
@@ -78,7 +78,7 @@ export async function render() {
     renderPhone(phoneEdges, graph);
     applyNodeTypeColors(graph);
     renderEditorSelection();
-    highlightPath();
+    applyPathHighlight();
     if (edges.length > 0) {
       const scale = state.diagramScale!;
       const mainZoom = state.mainZoomPercent / 100;
@@ -89,24 +89,27 @@ export async function render() {
     }
     outputBox.scrollLeft = regularViewport.left;
     outputBox.scrollTop = regularViewport.top;
-    positionNodeInspector();
+    updateNodeInspectorPosition();
     errorLog.textContent = '';
     errorLog.classList.remove('open');
   }
   catch (err) {
     state.currentDecisionId = null;
     decisionCounter.textContent = '0 / 0';
-    showEditorValidationError(err);
+    reportEditorValidationError(err);
   }
 }
 
-functionsOnlyToggle.addEventListener('change', () => {
+function applyFunctionsOnlyToggle() {
   state.functionsOnly = functionsOnlyToggle.checked;
   render();
-});
+}
 
-darkModeToggle.addEventListener('change', () => {
+function applyDarkModeToggle() {
   document.body.classList.toggle('dark', darkModeToggle.checked);
   mermaid.initialize(getMermaidOptions());
   render();
-});
+}
+
+functionsOnlyToggle.addEventListener('change', applyFunctionsOnlyToggle);
+darkModeToggle.addEventListener('change', applyDarkModeToggle);

@@ -1,15 +1,15 @@
 import { MAIN_ZOOM_STEP, chosenAnswers, phonePath, state } from './state.ts';
-import { restoreTypeMetadata } from './editor-graph.ts';
+import { applyTypeMetadata } from './editor-metadata.ts';
 import { codeBox, drawer, drawerToggle, nextDecisionBtn, openFileBtn, outputBox, phoneDiagramBox, previousDecisionBtn, searchClearBtn, searchInput, searchNextBtn, searchPreviousBtn, selectBox, statusBox, zoomInBtn, zoomOutBtn, zoomResetBtn } from './dom.ts';
 import { loadList, resetEditorHistory, setDrawerOpen } from './diagram-io.ts';
 import { loadDiagram } from './diagram-load.ts';
 import { saveDiagram } from './diagram-save.ts';
 import { openFileFromDialog } from './open-file.ts';
 import { render } from './render.ts';
-import { navigateDecision } from './decision-nav.ts';
-import { clearSearch, cycleSearch, runSearch } from './node-search.ts';
+import { moveToDecision } from './decision-nav.ts';
+import { clearSearch, executeSearch, moveSearchSelection } from './node-search.ts';
 import { setMainZoomPercent } from './zoom.ts';
-import { highlightPath } from './render-helpers.ts';
+import { applyPathHighlight } from './render-helpers.ts';
 
 function resetEditorToNewDiagram() {
   if (state.watcher)
@@ -23,7 +23,7 @@ function resetEditorToNewDiagram() {
   state.phonePreviewChoiceId = null;
   state.diagramScale = null;
   state.currentDecisionId = null;
-  restoreTypeMetadata(null);
+  applyTypeMetadata(null);
   codeBox.value = 'flowchart TD\n  B_NEW[New idea]';
   resetEditorHistory(codeBox.value);
   render();
@@ -31,16 +31,16 @@ function resetEditorToNewDiagram() {
   setDrawerOpen(true);
 }
 function selectPreviousDecision() {
-  navigateDecision(-1);
+  moveToDecision(-1);
 }
 function selectNextDecision() {
-  navigateDecision(1);
+  moveToDecision(1);
 }
 function selectPreviousSearchMatch() {
-  cycleSearch(-1);
+  moveSearchSelection(-1);
 }
 function selectNextSearchMatch() {
-  cycleSearch(1);
+  moveSearchSelection(1);
 }
 function applyZoomIn() {
   setMainZoomPercent(state.mainZoomPercent + MAIN_ZOOM_STEP);
@@ -57,7 +57,7 @@ function resetChosenPath() {
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
-  highlightPath();
+  applyPathHighlight();
   render();
   outputBox.scrollTo({ top: 0, behavior: 'smooth' });
   phoneDiagramBox.querySelector('#phoneHistory')?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -81,7 +81,7 @@ document.getElementById('newBtn')!.addEventListener('click', resetEditorToNewDia
 document.getElementById('saveBtn')!.addEventListener('click', saveDiagram);
 previousDecisionBtn.addEventListener('click', selectPreviousDecision);
 nextDecisionBtn.addEventListener('click', selectNextDecision);
-searchInput.addEventListener('input', runSearch);
+searchInput.addEventListener('input', executeSearch);
 searchClearBtn.addEventListener('click', clearSearch);
 searchPreviousBtn.addEventListener('click', selectPreviousSearchMatch);
 searchNextBtn.addEventListener('click', selectNextSearchMatch);

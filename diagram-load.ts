@@ -2,7 +2,8 @@ import { codeBox, statusBox } from './dom.ts';
 import { phonePath, state } from './state.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import type { EditorGraph } from './editor-types.ts';
-import { editorGraph, restoreTypeMetadata, splitEditorMetadata } from './editor-graph.ts';
+import { getEditorGraph } from './editor-graph.ts';
+import { applyTypeMetadata, splitEditorMetadata } from './editor-metadata.ts';
 import { render } from './render.ts';
 import { applyMainZoom } from './zoom.ts';
 import { applyMainViewport, loadList, resetEditorHistory } from './diagram-io.ts';
@@ -18,7 +19,7 @@ export async function loadDiagram(name: string) {
   const text = await diagramResponse.text();
   setLastSavedDiagramText(text);
   const { metadata } = splitEditorMetadata(text);
-  restoreTypeMetadata(metadata);
+  applyTypeMetadata(metadata);
   state.currentName = name;
   sessionStorage.setItem('loadedDiagram', name);
   state.openedFileHandle = null;
@@ -36,7 +37,7 @@ export async function loadDiagram(name: string) {
   applyMainZoom(false);
   let graph: EditorGraph | null = null;
   try {
-    graph = editorGraph();
+    graph = getEditorGraph();
   }
   catch {
     // render() has already surfaced the validation failure.

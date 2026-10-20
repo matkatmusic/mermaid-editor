@@ -1,16 +1,17 @@
 import { codeBox, diagramBox, outputBox, phoneDiagramBox } from './dom.ts';
-import { nodeIdOf } from './render-helpers.ts';
+import { getNodeId } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
-import { editorGraph } from './editor-graph.ts';
+import { getEditorGraph } from './editor-graph.ts';
 import { phonePath, state } from './state.ts';
 import { render } from './render.ts';
-import { nearestFeedingChoice } from './decision-nav.ts';
+import { findNearestFeedingChoice } from './decision-search.ts';
 import { findAnswersLeadingTo, isPhoneShowingHistory } from './phone-render.ts';
 import { parseEdges } from './diagram-source.ts';
 import { parentOf } from './graph-slice.ts';
 import { writeChosenPath } from './path-export.ts';
 import './editor-inspector-events.ts';
 import './editor-class-events.ts';
+import './editor-classes-dialog.ts';
 
 function selectNodeSourceLine(id: string) {
   const lines = codeBox.value.split('\n');
@@ -31,12 +32,12 @@ function selectNodeSourceLine(id: string) {
 
 const selectClickedNode = (event: MouseEvent) => {
   const nodeEl = (event.target as HTMLElement).closest('g.node');
-  const id = nodeEl ? nodeIdOf(nodeEl) : null;
+  const id = nodeEl ? getNodeId(nodeEl) : null;
   if (id)
     selectNodeSourceLine(id);
   selectEditorNode(id);
   if (id) {
-    const graph = editorGraph();
+    const graph = getEditorGraph();
     const node = graph.nodes.get(id);
     if (node?.kind === 'question') {
       state.phoneFocusNodeId = id;
@@ -45,7 +46,7 @@ const selectClickedNode = (event: MouseEvent) => {
       render();
     }
     else {
-      const feedingChoice = nearestFeedingChoice(id, graph);
+      const feedingChoice = findNearestFeedingChoice(id, graph);
       if (feedingChoice) {
         state.phoneFocusNodeId = null;
         state.phoneFocusUsesDecisionContext = false;
@@ -82,7 +83,7 @@ const selectPhoneChoice = async (event: MouseEvent) => {
     const isShowingHistory = isPhoneShowingHistory();
     if (!isShowingHistory) {
       const edges = parseEdges(codeBox.value);
-      const answers = findAnswersLeadingTo(parentOf(choiceId, edges), edges, editorGraph());
+      const answers = findAnswersLeadingTo(parentOf(choiceId, edges), edges, getEditorGraph());
       phonePath.length = 0;
       phonePath.push(...answers);
     }

@@ -34,7 +34,7 @@ test('test_insert_static_block_before_splices_incoming_edges_with_their_labels',
   // Step: it is a single history entry.
   assert.equal(await evaluate('editorHistory.length'), historyBefore + 1);
   // Step: undo restores the original source exactly.
-  await evaluate('window.undoEditorAction(); window.editorActionPromise');
+  await evaluate('window.applyEditorUndo(); window.editorActionPromise');
   assert.equal(await evaluate('codeBox.value'), editorFixtureSource);
   await assertEditorSourceIsSavedAndValid();
 });
@@ -54,7 +54,7 @@ test('test_insert_static_block_before_a_root_node_becomes_the_new_root', async (
   // assert.equal((await inspectorState()).hidden, true);
   assert.equal((await inspectorState()).hidden, false);
   assert.equal(await evaluate('editorHistory.length'), historyBefore + 1);
-  await evaluate('window.undoEditorAction(); window.editorActionPromise');
+  await evaluate('window.applyEditorUndo(); window.editorActionPromise');
   assert.equal(await evaluate('codeBox.value'), editorFixtureSource);
   await assertEditorSourceIsSavedAndValid();
 });
@@ -86,7 +86,7 @@ test('test_insert_decision_before_adds_one_leading_choice_and_splices_incoming_e
   assert.equal((await inspectorState()).hidden, false);
   assert.equal(await evaluate('editorHistory.length'), historyBefore + 1);
   // Step: undo restores the original source exactly.
-  await evaluate('window.undoEditorAction(); window.editorActionPromise');
+  await evaluate('window.applyEditorUndo(); window.editorActionPromise');
   assert.equal(await evaluate('codeBox.value'), editorFixtureSource);
   await assertEditorSourceIsSavedAndValid();
 });

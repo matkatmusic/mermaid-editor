@@ -1,5 +1,5 @@
 import { currentFileName, diagramBox, drawer, outputBox, selectBox, statusBox } from './dom.ts';
-import { positionNodeInspector } from './node-inspector.ts';
+import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { state } from './state.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import type { EditorGraph, EditorMetadata, EditorNode } from './editor-types.ts';
@@ -15,7 +15,7 @@ export function setStatus(text: string) {
 
 export function setDrawerOpen(open: boolean) {
   drawer.classList.toggle('closed', !open);
-  positionNodeInspector();
+  updateNodeInspectorPosition();
 }
 
 export async function loadList() {
