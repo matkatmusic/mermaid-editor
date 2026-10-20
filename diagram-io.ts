@@ -9,10 +9,11 @@ import { applyMainZoom } from './zoom.ts';
 
 export function setStatus(text: string) {
   statusBox.textContent = text;
-  setTimeout(() => {
+  function clearStatusIfUnchanged() {
     if (statusBox.textContent === text)
       statusBox.textContent = '';
-  }, 2000);
+  }
+  setTimeout(clearStatusIfUnchanged, 2000);
 }
 
 export function setDrawerOpen(open: boolean) {
@@ -22,7 +23,8 @@ export function setDrawerOpen(open: boolean) {
 
 export async function loadList() {
   currentFileName.textContent = state.currentName ?? '';
-  const names = await fetch('/api/diagrams').then(r => r.json());
+  const listResponse = await fetch('/api/diagrams');
+  const names = await listResponse.json();
   selectBox.innerHTML = '<option value="" disabled ' + (state.currentName ? '' : 'selected') + '>Diagrams</option>';
   for (const name of names) {
     const option = document.createElement('option');
@@ -72,11 +74,13 @@ export async function loadDiagram(name: string) {
     state.watcher.close();
     state.watcher = null;
   }
-  const text = await fetch('/api/diagrams/' + encodeURIComponent(name)).then(r => r.text());
+  const diagramResponse = await fetch('/api/diagrams/' + encodeURIComponent(name));
+  const text = await diagramResponse.text();
   lastSavedDiagramText = text;
   const { metadata } = splitEditorMetadata(text);
   restoreTypeMetadata(metadata);
   state.currentName = name;
+  sessionStorage.setItem('loadedDiagram', name);
   state.openedFileHandle = null;
   phonePath.length = 0;
   state.phoneFocusNodeId = null;
@@ -121,7 +125,8 @@ export function createDiagramWatcher(name: string) {
   const refresh = async () => {
     const versionAtFetchStart = saveVersion;
     const saveInFlightAtFetchStart = pendingSaveCount > 0;
-    const text = await fetch('/api/diagrams/' + encodeURIComponent(name)).then(r => r.text());
+    const diagramResponse = await fetch('/api/diagrams/' + encodeURIComponent(name));
+    const text = await diagramResponse.text();
     const isStaleWatcher = state.watcher !== source;
     if (isStaleWatcher)
       return;

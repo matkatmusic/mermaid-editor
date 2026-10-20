@@ -8,16 +8,22 @@ for (const relativePath of tracked.split("\n")) {
   if (relativePath.length === 0) {
     continue;
   }
-  if (relativePath.endsWith(".test.ts")) {
+  const isTestFile = relativePath.endsWith(".test.ts");
+  if (isTestFile) {
     continue;
   }
-  if (relativePath.startsWith("tests/")) {
+  const isInTestsDirectory = relativePath.startsWith("tests/");
+  if (isInTestsDirectory) {
     continue;
   }
   trackedFiles.push(relativePath);
 }
 const files = argumentFiles.length > 0 ? argumentFiles : trackedFiles;
 const mermaidScriptPath = join(import.meta.dirname, "..", "create-mermaid", "mermaid.ts");
+const fileListLines: string[] = [];
+for (const file of files) {
+  fileListLines.push(`- ${file}`);
+}
 
 console.log(`# create-mermaid-comments
 
@@ -25,7 +31,7 @@ Write a short plain-language label above each statement that becomes a box in th
 
 ## Files
 
-${files.map((file) => `- ${file}`).join("\n")}
+${fileListLines.join("\n")}
 
 ## Comment format
 

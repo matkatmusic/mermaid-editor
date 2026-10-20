@@ -927,10 +927,11 @@ function setMainZoomPercent(percent) {
 // diagram-io.ts
 function setStatus(text) {
   statusBox.textContent = text;
-  setTimeout(() => {
+  function clearStatusIfUnchanged() {
     if (statusBox.textContent === text)
       statusBox.textContent = "";
-  }, 2000);
+  }
+  setTimeout(clearStatusIfUnchanged, 2000);
 }
 function setDrawerOpen(open) {
   drawer.classList.toggle("closed", !open);
@@ -938,7 +939,8 @@ function setDrawerOpen(open) {
 }
 async function loadList() {
   currentFileName.textContent = state.currentName ?? "";
-  const names = await fetch("/api/diagrams").then((r) => r.json());
+  const listResponse = await fetch("/api/diagrams");
+  const names = await listResponse.json();
   selectBox.innerHTML = '<option value="" disabled ' + (state.currentName ? "" : "selected") + ">Diagrams</option>";
   for (const name of names) {
     const option = document.createElement("option");
@@ -985,11 +987,13 @@ async function loadDiagram(name) {
     state.watcher.close();
     state.watcher = null;
   }
-  const text = await fetch("/api/diagrams/" + encodeURIComponent(name)).then((r) => r.text());
+  const diagramResponse = await fetch("/api/diagrams/" + encodeURIComponent(name));
+  const text = await diagramResponse.text();
   lastSavedDiagramText = text;
   const { metadata } = splitEditorMetadata(text);
   restoreTypeMetadata(metadata);
   state.currentName = name;
+  sessionStorage.setItem("loadedDiagram", name);
   state.openedFileHandle = null;
   phonePath.length = 0;
   state.phoneFocusNodeId = null;
@@ -1029,7 +1033,8 @@ function createDiagramWatcher(name) {
   const refresh = async () => {
     const versionAtFetchStart = saveVersion;
     const saveInFlightAtFetchStart = pendingSaveCount > 0;
-    const text = await fetch("/api/diagrams/" + encodeURIComponent(name)).then((r) => r.text());
+    const diagramResponse = await fetch("/api/diagrams/" + encodeURIComponent(name));
+    const text = await diagramResponse.text();
     const isStaleWatcher = state.watcher !== source;
     if (isStaleWatcher)
       return;
@@ -2383,14 +2388,15 @@ function commitDestination() {
 }
 
 // editor-inspector-events.ts
-outputBox.addEventListener("dblclick", (event) => {
+function openNodeTextEditor(event) {
   const nodeEl = event.target.closest("g.node");
   if (!nodeEl)
     return;
   selectEditorNode(nodeIdOf(nodeEl));
   nodeTextInput.focus();
   nodeTextInput.select();
-});
+}
+outputBox.addEventListener("dblclick", openNodeTextEditor);
 document.getElementById("addQuestionAfterBtn").addEventListener("click", addQuestionAfter);
 document.getElementById("addBlockAfterBtn").addEventListener("click", addBlockAfter);
 document.getElementById("removeQuestionBtn").addEventListener("click", removeQuestion);
@@ -2402,9 +2408,12 @@ document.getElementById("confirmRemoveQuestionBtn").addEventListener("click", co
 document.getElementById("cancelRemoveQuestionBtn").addEventListener("click", cancelQuestionRemoval);
 document.getElementById("editorUndoBtn").addEventListener("click", undoEditorAction);
 document.getElementById("editorRedoBtn").addEventListener("click", redoEditorAction);
-document.getElementById("nodeInspectorDismissBtn").addEventListener("click", () => selectEditorNode(null));
+function clearEditorSelection() {
+  selectEditorNode(null);
+}
+document.getElementById("nodeInspectorDismissBtn").addEventListener("click", clearEditorSelection);
 destinationSelect.addEventListener("change", commitDestination);
-nodeInspectorActions.addEventListener("click", (event) => {
+function dispatchInspectorAction(event) {
   const button = event.target.closest("button[data-action]");
   const action = button?.dataset.action;
   if (action === "add-static-after")
@@ -2435,18 +2444,51 @@ nodeInspectorActions.addEventListener("click", (event) => {
     insertStaticBefore();
   else if (action === "insert-decision-before")
     insertDecisionBefore();
-});
-nodeTextInput.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter")
+}
+nodeInspectorActions.addEventListener("click", dispatchInspectorAction);
+function writeNodeTextOnCommitKey(event) {
+  const isEnter = event.key === "Enter";
+  const isTab = event.key === "Tab";
+  const isCommitKey = isEnter || isTab;
+  if (!isCommitKey)
     return;
   event.preventDefault();
   commitNodeText();
-});
-document.addEventListener("keydown", (event) => {
+}
+nodeTextInput.addEventListener("keydown", writeNodeTextOnCommitKey);
+var isPointerPressed = false;
+function markPointerPressed() {
+  isPointerPressed = true;
+}
+function clearPointerPressed() {
+  isPointerPressed = false;
+}
+document.addEventListener("pointerdown", markPointerPressed, true);
+document.addEventListener("pointerup", clearPointerPressed, true);
+function writeNodeTextOnChange() {
+  state.advanceAfterDecisionText = null;
+  state.focusDestinationAfterTextId = null;
+  const id = state.selectedEditorNodeId;
+  const text = nodeTextInput.value.trim();
+  if (!isPointerPressed) {
+    commitNodeText(id, text);
+    return;
+  }
+  function writeNodeTextLater() {
+    commitNodeText(id, text);
+  }
+  function scheduleCommitAfterClick() {
+    setTimeout(writeNodeTextLater);
+  }
+  document.addEventListener("pointerup", scheduleCommitAfterClick, { once: true });
+}
+nodeTextInput.addEventListener("change", writeNodeTextOnChange);
+function clearSelectionOnEscape(event) {
   if (event.key !== "Escape")
     return;
   selectEditorNode(null);
-});
+}
+document.addEventListener("keydown", clearSelectionOnEscape);
 outputBox.addEventListener("scroll", positionNodeInspector);
 window.addEventListener("resize", positionNodeInspector);
 
@@ -2786,5 +2828,5 @@ document.getElementById("fileMenuItems").addEventListener("click", () => {
 
 // viewer.ts
 applyMainZoom(false);
-loadDiagram("accountability.mmd");
+loadDiagram(sessionStorage.getItem("loadedDiagram") ?? "accountability.mmd");
 Object.assign(window, { loadDiagram, codeBox, nodeIdOf, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, undoEditorAction, redoEditorAction, insertStaticBefore, insertDecisionBefore, listAllPathIds });

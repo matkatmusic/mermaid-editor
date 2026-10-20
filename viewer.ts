@@ -12,6 +12,6 @@ import './main-events.ts';
 // render();
 // loadList();
 applyMainZoom(false);
-loadDiagram('accountability.mmd');
+loadDiagram(sessionStorage.getItem('loadedDiagram') ?? 'accountability.mmd');
 
 Object.assign(window, { loadDiagram, codeBox, nodeIdOf, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, undoEditorAction, redoEditorAction, insertStaticBefore, insertDecisionBefore, listAllPathIds });
