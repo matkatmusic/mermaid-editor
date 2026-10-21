@@ -48,6 +48,10 @@ var classesList = document.getElementById("classesList");
 var classesError = document.getElementById("classesError");
 var classesNewBtn = document.getElementById("classesNewBtn");
 var classesCloseBtn = document.getElementById("classesCloseBtn");
+var walkBackBtn = document.getElementById("walkBackBtn");
+var walkBackDialog = document.getElementById("walkBackDialog");
+var walkBackChoices = document.getElementById("walkBackChoices");
+var walkBackCancelBtn = document.getElementById("walkBackCancelBtn");
 var nodeInspectorDismissBtn = document.getElementById("nodeInspectorDismissBtn");
 var destinationRow = document.getElementById("destinationRow");
 var destinationSelect = document.getElementById("destinationSelect");
@@ -421,6 +425,20 @@ function parseEditorGraph(source) {
     const isUndeclared = !declLines.has(id);
     if (isUndeclared)
       problems.push(`Line ${lineIndex + 1}: id "${id}" must be declared on its own standalone line and ${getDeclarationRequirement(id)}.`);
+  }
+  const blockExits = new Map;
+  for (const edge of edges) {
+    const isBlock = !edge.from.startsWith("Q_");
+    if (!isBlock)
+      continue;
+    const exit = blockExits.get(edge.from) ?? { firstEdgeLineIndex: edge.lineIndex, nextIds: new Set };
+    exit.nextIds.add(edge.to);
+    blockExits.set(edge.from, exit);
+  }
+  for (const [id, exit] of blockExits) {
+    const leadsToManyNodes = exit.nextIds.size >= 2;
+    if (leadsToManyNodes)
+      problems.push(`Line ${exit.firstEdgeLineIndex + 1}: block "${id}" leads to ${exit.nextIds.size} nodes (${[...exit.nextIds].join(", ")}); a block must lead to one node, so the phone view can follow one question at a time.`);
   }
   const uniqueProblems = [...new Set(problems)];
   const nodes = new Map;
@@ -1698,6 +1716,8 @@ function renderNodeInspector() {
     updateNodeInspectorPosition();
     return;
   }
+  const hasParent = graph.edges.some((edge) => edge.to === node.id);
+  walkBackBtn.disabled = !hasParent;
   const actions = [createInspectorActionButton("remove", "Remove")];
   if (node.kind === "question")
     actions.push(createInspectorActionButton("add-choice", "Add choice"), createInspectorActionButton("remove-choices", "Remove choices"), createInspectorActionButton("insert-static-before", "insert static block before"), createInspectorActionButton("insert-decision-before", "insert Decision & leading choice before"));
@@ -2513,7 +2533,11 @@ function disableDiagramEdits() {
   document.getElementById("editorUndoBtn").disabled = true;
   document.getElementById("editorRedoBtn").disabled = true;
   nodeActions.inert = true;
-  nodeInspector.inert = true;
+  nodeTextInput.inert = true;
+  nodeClassRow.inert = true;
+  nodeInspectorActions.inert = true;
+  destinationRow.inert = true;
+  nodeInspectorRemovalPreview.inert = true;
   phoneDiagramBox.classList.add("writing-all-paths");
   codeBox.readOnly = true;
   document.getElementById("exportAllPathsBtn").disabled = true;
@@ -2526,7 +2550,11 @@ function enableDiagramEdits() {
   document.getElementById("editorUndoBtn").disabled = false;
   document.getElementById("editorRedoBtn").disabled = false;
   nodeActions.inert = false;
-  nodeInspector.inert = false;
+  nodeTextInput.inert = false;
+  nodeClassRow.inert = false;
+  nodeInspectorActions.inert = false;
+  destinationRow.inert = false;
+  nodeInspectorRemovalPreview.inert = false;
   phoneDiagramBox.classList.remove("writing-all-paths");
   codeBox.readOnly = false;
   document.getElementById("exportAllPathsBtn").disabled = false;
@@ -2671,6 +2699,38 @@ function dispatchInspectorAction(event) {
     insertDecisionBefore();
 }
 nodeInspectorActions.addEventListener("click", dispatchInspectorAction);
+function walkBackFromSelectedNode() {
+  const graph = getEditorGraph();
+  const parentIds = [...new Set(graph.edges.filter((edge) => edge.to === state.selectedEditorNodeId).map((edge) => edge.from))];
+  const hasOneParent = parentIds.length === 1;
+  if (hasOneParent) {
+    selectEditorNode(parentIds[0]);
+    return;
+  }
+  const choiceButtons = parentIds.map((id) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "phone-choice";
+    button.dataset.nodeId = id;
+    button.textContent = graph.nodes.get(id).label;
+    return button;
+  });
+  walkBackChoices.replaceChildren(...choiceButtons);
+  walkBackDialog.showModal();
+}
+walkBackBtn.addEventListener("click", walkBackFromSelectedNode);
+function selectWalkBackChoice(event) {
+  const button = event.target.closest("button[data-node-id]");
+  if (!button)
+    return;
+  walkBackDialog.close();
+  selectEditorNode(button.dataset.nodeId);
+}
+walkBackChoices.addEventListener("click", selectWalkBackChoice);
+function closeWalkBackDialog() {
+  walkBackDialog.close();
+}
+walkBackCancelBtn.addEventListener("click", closeWalkBackDialog);
 function writeNodeTextOnCommitKey(event) {
   const isEnter = event.key === "Enter";
   const isTab = event.key === "Tab";

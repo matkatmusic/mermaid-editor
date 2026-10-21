@@ -34,6 +34,11 @@ test("test_parse_editor_graph_reports_an_inline_declaration_on_an_edge", () => {
   assert.ok(problems.includes('Line 3: id "B_B" is declared inline on an edge; node declarations must be on their own standalone lines.'));
 });
 
+test("test_parse_editor_graph_reports_a_block_that_leads_to_more_than_one_node", () => {
+  const { problems } = parseEditorGraph('flowchart TD\n  B_A["A"]\n  B_B["B"]\n  B_C["C"]\n  B_A --> B_B\n  B_A --> B_C');
+  assert.deepEqual(problems, ['Line 5: block "B_A" leads to 2 nodes (B_B, B_C); a block must lead to one node, so the phone view can follow one question at a time.']);
+});
+
 test("test_parse_editor_graph_reports_an_undeclared_id", () => {
   const { problems } = parseEditorGraph('flowchart TD\n  B_A["A"]\n  B_A --> B_Missing');
   assert.deepEqual(problems, ['Line 3: id "B_Missing" must be declared on its own standalone line and start with "B_" and use bracket shape [].']);

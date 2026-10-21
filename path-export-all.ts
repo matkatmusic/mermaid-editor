@@ -1,4 +1,4 @@
-import { classesMenuBtn, codeBox, nodeActions, nodeInspector, openFileBtn, phoneDiagramBox, selectBox } from './dom.ts';
+import { classesMenuBtn, codeBox, destinationRow, nodeActions, nodeClassRow, nodeInspectorActions, nodeInspectorRemovalPreview, nodeTextInput, openFileBtn, phoneDiagramBox, selectBox } from './dom.ts';
 import type { Edge } from './dom.ts';
 import { parseEdges } from './diagram-source.ts';
 import { setStatus } from './diagram-io.ts';
@@ -73,7 +73,11 @@ function disableDiagramEdits() {
   (document.getElementById('editorUndoBtn') as HTMLButtonElement).disabled = true;
   (document.getElementById('editorRedoBtn') as HTMLButtonElement).disabled = true;
   nodeActions.inert = true;
-  nodeInspector.inert = true;
+  nodeTextInput.inert = true;
+  nodeClassRow.inert = true;
+  nodeInspectorActions.inert = true;
+  destinationRow.inert = true;
+  nodeInspectorRemovalPreview.inert = true;
   phoneDiagramBox.classList.add('writing-all-paths');
   codeBox.readOnly = true;
   (document.getElementById('exportAllPathsBtn') as HTMLButtonElement).disabled = true;
@@ -87,7 +91,11 @@ function enableDiagramEdits() {
   (document.getElementById('editorUndoBtn') as HTMLButtonElement).disabled = false;
   (document.getElementById('editorRedoBtn') as HTMLButtonElement).disabled = false;
   nodeActions.inert = false;
-  nodeInspector.inert = false;
+  nodeTextInput.inert = false;
+  nodeClassRow.inert = false;
+  nodeInspectorActions.inert = false;
+  destinationRow.inert = false;
+  nodeInspectorRemovalPreview.inert = false;
   phoneDiagramBox.classList.remove('writing-all-paths');
   codeBox.readOnly = false;
   (document.getElementById('exportAllPathsBtn') as HTMLButtonElement).disabled = false;

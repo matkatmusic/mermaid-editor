@@ -68,11 +68,12 @@ test("test_save_persists_and_load_restores_editor_metadata_trailer", async () =>
 test("test_load_uses_the_first_node_position_when_scroll_metadata_is_missing", async () => {
   const wideNodes = Array.from({ length: 10 }, (_, index) => `  B_WIDE_${index + 1}["Wide ${index + 1}"]`);
   const deepNodes = Array.from({ length: 12 }, (_, index) => `  B_DEEP_${index + 1}["Deep ${index + 1}"]`);
-  const wideEdges = Array.from({ length: 10 }, (_, index) => `  B_FIRST --> B_WIDE_${index + 1}`);
+  const wideEdges = ['  B_FIRST --> Q_PICK', ...Array.from({ length: 10 }, (_, index) => `  Q_PICK --> B_WIDE_${index + 1}`)];
   const deepEdges = Array.from({ length: 11 }, (_, index) => `  B_DEEP_${index + 1} --> B_DEEP_${index + 2}`);
   const body = [
     'flowchart TD',
     '  B_FIRST["First"]',
+    '  Q_PICK{"Pick"}',
     ...wideNodes,
     ...deepNodes,
     ...wideEdges,

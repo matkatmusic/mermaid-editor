@@ -50,6 +50,20 @@ export function parseEditorGraph(source: string): { graph: EditorGraph; problems
     if (isUndeclared)
       problems.push(`Line ${lineIndex + 1}: id "${id}" must be declared on its own standalone line and ${getDeclarationRequirement(id)}.`);
   }
+  const blockExits = new Map<string, { firstEdgeLineIndex: number; nextIds: Set<string> }>();
+  for (const edge of edges) {
+    const isBlock = !edge.from.startsWith('Q_');
+    if (!isBlock)
+      continue;
+    const exit = blockExits.get(edge.from) ?? { firstEdgeLineIndex: edge.lineIndex, nextIds: new Set<string>() };
+    exit.nextIds.add(edge.to);
+    blockExits.set(edge.from, exit);
+  }
+  for (const [id, exit] of blockExits) {
+    const leadsToManyNodes = exit.nextIds.size >= 2;
+    if (leadsToManyNodes)
+      problems.push(`Line ${exit.firstEdgeLineIndex + 1}: block "${id}" leads to ${exit.nextIds.size} nodes (${[...exit.nextIds].join(', ')}); a block must lead to one node, so the phone view can follow one question at a time.`);
+  }
   const uniqueProblems = [...new Set(problems)];
   const nodes = new Map<string, EditorNode>();
   for (const [id, decl] of declLines) {

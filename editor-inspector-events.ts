@@ -1,4 +1,4 @@
-import { destinationSelect, nodeInspectorActions, nodeTextInput, outputBox } from './dom.ts';
+import { destinationSelect, nodeInspectorActions, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from './dom.ts';
 import { getNodeId } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { getEditorGraph } from './editor-graph.ts';
@@ -75,6 +75,38 @@ function dispatchInspectorAction(event: MouseEvent) {
     insertDecisionBefore();
 }
 nodeInspectorActions.addEventListener('click', dispatchInspectorAction);
+function walkBackFromSelectedNode() {
+  const graph = getEditorGraph();
+  const parentIds = [...new Set(graph.edges.filter((edge) => edge.to === state.selectedEditorNodeId).map((edge) => edge.from))];
+  const hasOneParent = parentIds.length === 1;
+  if (hasOneParent) {
+    selectEditorNode(parentIds[0]);
+    return;
+  }
+  const choiceButtons = parentIds.map((id) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'phone-choice';
+    button.dataset.nodeId = id;
+    button.textContent = graph.nodes.get(id)!.label;
+    return button;
+  });
+  walkBackChoices.replaceChildren(...choiceButtons);
+  walkBackDialog.showModal();
+}
+walkBackBtn.addEventListener('click', walkBackFromSelectedNode);
+function selectWalkBackChoice(event: MouseEvent) {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-node-id]');
+  if (!button)
+    return;
+  walkBackDialog.close();
+  selectEditorNode(button.dataset.nodeId!);
+}
+walkBackChoices.addEventListener('click', selectWalkBackChoice);
+function closeWalkBackDialog() {
+  walkBackDialog.close();
+}
+walkBackCancelBtn.addEventListener('click', closeWalkBackDialog);
 function writeNodeTextOnCommitKey(event: KeyboardEvent) {
   const isEnter = event.key === 'Enter';
   const isTab = event.key === 'Tab';

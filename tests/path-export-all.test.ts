@@ -41,9 +41,9 @@ test("test_export_all_paths_button_writes_one_numbered_file_per_path", async () 
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/loop-demo.mmd`, { method: "PUT", body: source });
   await executeExpression("loadDiagram('loop-demo.mmd')");
   await waitMilliseconds(500);
-  // Step: the click locks the source editor until the writing stops.
-  const isReadOnlyWhileWriting = await executeExpression("document.getElementById('exportAllPathsBtn').click(), document.getElementById('code').readOnly");
-  assert.equal(isReadOnlyWhileWriting, true);
+  // Step: the click locks the source editor and the node text input, and leaves Walk back usable, until the writing stops.
+  const whileWriting = await executeExpression("document.getElementById('exportAllPathsBtn').click(), JSON.stringify({ isReadOnly: document.getElementById('code').readOnly, walkBackInert: !!document.getElementById('walkBackBtn').closest('[inert]'), nodeTextInert: !!document.getElementById('nodeTextInput').closest('[inert]') })").then(JSON.parse);
+  assert.deepEqual(whileWriting, { isReadOnly: true, walkBackInert: false, nodeTextInert: true });
   await waitMilliseconds(1000);
   // Step: one file per path, numbered from 0, and the status line reports the count.
   const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json());

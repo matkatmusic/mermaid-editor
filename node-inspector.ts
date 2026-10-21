@@ -1,7 +1,7 @@
 import { INSPECTOR_TITLES } from './editor-types.ts';
 import type { EditorGraph } from './editor-types.ts';
 import { getEditorGraph } from './editor-graph.ts';
-import { destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeTextInput } from './dom.ts';
+import { destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeTextInput, walkBackBtn } from './dom.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { findOutgoingDestination } from './source-edit.ts';
 import { renderClassPicker } from './node-inspector-class.ts';
@@ -88,6 +88,8 @@ export function renderNodeInspector() {
     updateNodeInspectorPosition();
     return;
   }
+  const hasParent = graph.edges.some((edge) => edge.to === node.id);
+  walkBackBtn.disabled = !hasParent;
   const actions: HTMLButtonElement[] = [createInspectorActionButton('remove', 'Remove')];
   if (node.kind === 'question')
     actions.push(
