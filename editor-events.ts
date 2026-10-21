@@ -9,25 +9,14 @@ import { findAnswersLeadingTo, isPhoneShowingHistory } from './phone-render.ts';
 import { parseEdges } from './diagram-source.ts';
 import { parentOf } from './graph-slice.ts';
 import { writeChosenPath } from './path-export.ts';
+import { measureSourceLines } from './source-lines.ts';
 import './editor-inspector-events.ts';
 import './editor-class-events.ts';
 import './editor-classes-dialog.ts';
 
 function setCodeBoxScrollToLine(lineNum: number) {
-  const style = getComputedStyle(codeBox);
-  const mirror = document.createElement('div');
-  mirror.style.cssText = `position:absolute;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;box-sizing:border-box;width:${codeBox.clientWidth}px;padding:${style.padding};font:${style.font};line-height:${style.lineHeight};`;
-  const allLines = codeBox.value.split('\n');
-  let textAbove = '';
-  for (let i = 0; i < lineNum; i++)
-    textAbove += allLines[i] + '\n';
-  mirror.textContent = textAbove;
-  const lineMarker = document.createElement('span');
-  lineMarker.textContent = 'x';
-  mirror.append(lineMarker);
-  document.body.append(mirror);
-  codeBox.scrollTop = lineMarker.offsetTop - parseFloat(style.paddingTop);
-  mirror.remove();
+  const { tops } = measureSourceLines();
+  codeBox.scrollTop = tops[lineNum] - parseFloat(getComputedStyle(codeBox).paddingTop);
 }
 
 function selectNodeSourceLine(id: string) {

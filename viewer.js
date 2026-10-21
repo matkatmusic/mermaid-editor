@@ -3,6 +3,7 @@ var darkModeToggle = document.getElementById("darkModeToggle");
 var getMermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1e6, theme: darkModeToggle.checked ? "dark" : "default", themeVariables: darkModeToggle.checked ? { primaryColor: "#ececff", nodeBkg: "#ececff", mainBkg: "#ececff", primaryTextColor: "#000", nodeTextColor: "#000", primaryBorderColor: "#9370db", nodeBorder: "#9370db" } : {} });
 mermaid.initialize(getMermaidOptions());
 var codeBox = document.getElementById("code");
+var sourceGutter = document.getElementById("sourceGutter");
 var diagramBox = document.getElementById("diagram");
 var errorBox = document.getElementById("error");
 var errorLog = document.getElementById("errorLog");
@@ -374,7 +375,7 @@ function getDeclarationSuffix(node) {
   return `["${node.label}"]`;
 }
 
-// editor-graph.ts
+// editor-graph-parse.ts
 function storeDeclaration(declLines, token, lineIndex) {
   const isDeclaration = !!token.shape;
   const isNew = !declLines.has(token.id);
@@ -382,8 +383,8 @@ function storeDeclaration(declLines, token, lineIndex) {
   if (shouldStore)
     declLines.set(token.id, { shape: token.shape, label: token.label, lineIndex });
 }
-function getEditorGraph() {
-  const lines = codeBox.value.split(`
+function parseEditorGraph(source) {
+  const lines = source.split(`
 `);
   const declLines = new Map;
   const edges = [];
@@ -422,17 +423,23 @@ function getEditorGraph() {
       problems.push(`Line ${lineIndex + 1}: id "${id}" must be declared on its own standalone line and ${getDeclarationRequirement(id)}.`);
   }
   const uniqueProblems = [...new Set(problems)];
-  if (uniqueProblems.length) {
-    const error = new EditorValidationError(uniqueProblems);
-    reportEditorValidationError(error);
-    throw error;
-  }
   const nodes = new Map;
   for (const [id, decl] of declLines) {
     const kind = id.startsWith("Q_CHOICE") ? "choice" : id.startsWith("Q_") ? "question" : "block";
     nodes.set(id, { id, kind, label: decl.label, lineIndex: decl.lineIndex });
   }
-  return { lines, nodes, edges };
+  return { graph: { lines, nodes, edges }, problems: uniqueProblems };
+}
+
+// editor-graph.ts
+function getEditorGraph() {
+  const { graph, problems } = parseEditorGraph(codeBox.value);
+  if (problems.length) {
+    const error = new EditorValidationError(problems);
+    reportEditorValidationError(error);
+    throw error;
+  }
+  return graph;
 }
 
 // node-inspector-focus.ts
@@ -1295,8 +1302,76 @@ function renderPhone(edges, graph) {
     historyBox.scrollTop = historyBox.scrollHeight;
 }
 
+// source-lines.ts
+function measureSourceLines() {
+  const style = getComputedStyle(codeBox);
+  const mirror = document.createElement("div");
+  mirror.style.cssText = `position:absolute;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;box-sizing:border-box;width:${codeBox.clientWidth}px;padding:${style.padding};font:${style.font};line-height:${style.lineHeight};`;
+  for (const line of codeBox.value.split(`
+`)) {
+    const lineEl = document.createElement("div");
+    lineEl.textContent = line || " ";
+    mirror.append(lineEl);
+  }
+  document.body.append(mirror);
+  const tops = [];
+  for (const lineEl of mirror.children)
+    tops.push(lineEl.offsetTop);
+  const end = mirror.offsetHeight;
+  mirror.remove();
+  return { tops, end };
+}
+function renderGutter(tops, end) {
+  const content = document.createElement("div");
+  content.style.height = end + "px";
+  for (let i = 0;i < tops.length; i++) {
+    const numberEl = document.createElement("span");
+    numberEl.textContent = String(i + 1);
+    numberEl.style.top = tops[i] + "px";
+    content.append(numberEl);
+  }
+  sourceGutter.replaceChildren(content);
+  sourceGutter.scrollTop = codeBox.scrollTop;
+}
+function findNodeLineIndex(lines, id) {
+  for (let i = 0;i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    const startsWithId = trimmed.startsWith(id);
+    const isNodeDefinition = startsWithId && ["[", "{", "("].includes(trimmed.charAt(id.length));
+    if (isNodeDefinition)
+      return i;
+  }
+  return -1;
+}
+function renderSelectedLineBand(tops, end) {
+  const id = state.selectedEditorNodeId;
+  const lineIndex = id ? findNodeLineIndex(codeBox.value.split(`
+`), id) : -1;
+  const hasSelectedLine = lineIndex !== -1;
+  if (!hasSelectedLine) {
+    codeBox.style.backgroundImage = "none";
+    return;
+  }
+  const top = tops[lineIndex];
+  const isLastLine = lineIndex === tops.length - 1;
+  const bottom = isLastLine ? end - parseFloat(getComputedStyle(codeBox).paddingBottom) : tops[lineIndex + 1];
+  const band = "color-mix(in srgb, var(--select-stroke) 25%, transparent)";
+  codeBox.style.backgroundImage = `linear-gradient(transparent ${top}px, ${band} ${top}px, ${band} ${bottom}px, transparent ${bottom}px)`;
+}
+function renderSourceLines() {
+  const { tops, end } = measureSourceLines();
+  renderGutter(tops, end);
+  renderSelectedLineBand(tops, end);
+}
+function syncGutterScroll() {
+  sourceGutter.scrollTop = codeBox.scrollTop;
+}
+codeBox.addEventListener("scroll", syncGutterScroll);
+new ResizeObserver(renderSourceLines).observe(codeBox);
+
 // render.ts
 async function render() {
+  renderSourceLines();
   errorBox.textContent = "";
   try {
     const graph = getEditorGraph();
@@ -1689,6 +1764,7 @@ function selectEditorNode(id) {
   nodeActions.classList.remove("removing");
   nodeActions.classList.toggle("open", !!id);
   selectedNodeBox.textContent = id ?? "";
+  renderSourceLines();
   renderEditorSelection();
   renderNodeInspector();
 }
@@ -2883,22 +2959,8 @@ classesList.addEventListener("click", removeClassFromRow);
 
 // editor-events.ts
 function setCodeBoxScrollToLine(lineNum) {
-  const style = getComputedStyle(codeBox);
-  const mirror = document.createElement("div");
-  mirror.style.cssText = `position:absolute;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;box-sizing:border-box;width:${codeBox.clientWidth}px;padding:${style.padding};font:${style.font};line-height:${style.lineHeight};`;
-  const allLines = codeBox.value.split(`
-`);
-  let textAbove = "";
-  for (let i = 0;i < lineNum; i++)
-    textAbove += allLines[i] + `
-`;
-  mirror.textContent = textAbove;
-  const lineMarker = document.createElement("span");
-  lineMarker.textContent = "x";
-  mirror.append(lineMarker);
-  document.body.append(mirror);
-  codeBox.scrollTop = lineMarker.offsetTop - parseFloat(style.paddingTop);
-  mirror.remove();
+  const { tops } = measureSourceLines();
+  codeBox.scrollTop = tops[lineNum] - parseFloat(getComputedStyle(codeBox).paddingTop);
 }
 function selectNodeSourceLine(id) {
   const lines = codeBox.value.split(`

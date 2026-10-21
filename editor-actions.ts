@@ -5,6 +5,7 @@ import { state } from './state.ts';
 import { render } from './render.ts';
 import { saveDiagram } from './diagram-save.ts';
 import { renderNodeInspector } from './node-inspector.ts';
+import { renderSourceLines } from './source-lines.ts';
 
 export async function applyEditorSource(source: string, options?: { recordHistory?: boolean }) {
   source = buildSourceWithMetadata(source);
@@ -46,6 +47,7 @@ export function selectEditorNode(id: string | null) {
   nodeActions.classList.remove('removing');
   nodeActions.classList.toggle('open', !!id);
   selectedNodeBox.textContent = id ?? '';
+  renderSourceLines();
   renderEditorSelection();
   renderNodeInspector();
 }

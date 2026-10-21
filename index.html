@@ -25,7 +25,11 @@
   #drawer { display: flex; height: 100%; border-right: 1px solid var(--line); }
   #drawer.closed { border-right: none; }
   #editor { display: flex; flex-direction: column; width: 320px; height: 100%; }
-  #code { /* width: 320px; height: 100%; */ flex: 1; width: 100%; box-sizing: border-box; padding: 12px; font-family: monospace; font-size: 14px; border: none; resize: none; }
+  #codeRow { display: flex; flex: 1; min-height: 0; }
+  #sourceGutter { flex: none; width: 44px; overflow: hidden; box-sizing: border-box; background: var(--bg-light); color: var(--text-quiet); border-right: 1px solid var(--line); font-family: monospace; font-size: 14px; user-select: none; }
+  #sourceGutter div { position: relative; }
+  #sourceGutter span { position: absolute; right: 6px; }
+  #code { /* width: 320px; height: 100%; */ flex: 1; min-width: 0; box-sizing: border-box; padding: 12px; font-family: monospace; font-size: 14px; border: none; resize: none; background-attachment: local; background-repeat: no-repeat; }
   /* #drawer.closed #code { display: none; } */
   #drawer.closed #editor { display: none; }
   #errorLog { display: none; }
@@ -166,8 +170,11 @@
   <div id="workspace">
     <div id="drawer" class="closed">
       <div id="editor">
-        <textarea id="code">flowchart TD
+        <div id="codeRow">
+          <div id="sourceGutter" aria-hidden="true"></div>
+          <textarea id="code">flowchart TD
   B_NEW[New idea]</textarea>
+        </div>
         <pre id="errorLog"></pre>
       </div>
       <button id="drawerToggle" title="Show/hide editor">&#9776;</button>

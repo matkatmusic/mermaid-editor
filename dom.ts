@@ -8,6 +8,7 @@ export const darkModeToggle = document.getElementById('darkModeToggle') as HTMLI
 export const getMermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1000000, theme: darkModeToggle.checked ? 'dark' : 'default', themeVariables: darkModeToggle.checked ? { primaryColor: '#ececff', nodeBkg: '#ececff', mainBkg: '#ececff', primaryTextColor: '#000', nodeTextColor: '#000', primaryBorderColor: '#9370db', nodeBorder: '#9370db' } : {} });
 mermaid.initialize(getMermaidOptions());
 export const codeBox = document.getElementById('code') as HTMLTextAreaElement;
+export const sourceGutter = document.getElementById('sourceGutter')!;
 export const diagramBox = document.getElementById('diagram')!;
 export const errorBox = document.getElementById('error')!;
 export const errorLog = document.getElementById('errorLog')!;

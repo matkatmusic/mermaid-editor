@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "./browser-harness.ts";
-import { evaluate } from "./cdp.ts";
+import { executeExpression } from "./cdp.ts";
 import { EDITOR_FIXTURE_NAME, editorFixtureSource } from "./fixtures.ts";
-import { assertEditorSourceIsSavedAndValid, clickNode, openEditorDrawer, resetEditorFixture } from "./editor-helpers.ts";
+import { assertEditorSourceIsSavedAndValid, dispatchNodeClick, openEditorDrawer, resetEditorFixture } from "./editor-helpers.ts";
 import { clickInspectorAction, inspectorState } from "./inspector-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -11,10 +11,10 @@ registerBrowserHooks(import.meta.url, openEditorDrawer);
 test('test_insert_static_block_before_splices_incoming_edges_with_their_labels', async () => {
   await resetEditorFixture();
   // Step: select the fan-in target "Let it go" and insert a static block before it.
-  await clickNode('B_LetGo');
-  const historyBefore = await evaluate('editorHistory.length');
+  await dispatchNodeClick('B_LetGo');
+  const historyBefore = await executeExpression('editorHistory.length');
   await clickInspectorAction('insert-static-before');
-  const source = await evaluate('codeBox.value');
+  const source = await executeExpression('codeBox.value');
   // Step: the new static block is declared and sits directly before "Let it go".
   assert.ok(source.includes('B_NEW_1["New static block"]'));
   assert.ok(source.includes('B_NEW_1 --> B_LetGo'));
@@ -32,20 +32,20 @@ test('test_insert_static_block_before_splices_incoming_edges_with_their_labels',
   // assert.equal((await inspectorState()).hidden, true);
   assert.equal((await inspectorState()).hidden, false);
   // Step: it is a single history entry.
-  assert.equal(await evaluate('editorHistory.length'), historyBefore + 1);
+  assert.equal(await executeExpression('editorHistory.length'), historyBefore + 1);
   // Step: undo restores the original source exactly.
-  await evaluate('window.applyEditorUndo(); window.editorActionPromise');
-  assert.equal(await evaluate('codeBox.value'), editorFixtureSource);
+  await executeExpression('window.applyEditorUndo(); window.editorActionPromise');
+  assert.equal(await executeExpression('codeBox.value'), editorFixtureSource);
   await assertEditorSourceIsSavedAndValid();
 });
 
 test('test_insert_static_block_before_a_root_node_becomes_the_new_root', async () => {
   await resetEditorFixture();
   // Step: select "Start", which has no predecessor, and insert a static block before it.
-  await clickNode('B_Start');
-  const historyBefore = await evaluate('editorHistory.length');
+  await dispatchNodeClick('B_Start');
+  const historyBefore = await executeExpression('editorHistory.length');
   await clickInspectorAction('insert-static-before');
-  const source = await evaluate('codeBox.value');
+  const source = await executeExpression('codeBox.value');
   // Step: the new block leads into Start; Start keeps its own declaration untouched.
   assert.ok(source.includes('B_NEW_1["New static block"]'));
   assert.ok(source.includes('B_NEW_1 --> B_Start'));
@@ -53,19 +53,19 @@ test('test_insert_static_block_before_a_root_node_becomes_the_new_root', async (
   // Step: "Start" still exists (a new predecessor became the root instead), so it stays selected.
   // assert.equal((await inspectorState()).hidden, true);
   assert.equal((await inspectorState()).hidden, false);
-  assert.equal(await evaluate('editorHistory.length'), historyBefore + 1);
-  await evaluate('window.applyEditorUndo(); window.editorActionPromise');
-  assert.equal(await evaluate('codeBox.value'), editorFixtureSource);
+  assert.equal(await executeExpression('editorHistory.length'), historyBefore + 1);
+  await executeExpression('window.applyEditorUndo(); window.editorActionPromise');
+  assert.equal(await executeExpression('codeBox.value'), editorFixtureSource);
   await assertEditorSourceIsSavedAndValid();
 });
 
 test('test_insert_decision_before_adds_one_leading_choice_and_splices_incoming_edges', async () => {
   await resetEditorFixture();
   // Step: select the fan-in target "Let it go" and insert a Decision & leading choice before it.
-  await clickNode('B_LetGo');
-  const historyBefore = await evaluate('editorHistory.length');
+  await dispatchNodeClick('B_LetGo');
+  const historyBefore = await executeExpression('editorHistory.length');
   await clickInspectorAction('insert-decision-before');
-  const source = await evaluate('codeBox.value');
+  const source = await executeExpression('codeBox.value');
   // Step: the new Decision has exactly one outgoing edge, to its new choice.
   assert.ok(source.includes('Q_NEW_1{"New Decision"}'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_NEW["New choice"]'));
@@ -84,19 +84,19 @@ test('test_insert_decision_before_adds_one_leading_choice_and_splices_incoming_e
   // Step: "Let it go" still exists (a new Decision was spliced in front of it), so it stays selected.
   // assert.equal((await inspectorState()).hidden, true);
   assert.equal((await inspectorState()).hidden, false);
-  assert.equal(await evaluate('editorHistory.length'), historyBefore + 1);
+  assert.equal(await executeExpression('editorHistory.length'), historyBefore + 1);
   // Step: undo restores the original source exactly.
-  await evaluate('window.applyEditorUndo(); window.editorActionPromise');
-  assert.equal(await evaluate('codeBox.value'), editorFixtureSource);
+  await executeExpression('window.applyEditorUndo(); window.editorActionPromise');
+  assert.equal(await executeExpression('codeBox.value'), editorFixtureSource);
   await assertEditorSourceIsSavedAndValid();
 });
 
 test('test_insert_decision_before_a_root_node_becomes_the_new_root', async () => {
   await resetEditorFixture();
   // Step: select "Start", which has no predecessor, and insert a Decision & leading choice before it.
-  await clickNode('B_Start');
+  await dispatchNodeClick('B_Start');
   await clickInspectorAction('insert-decision-before');
-  const source = await evaluate('codeBox.value');
+  const source = await executeExpression('codeBox.value');
   assert.ok(source.includes('Q_NEW_1{"New Decision"}'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_NEW["New choice"]'));
   assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_NEW'));

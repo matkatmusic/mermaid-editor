@@ -12,8 +12,10 @@ import { applyPathHighlight, reportEditorValidationError } from './render-helper
 import { /* baseScale, */ viewBoxOf } from './zoom.ts';
 import { renderPhone } from './phone-html.ts';
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
+import { renderSourceLines } from './source-lines.ts';
 
 export async function render() {
+  renderSourceLines();
   errorBox.textContent = '';
   try {
     // Validate first; invalid diagrams only show their editor error, not editing or rendering.

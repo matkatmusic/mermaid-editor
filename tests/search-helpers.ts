@@ -1,16 +1,16 @@
-import { evaluate, sleep } from "./cdp.ts";
+import { executeExpression, waitMilliseconds } from "./cdp.ts";
 import { SEARCH_FIXTURE } from "./fixtures.ts";
 import { resetEditorFixture, selectEditorNode, setEditorSource } from "./editor-helpers.ts";
 
 export async function typeSearch(query: string) {
   // Scenario: put text in the search field and fire the input event that one keypress fires.
-  await evaluate(`(() => { const input = document.getElementById('searchInput'); input.value = ${JSON.stringify(query)}; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-  await sleep(300);
+  await executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = ${JSON.stringify(query)}; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await waitMilliseconds(300);
 }
 
 export async function searchState() {
   // Scenario: read the selection, the inspector, and every search control in one round trip.
-  const json = await evaluate(`JSON.stringify({
+  const json = await executeExpression(`JSON.stringify({
     selected: document.getElementById('selectedNode').textContent,
     inspectorHidden: document.getElementById('nodeInspector').hidden,
     value: document.getElementById('searchInput').value,
@@ -32,7 +32,7 @@ export async function startSearchTest() {
 }
 
 export async function nodeIsInMainView(id: string) {
-  return evaluate(`(() => {
+  return executeExpression(`(() => {
     const pane = document.getElementById('output').getBoundingClientRect();
     const node = document.querySelector('#diagram [id*="flowchart-${id}-"]').getBoundingClientRect();
     const x = node.left + node.width / 2;

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "./browser-harness.ts";
-import { evaluate, sleep } from "./cdp.ts";
+import { executeExpression, waitMilliseconds } from "./cdp.ts";
 import { openEditorDrawer } from "./editor-helpers.ts";
 import { nodeIsInMainView, searchState, startSearchTest, typeSearch } from "./search-helpers.ts";
 
@@ -9,9 +9,9 @@ registerBrowserHooks(import.meta.url, openEditorDrawer);
 
 test('test_search_field_sits_in_the_menu_bar_next_to_the_file_menu', async () => {
   // Step: the page is loaded and the search field is inside the header menu bar.
-  assert.equal(await evaluate("!!document.querySelector('#header #searchInput')"), true);
+  assert.equal(await executeExpression("!!document.querySelector('#header #searchInput')"), true);
   // Step: the search controls come right after the File menu that holds New.
-  assert.equal(await evaluate("document.getElementById('searchControls').previousElementSibling.id"), 'fileMenu');
+  assert.equal(await executeExpression("document.getElementById('searchControls').previousElementSibling.id"), 'fileMenu');
   // Step: with no text, the clear button, the cycle buttons, and the counter are hidden.
   await startSearchTest();
   const controls = await searchState();
@@ -60,8 +60,8 @@ test('test_each_search_keypress_reruns_the_search_and_jumps_to_the_new_first_hit
   await typeSearch('s');
   assert.equal((await searchState()).selected, 'B_START');
   // Step: two fast keypresses end on the hit of the last keypress, not on a stale earlier hit.
-  await evaluate(`(() => { const input = document.getElementById('searchInput'); input.value = 'st'; input.dispatchEvent(new Event('input', { bubbles: true })); input.value = 'se'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-  await sleep(600);
+  await executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = 'st'; input.dispatchEvent(new Event('input', { bubbles: true })); input.value = 'se'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await waitMilliseconds(600);
   assert.equal((await searchState()).selected, 'Q_SECOND');
 });
 
@@ -81,20 +81,20 @@ test('test_search_cycle_buttons_show_only_for_two_or_more_hits_and_step_through_
   assert.equal(twoHits.nextHidden, false);
   assert.equal(twoHits.selected, 'Q_FIRST');
   // Step: Next steps to the second hit and keeps the selected item widget open.
-  await evaluate("document.getElementById('searchNextBtn').click()");
-  await sleep(300);
+  await executeExpression("document.getElementById('searchNextBtn').click()");
+  await waitMilliseconds(300);
   const second = await searchState();
   assert.equal(second.selected, 'Q_SECOND');
   assert.equal(second.counter, '2 / 2');
   assert.equal(second.inspectorHidden, false);
   assert.equal(await nodeIsInMainView('Q_SECOND'), true);
   // Step: Next wraps from the last hit to the first hit.
-  await evaluate("document.getElementById('searchNextBtn').click()");
-  await sleep(300);
+  await executeExpression("document.getElementById('searchNextBtn').click()");
+  await waitMilliseconds(300);
   assert.equal((await searchState()).selected, 'Q_FIRST');
   // Step: Previous wraps from the first hit to the last hit.
-  await evaluate("document.getElementById('searchPreviousBtn').click()");
-  await sleep(300);
+  await executeExpression("document.getElementById('searchPreviousBtn').click()");
+  await waitMilliseconds(300);
   const wrapped = await searchState();
   assert.equal(wrapped.selected, 'Q_SECOND');
   assert.equal(wrapped.counter, '2 / 2');
@@ -113,8 +113,8 @@ test('test_search_clear_button_shows_with_text_and_empties_the_field', async () 
   await typeSearch('decision');
   assert.equal((await searchState()).clearHidden, false);
   // Step: clicking clear empties the field and hides the clear button, the cycle buttons, and the counter.
-  await evaluate("document.getElementById('searchClearBtn').click()");
-  await sleep(100);
+  await executeExpression("document.getElementById('searchClearBtn').click()");
+  await waitMilliseconds(100);
   const cleared = await searchState();
   assert.equal(cleared.value, '');
   assert.equal(cleared.clearHidden, true);
