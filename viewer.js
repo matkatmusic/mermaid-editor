@@ -2505,7 +2505,41 @@ async function writeAllPaths() {
   }
   setStatus(`Wrote ${sources.length} paths`);
 }
-document.getElementById("exportAllPathsBtn").addEventListener("click", writeAllPaths);
+function disableDiagramEdits() {
+  document.getElementById("newBtn").disabled = true;
+  openFileBtn.disabled = true;
+  selectBox.disabled = true;
+  classesMenuBtn.disabled = true;
+  document.getElementById("editorUndoBtn").disabled = true;
+  document.getElementById("editorRedoBtn").disabled = true;
+  nodeActions.inert = true;
+  nodeInspector.inert = true;
+  phoneDiagramBox.classList.add("writing-all-paths");
+  codeBox.readOnly = true;
+  document.getElementById("exportAllPathsBtn").disabled = true;
+}
+function enableDiagramEdits() {
+  document.getElementById("newBtn").disabled = false;
+  openFileBtn.disabled = false;
+  selectBox.disabled = false;
+  classesMenuBtn.disabled = false;
+  document.getElementById("editorUndoBtn").disabled = false;
+  document.getElementById("editorRedoBtn").disabled = false;
+  nodeActions.inert = false;
+  nodeInspector.inert = false;
+  phoneDiagramBox.classList.remove("writing-all-paths");
+  codeBox.readOnly = false;
+  document.getElementById("exportAllPathsBtn").disabled = false;
+}
+async function writeAllPathsWithEditsDisabled() {
+  disableDiagramEdits();
+  try {
+    await writeAllPaths();
+  } finally {
+    enableDiagramEdits();
+  }
+}
+document.getElementById("exportAllPathsBtn").addEventListener("click", writeAllPathsWithEditsDisabled);
 
 // editor-commit.ts
 function updateNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.value.trim()) {

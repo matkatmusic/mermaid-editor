@@ -1,4 +1,4 @@
-import { codeBox } from './dom.ts';
+import { classesMenuBtn, codeBox, nodeActions, nodeInspector, openFileBtn, phoneDiagramBox, selectBox } from './dom.ts';
 import type { Edge } from './dom.ts';
 import { parseEdges } from './diagram-source.ts';
 import { setStatus } from './diagram-io.ts';
@@ -65,4 +65,42 @@ export async function writeAllPaths() {
   setStatus(`Wrote ${sources.length} paths`);
 }
 
-document.getElementById('exportAllPathsBtn')!.addEventListener('click', writeAllPaths);
+function disableDiagramEdits() {
+  (document.getElementById('newBtn') as HTMLButtonElement).disabled = true;
+  (openFileBtn as HTMLButtonElement).disabled = true;
+  selectBox.disabled = true;
+  (classesMenuBtn as HTMLButtonElement).disabled = true;
+  (document.getElementById('editorUndoBtn') as HTMLButtonElement).disabled = true;
+  (document.getElementById('editorRedoBtn') as HTMLButtonElement).disabled = true;
+  nodeActions.inert = true;
+  nodeInspector.inert = true;
+  phoneDiagramBox.classList.add('writing-all-paths');
+  codeBox.readOnly = true;
+  (document.getElementById('exportAllPathsBtn') as HTMLButtonElement).disabled = true;
+}
+
+function enableDiagramEdits() {
+  (document.getElementById('newBtn') as HTMLButtonElement).disabled = false;
+  (openFileBtn as HTMLButtonElement).disabled = false;
+  selectBox.disabled = false;
+  (classesMenuBtn as HTMLButtonElement).disabled = false;
+  (document.getElementById('editorUndoBtn') as HTMLButtonElement).disabled = false;
+  (document.getElementById('editorRedoBtn') as HTMLButtonElement).disabled = false;
+  nodeActions.inert = false;
+  nodeInspector.inert = false;
+  phoneDiagramBox.classList.remove('writing-all-paths');
+  codeBox.readOnly = false;
+  (document.getElementById('exportAllPathsBtn') as HTMLButtonElement).disabled = false;
+}
+
+async function writeAllPathsWithEditsDisabled() {
+  disableDiagramEdits();
+  try {
+    await writeAllPaths();
+  }
+  finally {
+    enableDiagramEdits();
+  }
+}
+
+document.getElementById('exportAllPathsBtn')!.addEventListener('click', writeAllPathsWithEditsDisabled);

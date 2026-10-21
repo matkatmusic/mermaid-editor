@@ -41,13 +41,16 @@ test("test_export_all_paths_button_writes_one_numbered_file_per_path", async () 
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/loop-demo.mmd`, { method: "PUT", body: source });
   await executeExpression("loadDiagram('loop-demo.mmd')");
   await waitMilliseconds(500);
-  await executeExpression("document.getElementById('exportAllPathsBtn').click()");
+  // Step: the click locks the source editor until the writing stops.
+  const isReadOnlyWhileWriting = await executeExpression("document.getElementById('exportAllPathsBtn').click(), document.getElementById('code').readOnly");
+  assert.equal(isReadOnlyWhileWriting, true);
   await waitMilliseconds(1000);
   // Step: one file per path, numbered from 0, and the status line reports the count.
   const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json());
   const pathNames = names.filter((name) => name.startsWith("loop-demo-path-"));
   assert.deepEqual(pathNames, ["loop-demo-path-0.mmd", "loop-demo-path-1.mmd"]);
   assert.equal(await executeExpression("document.getElementById('status').textContent"), "Wrote 2 paths");
+  assert.equal(await executeExpression("document.getElementById('code').readOnly"), false);
   // Step: the looping path lists both answers it took.
   const loopPath = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/loop-demo-path-1.mmd`).then((r) => r.text());
   assert.ok(loopPath.startsWith("%% Decisions made:\n%%   Done? -> No\n%%   Done? -> Yes\nflowchart TD\n"), loopPath);

@@ -31,7 +31,7 @@ function isPortFree(port: number) {
     const closeProbe = () => probe.close(reportFree);
     probe.once("error", reportBusy);
     probe.once("listening", closeProbe);
-    probe.listen(port);
+    probe.listen(port, "0.0.0.0");
   });
 }
 
