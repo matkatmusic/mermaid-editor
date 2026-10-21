@@ -70,8 +70,8 @@ export function buildHistoryRows(edges: Edge[], graph: EditorGraph): Row[] {
       rows.push({ status: 'past', id: cur, chosenChoiceId: answered, declinedChoiceIds, revertIndex: pathIndex });
       if (hasAnswer)
         pathIndex++;
-      const isAnswerAQuestion = graph.nodes.get(answered)?.kind === 'question';
-      cur = isAnswerAQuestion ? answered : choicesOf(answered, edges)[0];
+      const isAnswerAChoice = graph.nodes.get(answered)?.kind === 'choice';
+      cur = isAnswerAChoice ? choicesOf(answered, edges)[0] : answered;
       continue;
     }
     if (kind === 'block')

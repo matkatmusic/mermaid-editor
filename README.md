@@ -18,6 +18,19 @@ The terminal prints the address. Open it in your browser.
 
 Run `bun run build` again after you change a `.ts` file. The build makes `viewer.js`.
 
+## Work without restarts
+
+Run these two commands, each in its own terminal, to skip restarting the server after a code change:
+
+```sh
+bun --watch server.js --port 3000
+bun build viewer.ts --outfile viewer.js --watch
+```
+
+- The first command restarts the server when `server.js` changes.
+- The second command builds `viewer.js` again when a `.ts` file for the page changes. Reload the page to see the change.
+- `--port 3000` keeps the same address after each restart.
+
 ## Node names
 
 The editor reads the start of each node name to know what the node is. Each kind needs one shape.

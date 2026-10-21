@@ -39,6 +39,19 @@ const SINGLE_CHOICE_FIXTURE = [
   '  Q_FINAL --> Q_CHOICE_FINAL_NO --> B_END',
 ].join('\n');
 
+const SINGLE_CHOICE_TO_BLOCK_FIXTURE = [
+  'flowchart TD',
+  '  Q_A{"First?"}',
+  '  Q_CHOICE_A_GO["go"]',
+  '  Q_CHOICE_A_STOP["stop"]',
+  '  Q_ONE{"Only one way?"}',
+  '  B_BLOCK_ASK["Ask it"]',
+  '  B_END["End"]',
+  '  Q_A --> Q_CHOICE_A_GO --> Q_ONE',
+  '  Q_A --> Q_CHOICE_A_STOP --> B_END',
+  '  Q_ONE --> B_BLOCK_ASK --> B_END',
+].join('\n');
+
 async function chooseButtonLabels() {
   const json = await executeExpression("JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram [data-choose]')).map(el => el.dataset.choose + '=' + el.textContent))");
   return JSON.parse(json);
@@ -75,6 +88,16 @@ test('test_a_single_choice_question_picks_its_choice_itself_and_undo_skips_it', 
   await executeExpression("document.querySelector('#phoneDiagram [data-undo]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   await waitMilliseconds(300);
   assert.equal(await executeExpression("document.querySelector('#phoneDiagram [data-active-question]').dataset.nodeId"), 'Q_A');
+});
+
+test('test_a_single_choice_question_whose_child_is_a_block_shows_that_block', async () => {
+  await resetEditorFixture();
+  await setEditorSource(SINGLE_CHOICE_TO_BLOCK_FIXTURE);
+  await executeExpression("document.getElementById('resetBtn').click()");
+  await waitMilliseconds(300);
+  await executeExpression("document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_A_GO\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
+  await waitMilliseconds(300);
+  assert.equal(await executeExpression("!!document.querySelector('#phoneDiagram .phone-block[data-node-id=\"B_BLOCK_ASK\"]')"), true);
 });
 
 test('test_write_path_keeps_the_auto_picked_single_choice_step', async () => {
