@@ -21,7 +21,7 @@ export async function loadDiagram(name: string) {
   const { metadata } = splitEditorMetadata(text);
   applyTypeMetadata(metadata);
   state.currentName = name;
-  sessionStorage.setItem('loadedDiagram', name);
+  // sessionStorage.setItem('loadedDiagram', name);
   state.openedFileHandle = null;
   statusBox.textContent = state.loadedPath ?? '';
   phonePath.length = 0;

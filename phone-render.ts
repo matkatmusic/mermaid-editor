@@ -28,7 +28,7 @@ function compareNodesByLine(a: EditorNode, b: EditorNode) {
   return a.lineIndex - b.lineIndex;
 }
 
-// Walks answered history from the root in phonePath order, so every past decision renders masked.
+// Walks answered history from the root in phonePath order, so every past decision renders masked. Single-choice questions answer themselves.
 export function buildHistoryRows(edges: Edge[], graph: EditorGraph): Row[] {
   if (edges.length === 0) {
     // No edges to walk (e.g. a single declared node): show every declared node standalone.
@@ -55,11 +55,12 @@ export function buildHistoryRows(edges: Edge[], graph: EditorGraph): Row[] {
     if (kind === 'question') {
       const choices = choicesOf(cur, edges);
       const hasAnswer = pathIndex < phonePath.length && choices.includes(phonePath[pathIndex]);
-      if (!hasAnswer) {
+      const isSingleChoice = choices.length === 1;
+      if (!hasAnswer && !isSingleChoice) {
         rows.push({ status: 'active', id: cur });
         break;
       }
-      const answered = phonePath[pathIndex];
+      const answered = hasAnswer ? phonePath[pathIndex] : choices[0];
       const declinedChoiceIds: string[] = [];
       for (const choiceId of choices) {
         const isChosen = choiceId === answered;
@@ -67,7 +68,8 @@ export function buildHistoryRows(edges: Edge[], graph: EditorGraph): Row[] {
           declinedChoiceIds.push(choiceId);
       }
       rows.push({ status: 'past', id: cur, chosenChoiceId: answered, declinedChoiceIds, revertIndex: pathIndex });
-      pathIndex++;
+      if (hasAnswer)
+        pathIndex++;
       const isAnswerAQuestion = graph.nodes.get(answered)?.kind === 'question';
       cur = isAnswerAQuestion ? answered : choicesOf(answered, edges)[0];
       continue;

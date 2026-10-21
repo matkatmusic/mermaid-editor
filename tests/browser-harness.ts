@@ -53,7 +53,7 @@ async function initSetup(fileName: string) {
   // The server saves into a temp copy so tests never overwrite the real diagrams.
   const diagramsCopyDir = mkdtempSync(join(tmpdir(), "diagrams-copy-"));
   cpSync(join(process.cwd(), "..", "diagrams"), diagramsCopyDir, { recursive: true });
-  serverProc = spawn("bun", ["server.js", "--port", String(SERVER_PORT)], { stdio: "ignore", env: { ...process.env, DIAGRAMS_DIR: diagramsCopyDir } });
+  serverProc = spawn("bun", ["server.js", "--port", String(SERVER_PORT)], { stdio: "ignore", env: { ...process.env, DIAGRAMS_DIR: diagramsCopyDir, LAST_OPENED_FILE: join(diagramsCopyDir, ".last-opened.json") } });
   await waitForPort(SERVER_PORT);
 
   const userDataDir = mkdtempSync(join(tmpdir(), "phone-view-test-"));

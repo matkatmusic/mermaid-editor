@@ -7,6 +7,7 @@ export function isValidName(name) {
 
 const EDITOR_DIR = import.meta.dir;
 const DIAGRAMS_DIR = process.env.DIAGRAMS_DIR ?? resolve(EDITOR_DIR, "..", "diagrams");
+const LAST_OPENED_FILE = process.env.LAST_OPENED_FILE ?? resolve(EDITOR_DIR, ".last-opened.json");
 
 const portFlagIndex = process.argv.indexOf("--port");
 const PORT = portFlagIndex === -1 ? 0 : Number(process.argv[portFlagIndex + 1]);
@@ -50,6 +51,7 @@ const server = import.meta.main && Bun.serve({
 
       if (req.method === "GET") {
         if (!(await file.exists())) return new Response("Not found", { status: 404 });
+        await Bun.write(LAST_OPENED_FILE, JSON.stringify({ name }));
         return new Response(file, { headers: { "X-Diagram-Path": resolve(DIAGRAMS_DIR, name) } });
       }
 
@@ -97,7 +99,17 @@ const server = import.meta.main && Bun.serve({
       }
       const path = stdout.trim();
       openedFilePath = path;
+      await Bun.write(LAST_OPENED_FILE, JSON.stringify({ path }));
       return Response.json({ path, text: await Bun.file(path).text() });
+    }
+
+    if (url.pathname === "/api/last-opened" && req.method === "GET") {
+      const lastOpened = Bun.file(LAST_OPENED_FILE);
+      if (!(await lastOpened.exists())) return new Response(null, { status: 204 });
+      const saved = await lastOpened.json();
+      if (saved.name) return Response.json(saved);
+      openedFilePath = saved.path;
+      return Response.json({ path: saved.path, text: await Bun.file(saved.path).text() });
     }
 
     if (url.pathname === "/api/open-file" && req.method === "PUT") {

@@ -1076,11 +1076,12 @@ function buildHistoryRows(edges, graph) {
     if (kind === "question") {
       const choices = choicesOf(cur, edges);
       const hasAnswer = pathIndex < phonePath.length && choices.includes(phonePath[pathIndex]);
-      if (!hasAnswer) {
+      const isSingleChoice = choices.length === 1;
+      if (!hasAnswer && !isSingleChoice) {
         rows.push({ status: "active", id: cur });
         break;
       }
-      const answered = phonePath[pathIndex];
+      const answered = hasAnswer ? phonePath[pathIndex] : choices[0];
       const declinedChoiceIds = [];
       for (const choiceId of choices) {
         const isChosen = choiceId === answered;
@@ -1088,7 +1089,8 @@ function buildHistoryRows(edges, graph) {
           declinedChoiceIds.push(choiceId);
       }
       rows.push({ status: "past", id: cur, chosenChoiceId: answered, declinedChoiceIds, revertIndex: pathIndex });
-      pathIndex++;
+      if (hasAnswer)
+        pathIndex++;
       const isAnswerAQuestion = graph.nodes.get(answered)?.kind === "question";
       cur = isAnswerAQuestion ? answered : choicesOf(answered, edges)[0];
       continue;
@@ -1264,7 +1266,9 @@ function buildRowHtml(row, graph, edges, isMasked) {
   const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node);
   const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${encodeHtml(getLabelOf(row.id, graph))}</span></div>`;
   const wrapClass = isMasked ? "phone-decision phone-decision-past" : "phone-decision";
-  return `<div class="${wrapClass}">${question}<div class="phone-choice-count">${choices.length} choices</div>${buildChoiceButtonsHtml(choices, row, graph)}</div>`;
+  const isAutoPicked = row.status === "past" && choices.length === 1;
+  const buttonsHtml = isAutoPicked ? "" : buildChoiceButtonsHtml(choices, row, graph);
+  return `<div class="${wrapClass}">${question}<div class="phone-choice-count">${choices.length} choices</div>${buttonsHtml}</div>`;
 }
 function renderPhone(edges, graph) {
   classIndex = buildClassStyleIndex(codeBox.value);
@@ -2250,7 +2254,6 @@ async function loadDiagram(name) {
   const { metadata } = splitEditorMetadata(text);
   applyTypeMetadata(metadata);
   state.currentName = name;
-  sessionStorage.setItem("loadedDiagram", name);
   state.openedFileHandle = null;
   statusBox.textContent = state.loadedPath ?? "";
   phonePath.length = 0;
@@ -2277,6 +2280,38 @@ async function loadDiagram(name) {
     applyMainViewport(metadata, graph);
   loadList();
   createDiagramWatcher(name);
+}
+
+// open-file.ts
+async function openFileFromDialog() {
+  const openResponse = await fetch("/api/open-file");
+  if (openResponse.status === 204) {
+    console.log("User canceled Open File");
+    return;
+  }
+  const { path, text } = await openResponse.json();
+  showOpenedFile(path, text);
+}
+function showOpenedFile(path, text) {
+  if (state.watcher)
+    state.watcher.close();
+  state.currentName = null;
+  state.openedFileHandle = null;
+  state.loadedPath = path;
+  statusBox.textContent = path;
+  state.pathFolderHandle = null;
+  state.phoneFocusNodeId = null;
+  state.phoneFocusUsesDecisionContext = false;
+  state.phonePreviewChoiceId = null;
+  state.diagramScale = null;
+  state.currentDecisionId = null;
+  codeBox.value = text;
+  applyTypeMetadata(splitEditorMetadata(codeBox.value).metadata);
+  resetEditorHistory(codeBox.value);
+  selectBox.value = "";
+  render();
+  loadList();
+  setDrawerOpen(true);
 }
 
 // path-write.ts
@@ -3059,35 +3094,6 @@ var selectPhoneChoice = async (event) => {
 };
 phoneDiagramBox.addEventListener("click", selectPhoneChoice);
 
-// open-file.ts
-async function openFileFromDialog() {
-  const openResponse = await fetch("/api/open-file");
-  if (openResponse.status === 204) {
-    console.log("User canceled Open File");
-    return;
-  }
-  const { path, text } = await openResponse.json();
-  if (state.watcher)
-    state.watcher.close();
-  state.currentName = null;
-  state.openedFileHandle = null;
-  state.loadedPath = path;
-  statusBox.textContent = path;
-  state.pathFolderHandle = null;
-  state.phoneFocusNodeId = null;
-  state.phoneFocusUsesDecisionContext = false;
-  state.phonePreviewChoiceId = null;
-  state.diagramScale = null;
-  state.currentDecisionId = null;
-  codeBox.value = text;
-  applyTypeMetadata(splitEditorMetadata(codeBox.value).metadata);
-  resetEditorHistory(codeBox.value);
-  selectBox.value = "";
-  render();
-  loadList();
-  setDrawerOpen(true);
-}
-
 // node-search.ts
 var searchMatches = [];
 var searchIndex = 0;
@@ -3244,5 +3250,14 @@ document.getElementById("fileMenuItems").addEventListener("click", closeFileMenu
 
 // viewer.ts
 applyMainZoom(false);
-loadDiagram(sessionStorage.getItem("loadedDiagram") ?? "accountability.mmd");
+async function loadLastOpened() {
+  const response = await fetch("/api/last-opened");
+  if (response.status === 204)
+    return loadDiagram("accountability.mmd");
+  const saved = await response.json();
+  if (saved.name)
+    return loadDiagram(saved.name);
+  showOpenedFile(saved.path, saved.text);
+}
+loadLastOpened();
 Object.assign(window, { loadDiagram, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds });

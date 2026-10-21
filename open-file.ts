@@ -25,6 +25,10 @@ export async function openFileFromDialog() {
     return;
   }
   const { path, text } = await openResponse.json();
+  showOpenedFile(path, text);
+}
+
+export function showOpenedFile(path: string, text: string) {
   if (state.watcher)
     state.watcher.close();
   state.currentName = null;

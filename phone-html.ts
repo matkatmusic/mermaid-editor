@@ -75,7 +75,9 @@ function buildRowHtml(row: Row, graph: EditorGraph, edges: Edge[], isMasked: boo
   const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node);
   const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${encodeHtml(getLabelOf(row.id, graph))}</span></div>`;
   const wrapClass = isMasked ? 'phone-decision phone-decision-past' : 'phone-decision';
-  return `<div class="${wrapClass}">${question}<div class="phone-choice-count">${choices.length} choices</div>${buildChoiceButtonsHtml(choices, row, graph)}</div>`;
+  const isAutoPicked = row.status === 'past' && choices.length === 1;
+  const buttonsHtml = isAutoPicked ? '' : buildChoiceButtonsHtml(choices, row, graph);
+  return `<div class="${wrapClass}">${question}<div class="phone-choice-count">${choices.length} choices</div>${buttonsHtml}</div>`;
 }
 
 export function renderPhone(edges: Edge[], graph: EditorGraph) {
