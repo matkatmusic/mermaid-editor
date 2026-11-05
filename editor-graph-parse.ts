@@ -1,3 +1,4 @@
+import { NOTE_PREFIX } from './editor-types.ts';
 import type { EditorEdge, EditorGraph, EditorNode, EditorNodeKind } from './editor-types.ts';
 import { getDeclarationRequirement, parseEditorEdgeLine, parseEditorToken, validateDeclaration } from './editor-parse.ts';
 
@@ -72,7 +73,10 @@ export function parseEditorGraph(source: string): { graph: EditorGraph; problems
       : id.startsWith('Q_')
         ? 'question'
         : 'block';
-    nodes.set(id, { id, kind, label: decl.label, lineIndex: decl.lineIndex });
+    const noteLines: string[] = [];
+    for (let i = decl.lineIndex - 1; i >= 0 && lines[i].trim().startsWith(NOTE_PREFIX); i--)
+      noteLines.unshift(lines[i].trim().slice(NOTE_PREFIX.length).trim());
+    nodes.set(id, { id, kind, label: decl.label, note: noteLines.join('\n'), lineIndex: decl.lineIndex });
   }
   return { graph: { lines, nodes, edges }, problems: uniqueProblems };
 }

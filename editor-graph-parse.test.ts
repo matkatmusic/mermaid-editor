@@ -39,6 +39,13 @@ test("test_parse_editor_graph_reports_a_block_that_leads_to_more_than_one_node",
   assert.deepEqual(problems, ['Line 5: block "B_A" leads to 2 nodes (B_B, B_C); a block must lead to one node, so the phone view can follow one question at a time.']);
 });
 
+test("test_parse_editor_graph_reads_the_note_lines_above_a_declaration", () => {
+  const source = 'flowchart TD\n  %% ==note==: a\n  %% ==note==: b\n  B_A["A"]\n  %% hi\n  B_B["B"]';
+  const { graph } = parseEditorGraph(source);
+  assert.equal(graph.nodes.get("B_A")!.note, "a\nb");
+  assert.equal(graph.nodes.get("B_B")!.note, "");
+});
+
 test("test_parse_editor_graph_reports_an_undeclared_id", () => {
   const { problems } = parseEditorGraph('flowchart TD\n  B_A["A"]\n  B_A --> B_Missing');
   assert.deepEqual(problems, ['Line 3: id "B_Missing" must be declared on its own standalone line and start with "B_" and use bracket shape [].']);

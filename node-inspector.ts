@@ -1,7 +1,7 @@
 import { INSPECTOR_TITLES } from './editor-types.ts';
 import type { EditorGraph } from './editor-types.ts';
 import { getEditorGraph } from './editor-graph.ts';
-import { destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeTextInput, walkBackBtn } from './dom.ts';
+import { destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from './dom.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { findOutgoingDestination } from './source-edit.ts';
 import { renderClassPicker } from './node-inspector-class.ts';
@@ -67,18 +67,21 @@ export function renderNodeInspector() {
   nodeInspector.hidden = !node;
   if (!node) {
     nodeTextInput.value = '';
+    nodeNotesInput.value = '';
     clearInspectorFocus();
     return;
   }
   const previewing = !!state.pendingRemoval;
   nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
   nodeTextInput.value = node.label;
+  nodeNotesInput.value = node.note;
   // Retired Category/Color inputs; a class picker (any node kind) replaces them below.
   // nodeTypeRow.hidden = previewing || node.kind !== 'block';
   // nodeTypeColorRow.hidden = previewing;
   // nodeTypeInput.value = node.kind === 'block' ? nodeType : '';
   // nodeTypeColorInput.value = colorForNode(node);
   nodeClassRow.hidden = previewing;
+  nodeNotesRow.hidden = previewing;
   if (!previewing)
     renderClassPicker(node);
   nodeInspectorRemovalPreview.hidden = !previewing;

@@ -63,6 +63,30 @@ export function applyNodeTypeColors(graph: EditorGraph) {
   }
 }
 
+export function applyNoteDots(graph: EditorGraph) {
+  for (const nodeEl of diagramBox.querySelectorAll('g.node')) {
+    if (!graph.nodes.get(getNodeId(nodeEl))?.note)
+      continue;
+    const box = (nodeEl as SVGGraphicsElement).getBBox();
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('class', 'note-dot');
+    dot.setAttribute('cx', String(box.x + 6));
+    dot.setAttribute('cy', String(box.y + 6));
+    dot.setAttribute('r', '4');
+    const fill = getComputedStyle(nodeEl.querySelector('rect, path, polygon')!).fill;
+    const rgb = fill.match(/rgb\((\d+), (\d+), (\d+)/);
+    if (!rgb)
+      dot.style.fill = 'rgb(11, 75, 75)';
+    else {
+      const [r, g, b] = rgb.slice(1).map(Number);
+      const isMidGray = [r, g, b].every((channel) => channel >= 96 && channel <= 159);
+      const midGrayFill = (r + g + b) / 3 >= 128 ? 'rgb(0, 0, 0)' : 'rgb(255, 255, 255)';
+      dot.style.fill = isMidGray ? midGrayFill : `rgb(${255 - r}, ${255 - g}, ${255 - b})`;
+    }
+    nodeEl.appendChild(dot);
+  }
+}
+
 // export async function saveTypeMetadata() {
 //   codeBox.value = sourceWithEditorMetadata(codeBox.value);
 //   await saveDiagram();

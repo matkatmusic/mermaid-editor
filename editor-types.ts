@@ -6,8 +6,11 @@ export interface EditorNode {
   id: string;
   kind: EditorNodeKind;
   label: string;
+  note: string;
   lineIndex: number;
 }
+
+export const NOTE_PREFIX = '%% ==note==:';
 
 export interface EditorEdge {
   from: string;

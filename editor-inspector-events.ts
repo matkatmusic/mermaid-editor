@@ -1,4 +1,4 @@
-import { destinationSelect, nodeInspectorActions, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from './dom.ts';
+import { destinationSelect, nodeInspectorActions, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from './dom.ts';
 import { getNodeId } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { getEditorGraph } from './editor-graph.ts';
@@ -9,7 +9,7 @@ import { insertDecisionBefore, insertStaticBefore } from './editor-insert-before
 import { removeBlock, removeChoice, removeChoices } from './editor-remove.ts';
 import { applyQuestionRemoval, clearQuestionRemoval, moveRemovalPreview, removeQuestion } from './editor-remove-question.ts';
 import { applyEditorRedo, applyEditorUndo } from './editor-history.ts';
-import { applyDestination, applyDestinationSelection, updateNodeText } from './editor-commit.ts';
+import { applyDestination, applyDestinationSelection, updateNodeNote, updateNodeText } from './editor-commit.ts';
 import { addChoiceOnDecision, insertDecisionAfterNode, insertStaticAfterNode } from './editor-insert-after.ts';
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 
@@ -146,6 +146,22 @@ function writeNodeTextOnChange() {
   document.addEventListener('pointerup', scheduleCommitAfterClick, { once: true });
 }
 nodeTextInput.addEventListener('change', writeNodeTextOnChange);
+function writeNodeNoteOnChange() {
+  const id = state.selectedEditorNodeId;
+  const text = nodeNotesInput.value.trim();
+  if (!isPointerPressed) {
+    updateNodeNote(id, text);
+    return;
+  }
+  function writeNodeNoteLater() {
+    updateNodeNote(id, text);
+  }
+  function scheduleNoteCommitAfterClick() {
+    setTimeout(writeNodeNoteLater);
+  }
+  document.addEventListener('pointerup', scheduleNoteCommitAfterClick, { once: true });
+}
+nodeNotesInput.addEventListener('change', writeNodeNoteOnChange);
 function clearSelectionOnEscape(event: KeyboardEvent) {
   if (event.key !== 'Escape')
     return;

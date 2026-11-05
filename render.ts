@@ -6,7 +6,7 @@ import { parseEdges } from './diagram-source.ts';
 import { filterToFunctions } from './function-routing.ts';
 import { sliceIds } from './graph-slice.ts';
 import { phonePath, state } from './state.ts';
-import { applyNodeTypeColors } from './node-type-colors.ts';
+import { applyNodeTypeColors, applyNoteDots } from './node-type-colors.ts';
 import { renderEditorSelection } from './editor-actions.ts';
 import { applyPathHighlight, reportEditorValidationError } from './render-helpers.ts';
 import { /* baseScale, */ viewBoxOf } from './zoom.ts';
@@ -79,6 +79,7 @@ export async function render() {
     diagramBox.innerHTML = regularSvg;
     renderPhone(phoneEdges, graph);
     applyNodeTypeColors(graph);
+    applyNoteDots(graph);
     renderEditorSelection();
     applyPathHighlight();
     if (edges.length > 0) {

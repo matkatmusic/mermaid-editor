@@ -84,6 +84,10 @@
   #nodeInspector h2 { display: none; }
   #nodeTextInput { flex: 1; min-width: 0; box-sizing: border-box; resize: none; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; font: inherit; text-align: center; }
   #nodeInspector .inspector-text-row { margin-bottom: 0; }
+  #nodeNotesInput { flex: 1; min-width: 0; box-sizing: border-box; resize: none; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; font: inherit; }
+  #nodeNotesRow { flex: 1; min-width: 0; }
+  #nodeNotesRow[hidden] { display: none; }
+  .note-dot { stroke: #fff; stroke-width: 1.5; pointer-events: none; }
   #inspectorBottomRow { display: flex; align-items: center; gap: 8px; }
   #inspectorBottomRow .inspector-grid:not([hidden]) { display: flex; gap: 8px; }
   #inspectorBottomRow .span-2, #nodeInspectorDismissBtn { margin: 0; }
@@ -213,6 +217,7 @@
       <div id="classPickerList" hidden></div>
     </div>
   </div>
+  <label id="nodeNotesRow" class="inspector-text-row"><span>Notes:</span><textarea id="nodeNotesInput" rows="2"></textarea></label>
   <div id="nodeInspectorActions" class="inspector-grid"></div>
   <div id="nodeInspectorControls" class="inspector-grid">
     <button id="nodeInspectorDismissBtn" class="span-2">Cancel</button>

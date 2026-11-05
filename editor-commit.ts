@@ -6,7 +6,26 @@ import { setInspectorDestinationFocus } from './node-inspector-focus.ts';
 import { getEditorGraph } from './editor-graph.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { createDecisionAfter, createStaticAfter } from './editor-insert-after.ts';
-import { destinationSelect, diagramBox, nodeTextInput, outputBox } from './dom.ts';
+import { destinationSelect, diagramBox, nodeNotesInput, nodeTextInput, outputBox } from './dom.ts';
+import { NOTE_PREFIX } from './editor-types.ts';
+
+export function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotesInput.value.trim()) {
+  if (!id)
+    return;
+  async function applyNodeNoteUpdate() {
+    const graph = getEditorGraph();
+    const node = graph.nodes.get(id!);
+    if (!node || node.note === text)
+      return;
+    const oldCount = node.note ? node.note.split('\n').length : 0;
+    const lines = graph.lines.slice();
+    const indent = lines[node.lineIndex].match(/^\s*/)![0];
+    const newNoteLines = text ? text.split('\n').map((l) => `${indent}${NOTE_PREFIX} ${l}`) : [];
+    lines.splice(node.lineIndex - oldCount, oldCount, ...newNoteLines);
+    await applyEditorSource(lines.join('\n'));
+  }
+  appendEditorAction(applyNodeNoteUpdate);
+}
 
 export function updateNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.value.trim()) {
   if (!id)

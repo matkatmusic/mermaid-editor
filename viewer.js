@@ -30,6 +30,8 @@ var selectedNodeBox = document.getElementById("selectedNode");
 var nodeInspector = document.getElementById("nodeInspector");
 var nodeInspectorTitle = document.getElementById("nodeInspectorTitle");
 var nodeTextInput = document.getElementById("nodeTextInput");
+var nodeNotesRow = document.getElementById("nodeNotesRow");
+var nodeNotesInput = document.getElementById("nodeNotesInput");
 var nodeClassRow = document.getElementById("nodeClassRow");
 var classPickerBtn = document.getElementById("classPickerBtn");
 var classPickerSwatch = document.getElementById("classPickerSwatch");
@@ -202,6 +204,7 @@ function reportEditorValidationError(error) {
 
 // editor-types.ts
 var INSPECTOR_TITLES = { question: "Decision block", block: "static block", choice: "choice block" };
+var NOTE_PREFIX = "%% ==note==:";
 
 class EditorValidationError extends Error {
   problems;
@@ -444,7 +447,11 @@ function parseEditorGraph(source) {
   const nodes = new Map;
   for (const [id, decl] of declLines) {
     const kind = id.startsWith("Q_CHOICE") ? "choice" : id.startsWith("Q_") ? "question" : "block";
-    nodes.set(id, { id, kind, label: decl.label, lineIndex: decl.lineIndex });
+    const noteLines = [];
+    for (let i = decl.lineIndex - 1;i >= 0 && lines[i].trim().startsWith(NOTE_PREFIX); i--)
+      noteLines.unshift(lines[i].trim().slice(NOTE_PREFIX.length).trim());
+    nodes.set(id, { id, kind, label: decl.label, note: noteLines.join(`
+`), lineIndex: decl.lineIndex });
   }
   return { graph: { lines, nodes, edges }, problems: uniqueProblems };
 }
@@ -714,7 +721,7 @@ function parseDeclaration(line, lineIndex) {
     return null;
   const label = rest.slice(1, -1).replace(/^"(.*)"$/, "$1");
   const kind = id.startsWith("Q_CHOICE") ? "choice" : id.startsWith("Q_") ? "question" : "block";
-  return { id, kind, label, lineIndex };
+  return { id, kind, label, note: "", lineIndex };
 }
 function parseRoutingGraph(source) {
   const nodes = new Map;
@@ -1004,6 +1011,29 @@ function applyNodeTypeColors(graph) {
     addUnclassedStripePattern(svg);
     for (const shape of nodeEl.querySelectorAll("rect, path, polygon"))
       shape.style.fill = `url(#${UNCLASSED_STRIPE_PATTERN_ID})`;
+  }
+}
+function applyNoteDots(graph) {
+  for (const nodeEl of diagramBox.querySelectorAll("g.node")) {
+    if (!graph.nodes.get(getNodeId(nodeEl))?.note)
+      continue;
+    const box = nodeEl.getBBox();
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("class", "note-dot");
+    dot.setAttribute("cx", String(box.x + 6));
+    dot.setAttribute("cy", String(box.y + 6));
+    dot.setAttribute("r", "4");
+    const fill = getComputedStyle(nodeEl.querySelector("rect, path, polygon")).fill;
+    const rgb = fill.match(/rgb\((\d+), (\d+), (\d+)/);
+    if (!rgb)
+      dot.style.fill = "rgb(11, 75, 75)";
+    else {
+      const [r, g, b] = rgb.slice(1).map(Number);
+      const isMidGray = [r, g, b].every((channel) => channel >= 96 && channel <= 159);
+      const midGrayFill = (r + g + b) / 3 >= 128 ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)";
+      dot.style.fill = isMidGray ? midGrayFill : `rgb(${255 - r}, ${255 - g}, ${255 - b})`;
+    }
+    nodeEl.appendChild(dot);
   }
 }
 
@@ -1447,6 +1477,7 @@ async function render() {
     diagramBox.innerHTML = regularSvg;
     renderPhone(phoneEdges, graph);
     applyNodeTypeColors(graph);
+    applyNoteDots(graph);
     renderEditorSelection();
     applyPathHighlight();
     if (edges.length > 0) {
@@ -1579,9 +1610,14 @@ async function saveDiagram() {
 
 // source-edit.ts
 function buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines) {
+  const removedWithNotes = new Set(removedLineIndexes);
+  for (const removedIndex of removedLineIndexes) {
+    for (let i = removedIndex - 1;i >= 0 && graph.lines[i].trim().startsWith(NOTE_PREFIX); i--)
+      removedWithNotes.add(i);
+  }
   const kept = [];
   for (let lineIndex = 0;lineIndex < graph.lines.length; lineIndex++) {
-    const isRemoved = removedLineIndexes.has(lineIndex);
+    const isRemoved = removedWithNotes.has(lineIndex);
     if (!isRemoved)
       kept.push(graph.lines[lineIndex]);
   }
@@ -1700,13 +1736,16 @@ function renderNodeInspector() {
   nodeInspector.hidden = !node;
   if (!node) {
     nodeTextInput.value = "";
+    nodeNotesInput.value = "";
     clearInspectorFocus();
     return;
   }
   const previewing = !!state.pendingRemoval;
   nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
   nodeTextInput.value = node.label;
+  nodeNotesInput.value = node.note;
   nodeClassRow.hidden = previewing;
+  nodeNotesRow.hidden = previewing;
   if (!previewing)
     renderClassPicker(node);
   nodeInspectorRemovalPreview.hidden = !previewing;
@@ -2570,6 +2609,26 @@ async function writeAllPathsWithEditsDisabled() {
 document.getElementById("exportAllPathsBtn").addEventListener("click", writeAllPathsWithEditsDisabled);
 
 // editor-commit.ts
+function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotesInput.value.trim()) {
+  if (!id)
+    return;
+  async function applyNodeNoteUpdate() {
+    const graph = getEditorGraph();
+    const node = graph.nodes.get(id);
+    if (!node || node.note === text)
+      return;
+    const oldCount = node.note ? node.note.split(`
+`).length : 0;
+    const lines = graph.lines.slice();
+    const indent = lines[node.lineIndex].match(/^\s*/)[0];
+    const newNoteLines = text ? text.split(`
+`).map((l) => `${indent}${NOTE_PREFIX} ${l}`) : [];
+    lines.splice(node.lineIndex - oldCount, oldCount, ...newNoteLines);
+    await applyEditorSource(lines.join(`
+`));
+  }
+  appendEditorAction(applyNodeNoteUpdate);
+}
 function updateNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.value.trim()) {
   if (!id)
     return;
@@ -2768,6 +2827,22 @@ function writeNodeTextOnChange() {
   document.addEventListener("pointerup", scheduleCommitAfterClick, { once: true });
 }
 nodeTextInput.addEventListener("change", writeNodeTextOnChange);
+function writeNodeNoteOnChange() {
+  const id = state.selectedEditorNodeId;
+  const text = nodeNotesInput.value.trim();
+  if (!isPointerPressed) {
+    updateNodeNote(id, text);
+    return;
+  }
+  function writeNodeNoteLater() {
+    updateNodeNote(id, text);
+  }
+  function scheduleNoteCommitAfterClick() {
+    setTimeout(writeNodeNoteLater);
+  }
+  document.addEventListener("pointerup", scheduleNoteCommitAfterClick, { once: true });
+}
+nodeNotesInput.addEventListener("change", writeNodeNoteOnChange);
 function clearSelectionOnEscape(event) {
   if (event.key !== "Escape")
     return;
