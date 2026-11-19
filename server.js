@@ -112,6 +112,34 @@ const server = import.meta.main && Bun.serve({
       return Response.json({ path: saved.path, text: await Bun.file(saved.path).text() });
     }
 
+    if (url.pathname === "/api/opened-file" && req.method === "GET") {
+      if (openedFilePath === null) return new Response("No file opened", { status: 400 });
+      return new Response(Bun.file(openedFilePath));
+    }
+
+    if (url.pathname === "/api/watch-opened" && req.method === "GET") {
+      if (openedFilePath === null) return new Response("No file opened", { status: 400 });
+      const encoder = new TextEncoder();
+      let watcher;
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(":ok\n\n"));
+          watcher = watch(openedFilePath, () => {
+            controller.enqueue(encoder.encode("data: changed\n\n"));
+          });
+        },
+        cancel() {
+          watcher.close();
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+        },
+      });
+    }
+
     if (url.pathname === "/api/open-file" && req.method === "PUT") {
       if (openedFilePath === null) return new Response("No file opened", { status: 400 });
       await Bun.write(openedFilePath, await req.text());

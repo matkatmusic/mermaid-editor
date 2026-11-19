@@ -3,6 +3,7 @@ import { applyTypeMetadata, splitEditorMetadata } from './editor-metadata.ts';
 import { codeBox, selectBox, statusBox } from './dom.ts';
 import { loadList, resetEditorHistory, setDrawerOpen } from './diagram-io.ts';
 import { render } from './render.ts';
+import { createDiagramWatcher, setLastSavedDiagramText } from './diagram-save.ts';
 
 // The server opens the macOS file dialog, so the full path is known.
 export async function openFileFromDialog() {
@@ -50,4 +51,6 @@ export function showOpenedFile(path: string, text: string) {
   render();
   loadList();
   setDrawerOpen(true);
+  setLastSavedDiagramText(text);
+  createDiagramWatcher(path, '/api/watch-opened', '/api/opened-file');
 }

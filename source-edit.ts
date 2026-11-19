@@ -70,6 +70,14 @@ export function buildSourceWithOutgoingChanged(id: string, destination: string |
       }
     }
   }
+  for (const edge of graph.edges) {
+    const isOnRemovedLine = removedLineIndexes.has(edge.lineIndex);
+    const isKept = isOnRemovedLine && edge.from !== id;
+    if (isKept) {
+      const arrow = edge.label ? `-- "${edge.label}" -->` : '-->';
+      newLines.push(`  ${edge.from} ${arrow} ${edge.to}`);
+    }
+  }
   if (destination)
     newLines.push(`  ${id} --> ${destination}`);
   return buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines);

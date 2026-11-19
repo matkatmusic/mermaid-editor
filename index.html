@@ -85,11 +85,12 @@
   #nodeTextInput { flex: 1; min-width: 0; box-sizing: border-box; resize: none; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; font: inherit; text-align: center; }
   #nodeInspector .inspector-text-row { margin-bottom: 0; }
   #nodeNotesInput { flex: 1; min-width: 0; box-sizing: border-box; resize: none; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; font: inherit; }
-  #nodeNotesRow { flex: 1; min-width: 0; }
+  #nodeNotesRow { flex: 1 1 220px; min-width: 220px; }
   #nodeNotesRow[hidden] { display: none; }
   .note-dot { stroke: #fff; stroke-width: 1.5; pointer-events: none; }
   #inspectorBottomRow { display: flex; align-items: center; gap: 8px; }
-  #inspectorBottomRow .inspector-grid:not([hidden]) { display: flex; gap: 8px; }
+  #inspectorBottomRow .inspector-grid:not([hidden]) { display: flex; gap: 8px; flex-wrap: wrap; }
+  #inspectorBottomRow #nodeInspectorActions { flex: 1 0 100%; min-width: 0; }
   #inspectorBottomRow .span-2, #nodeInspectorDismissBtn { margin: 0; }
   #nodeInspectorDismissBtn { display: none !important; }
   #inspectorBottomRow { flex-wrap: wrap; }
@@ -279,8 +280,8 @@
 <dialog id="classEditorDialog">
   <h3>New class</h3>
   <label class="inspector-text-row"><span>Name:</span><input id="classEditorName" type="text"></label>
-  <label class="inspector-text-row"><span>Fill:</span><input id="classEditorFill" type="color" value="#ffffff"></label>
-  <label class="inspector-text-row"><span>Stroke:</span><input id="classEditorStroke" type="color" value="#000000"></label>
+  <div class="inspector-text-row"><span>Fill:</span><input id="classEditorFill" type="color" value="#ffffff"></div>
+  <div class="inspector-text-row"><span>Stroke:</span><input id="classEditorStroke" type="color" value="#000000"></div>
   <div id="classEditorError" class="dialog-error"></div>
   <menu>
     <button id="classEditorCancelBtn" type="button">Cancel</button>

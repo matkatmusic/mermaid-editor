@@ -5,6 +5,7 @@ import { render } from './render.ts';
 import { loadList, resetEditorHistory, setStatus } from './diagram-io.ts';
 
 let lastSavedDiagramText: string | null = null;
+let declinedDiskText: string | null = null;
 let watchedDiagramName: string | null = null;
 let pendingSaveCount = 0;
 let saveVersion = 0;
@@ -13,16 +14,17 @@ export function setLastSavedDiagramText(text: string) {
   lastSavedDiagramText = text;
 }
 
-export function createDiagramWatcher(name: string) {
+export function createDiagramWatcher(name: string, watchUrl = '/api/watch/' + encodeURIComponent(name), diskUrl = '/api/diagrams/' + encodeURIComponent(name)) {
   if (state.watcher)
     state.watcher.close();
   watchedDiagramName = name;
-  const source = new EventSource('/api/watch/' + encodeURIComponent(name));
+  declinedDiskText = null;
+  const source = new EventSource(watchUrl);
   state.watcher = source;
   const refresh = async () => {
     const versionAtFetchStart = saveVersion;
     const saveInFlightAtFetchStart = pendingSaveCount > 0;
-    const diagramResponse = await fetch('/api/diagrams/' + encodeURIComponent(name));
+    const diagramResponse = await fetch(diskUrl);
     const text = await diagramResponse.text();
     const isStaleWatcher = state.watcher !== source;
     if (isStaleWatcher)
@@ -38,10 +40,22 @@ export function createDiagramWatcher(name: string) {
     if (text === lastSavedDiagramText)
       return;
     if (text !== codeBox.value) {
+      const hasUnsavedEdits = codeBox.value !== lastSavedDiagramText;
+      if (hasUnsavedEdits) {
+        // One save can fire several watch events; do not ask again for text the user already declined.
+        if (text === declinedDiskText)
+          return;
+        const loadsDiskVersion = window.confirm('This file changed on disk. OK loads the disk version. Cancel keeps your unsaved edits.');
+        if (!loadsDiskVersion) {
+          declinedDiskText = text;
+          return;
+        }
+      }
       applyTypeMetadata(splitEditorMetadata(text).metadata);
       codeBox.value = text;
       resetEditorHistory(text);
     }
+    lastSavedDiagramText = text;
     render();
   };
   source.onmessage = refresh;
@@ -76,9 +90,17 @@ export async function saveDiagram() {
   const hasLoadedPath = !!state.loadedPath;
   const savesToLoadedPath = hasNoName && hasLoadedPath;
   if (savesToLoadedPath) {
-    const openFileResponse = await fetch('/api/open-file', { method: 'PUT', body: codeBox.value });
-    if (!openFileResponse.ok)
-      throw new Error(await openFileResponse.text());
+    pendingSaveCount++;
+    saveVersion++;
+    try {
+      const openFileResponse = await fetch('/api/open-file', { method: 'PUT', body: codeBox.value });
+      if (!openFileResponse.ok)
+        throw new Error(await openFileResponse.text());
+    }
+    finally {
+      pendingSaveCount--;
+    }
+    lastSavedDiagramText = codeBox.value;
     setStatus('Saved ' + state.loadedPath);
     return;
   }

@@ -66,6 +66,8 @@ test("test_save_persists_and_load_restores_editor_metadata_trailer", async () =>
 });
 
 test("test_load_uses_the_first_node_position_when_scroll_metadata_is_missing", async () => {
+  // The disk write below meets unsaved editor text, so the clash question must not block headless Chrome.
+  await executeExpression("window.confirm = () => true");
   const wideNodes = Array.from({ length: 10 }, (_, index) => `  B_WIDE_${index + 1}["Wide ${index + 1}"]`);
   const deepNodes = Array.from({ length: 12 }, (_, index) => `  B_DEEP_${index + 1}["Deep ${index + 1}"]`);
   const wideEdges = ['  B_FIRST --> Q_PICK', ...Array.from({ length: 10 }, (_, index) => `  Q_PICK --> B_WIDE_${index + 1}`)];
