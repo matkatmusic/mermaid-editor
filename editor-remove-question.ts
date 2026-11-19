@@ -14,9 +14,12 @@ export function removeQuestion() {
     if (edge.from === questionId)
       choices.push(edge.to);
   }
-  if (!choices.length)
-    return;
   state.pendingRemoval = { questionId, choices, index: 0 };
+  const hasNoChoices = !choices.length;
+  if (hasNoChoices) {
+    applyQuestionRemoval();
+    return;
+  }
   nodeActions.classList.add('removing');
   renderRemovalPreview();
 }
@@ -37,6 +40,9 @@ export function applyQuestionRemoval() {
     return;
   const { questionId, choices, index } = state.pendingRemoval;
   const graph = getEditorGraph();
+  if (!choices.length)
+    // Clear selection before committing so the saved metadata doesn't point at the node this removes.
+    selectEditorNode(null);
   const removedLineIndexes = new Set<number>();
   const newLines: string[] = [];
   const qNode = graph.nodes.get(questionId);
@@ -72,8 +78,10 @@ export function applyQuestionRemoval() {
       }
     }
   }
-  for (const predecessor of predecessors)
-    newLines.push(`  ${predecessor} --> ${keepSuccessor}`);
+  if (keepSuccessor) {
+    for (const predecessor of predecessors)
+      newLines.push(`  ${predecessor} --> ${keepSuccessor}`);
+  }
   const newSource = buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines);
   function applyRemovedQuestionSource() {
     return applyEditorSource(newSource);

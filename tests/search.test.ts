@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "./browser-harness.ts";
 import { executeExpression, waitMilliseconds } from "./cdp.ts";
-import { openEditorDrawer } from "./editor-helpers.ts";
+import { openEditorDrawer, selectEditorNode, setEditorSource } from "./editor-helpers.ts";
+import { SEARCH_FIXTURE } from "./fixtures.ts";
 import { nodeIsInMainView, searchState, startSearchTest, typeSearch } from "./search-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -105,6 +106,24 @@ test('test_search_cycle_buttons_show_only_for_two_or_more_hits_and_step_through_
   assert.equal(noHits.nextHidden, true);
   assert.equal(noHits.counter, '0 / 0');
   assert.equal(noHits.counterHidden, false);
+});
+
+test('test_remove_deletes_a_question_with_no_edges_and_the_search_count_drops_by_one', async () => {
+  await startSearchTest();
+  // Step: a question with no edges still has its definition line in the source.
+  await setEditorSource(`${SEARCH_FIXTURE}\n  Q_LONELY{"Lonely decision"}`);
+  // Step: searching "decision" finds the three questions.
+  await typeSearch('decision');
+  assert.equal((await searchState()).counter, '1 / 3');
+  // Step: select the question with no edges and click Remove.
+  await selectEditorNode('Q_LONELY');
+  await executeExpression(`document.querySelector('#nodeInspectorActions button[data-action="remove"]').click(); window.editorActionPromise`);
+  await waitMilliseconds(500);
+  // Step: the definition line is gone from the source and the diagram.
+  assert.equal(await executeExpression("codeBox.value.includes('Q_LONELY')"), false);
+  assert.equal(await executeExpression("!!document.querySelector('#diagram [id*=\"flowchart-Q_LONELY-\"]')"), false);
+  // Step: the search results count went down by one.
+  assert.equal((await searchState()).counter, '1 / 2');
 });
 
 test('test_search_clear_button_shows_with_text_and_empties_the_field', async () => {

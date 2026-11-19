@@ -6,6 +6,7 @@ import { render } from './render.ts';
 import { saveDiagram } from './diagram-save.ts';
 import { renderNodeInspector } from './node-inspector.ts';
 import { renderSourceLines } from './source-lines.ts';
+import { refreshSearchMatches } from './node-search.ts';
 
 export async function applyEditorSource(source: string, options?: { recordHistory?: boolean }) {
   source = buildSourceWithMetadata(source);
@@ -22,6 +23,7 @@ export async function applyEditorSource(source: string, options?: { recordHistor
   if (!hasSaveTarget)
     throw new Error('No diagram file is loaded to auto-save into');
   await saveDiagram();
+  refreshSearchMatches();
   // selectEditorNode(null);
   selectEditorNode(state.selectedEditorNodeId);
 }

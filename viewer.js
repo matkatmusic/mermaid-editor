@@ -1820,6 +1820,81 @@ function renderNodeInspector() {
   updateNodeInspectorPosition();
 }
 
+// node-search.ts
+var searchMatches = [];
+var searchIndex = 0;
+var searchRunId = 0;
+function compareNodesByLine2(a, b) {
+  return a.lineIndex - b.lineIndex;
+}
+function findMatchingNodes(graph, query) {
+  const matches = [];
+  if (query === "")
+    return matches;
+  const needle = query.toLowerCase();
+  for (const node of graph.nodes.values()) {
+    const idMatches = node.id.toLowerCase().includes(needle);
+    const labelMatches = node.label.toLowerCase().includes(needle);
+    const isMatch = idMatches || labelMatches;
+    if (isMatch)
+      matches.push(node);
+  }
+  matches.sort(compareNodesByLine2);
+  return matches;
+}
+function updateSearchControls() {
+  const hasText = searchInput.value !== "";
+  const hasSeveralMatches = searchMatches.length > 1;
+  const current = searchMatches.length === 0 ? 0 : searchIndex + 1;
+  searchClearBtn.hidden = !hasText;
+  searchCounter.hidden = !hasText;
+  searchPreviousBtn.hidden = !hasSeveralMatches;
+  searchNextBtn.hidden = !hasSeveralMatches;
+  searchCounter.textContent = `${current} / ${searchMatches.length}`;
+}
+async function moveToSearchMatch() {
+  const runId = ++searchRunId;
+  const id = searchMatches[searchIndex].id;
+  selectEditorNode(id);
+  await render();
+  if (runId !== searchRunId)
+    return;
+  selectEditorNode(id);
+  moveNodeToViewportCenter(outputBox, diagramBox, id);
+}
+async function executeSearch() {
+  let graph;
+  try {
+    graph = getEditorGraph();
+  } catch (error) {
+    reportEditorValidationError(error);
+    return;
+  }
+  searchMatches = findMatchingNodes(graph, searchInput.value);
+  searchIndex = 0;
+  updateSearchControls();
+  if (searchMatches.length === 0)
+    return;
+  await moveToSearchMatch();
+}
+function refreshSearchMatches() {
+  searchMatches = findMatchingNodes(getEditorGraph(), searchInput.value);
+  searchIndex = Math.min(searchIndex, Math.max(searchMatches.length - 1, 0));
+  updateSearchControls();
+}
+async function moveSearchSelection(step) {
+  searchIndex = (searchIndex + step + searchMatches.length) % searchMatches.length;
+  updateSearchControls();
+  await moveToSearchMatch();
+}
+function clearSearch() {
+  searchInput.value = "";
+  searchMatches = [];
+  searchIndex = 0;
+  searchRunId++;
+  updateSearchControls();
+}
+
 // editor-actions.ts
 async function applyEditorSource(source, options) {
   source = buildSourceWithMetadata(source);
@@ -1836,6 +1911,7 @@ async function applyEditorSource(source, options) {
   if (!hasSaveTarget)
     throw new Error("No diagram file is loaded to auto-save into");
   await saveDiagram();
+  refreshSearchMatches();
   selectEditorNode(state.selectedEditorNodeId);
 }
 function clearFailedAction() {}
@@ -2245,9 +2321,12 @@ function removeQuestion() {
     if (edge.from === questionId)
       choices.push(edge.to);
   }
-  if (!choices.length)
-    return;
   state.pendingRemoval = { questionId, choices, index: 0 };
+  const hasNoChoices = !choices.length;
+  if (hasNoChoices) {
+    applyQuestionRemoval();
+    return;
+  }
   nodeActions.classList.add("removing");
   renderRemovalPreview();
 }
@@ -2265,6 +2344,8 @@ function applyQuestionRemoval() {
     return;
   const { questionId, choices, index } = state.pendingRemoval;
   const graph = getEditorGraph();
+  if (!choices.length)
+    selectEditorNode(null);
   const removedLineIndexes = new Set;
   const newLines = [];
   const qNode = graph.nodes.get(questionId);
@@ -2300,8 +2381,10 @@ function applyQuestionRemoval() {
       }
     }
   }
-  for (const predecessor of predecessors)
-    newLines.push(`  ${predecessor} --> ${keepSuccessor}`);
+  if (keepSuccessor) {
+    for (const predecessor of predecessors)
+      newLines.push(`  ${predecessor} --> ${keepSuccessor}`);
+  }
   const newSource = buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines);
   function applyRemovedQuestionSource() {
     return applyEditorSource(newSource);
@@ -3292,76 +3375,6 @@ var selectPhoneChoice = async (event) => {
   }
 };
 phoneDiagramBox.addEventListener("click", selectPhoneChoice);
-
-// node-search.ts
-var searchMatches = [];
-var searchIndex = 0;
-var searchRunId = 0;
-function compareNodesByLine2(a, b) {
-  return a.lineIndex - b.lineIndex;
-}
-function findMatchingNodes(graph, query) {
-  const matches = [];
-  if (query === "")
-    return matches;
-  const needle = query.toLowerCase();
-  for (const node of graph.nodes.values()) {
-    const idMatches = node.id.toLowerCase().includes(needle);
-    const labelMatches = node.label.toLowerCase().includes(needle);
-    const isMatch = idMatches || labelMatches;
-    if (isMatch)
-      matches.push(node);
-  }
-  matches.sort(compareNodesByLine2);
-  return matches;
-}
-function updateSearchControls() {
-  const hasText = searchInput.value !== "";
-  const hasSeveralMatches = searchMatches.length > 1;
-  const current = searchMatches.length === 0 ? 0 : searchIndex + 1;
-  searchClearBtn.hidden = !hasText;
-  searchCounter.hidden = !hasText;
-  searchPreviousBtn.hidden = !hasSeveralMatches;
-  searchNextBtn.hidden = !hasSeveralMatches;
-  searchCounter.textContent = `${current} / ${searchMatches.length}`;
-}
-async function moveToSearchMatch() {
-  const runId = ++searchRunId;
-  const id = searchMatches[searchIndex].id;
-  selectEditorNode(id);
-  await render();
-  if (runId !== searchRunId)
-    return;
-  selectEditorNode(id);
-  moveNodeToViewportCenter(outputBox, diagramBox, id);
-}
-async function executeSearch() {
-  let graph;
-  try {
-    graph = getEditorGraph();
-  } catch (error) {
-    reportEditorValidationError(error);
-    return;
-  }
-  searchMatches = findMatchingNodes(graph, searchInput.value);
-  searchIndex = 0;
-  updateSearchControls();
-  if (searchMatches.length === 0)
-    return;
-  await moveToSearchMatch();
-}
-async function moveSearchSelection(step) {
-  searchIndex = (searchIndex + step + searchMatches.length) % searchMatches.length;
-  updateSearchControls();
-  await moveToSearchMatch();
-}
-function clearSearch() {
-  searchInput.value = "";
-  searchMatches = [];
-  searchIndex = 0;
-  searchRunId++;
-  updateSearchControls();
-}
 
 // main-events.ts
 function resetEditorToNewDiagram() {

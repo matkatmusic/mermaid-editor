@@ -70,6 +70,12 @@ export async function executeSearch() {
   await moveToSearchMatch();
 }
 
+export function refreshSearchMatches() {
+  searchMatches = findMatchingNodes(getEditorGraph(), searchInput.value);
+  searchIndex = Math.min(searchIndex, Math.max(searchMatches.length - 1, 0));
+  updateSearchControls();
+}
+
 export async function moveSearchSelection(step: 1 | -1) {
   searchIndex = (searchIndex + step + searchMatches.length) % searchMatches.length;
   updateSearchControls();
