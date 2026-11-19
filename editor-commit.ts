@@ -92,7 +92,8 @@ export function applyDestination(destination: string) {
         : removeOutgoing(id!, currentGraph);
       await applyEditorSource(source);
     }
-    moveNodeToViewportCenter(outputBox, diagramBox, id!);
+    const centeredId = createsDecision ? state.selectedEditorNodeId! : id!;
+    moveNodeToViewportCenter(outputBox, diagramBox, centeredId);
   }
   appendEditorAction(applyDestinationChange);
 }

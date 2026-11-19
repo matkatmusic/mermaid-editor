@@ -37,6 +37,7 @@ export const state = {
   advanceAfterDecisionText: null as { decisionId: string; choiceId: string } | null,
   focusDestinationAfterTextId: null as string | null,
   pendingRemoval: null as PendingRemoval | null,
+  connectFromNodeId: null as string | null,
   editorHistory: [codeBox.value] as string[],
   editorHistoryIndex: 0,
   editorActionPromise: undefined as unknown as Promise<void>,

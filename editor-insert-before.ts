@@ -6,6 +6,8 @@ import { appendInlineDecl, buildChoiceId, buildSourceWithLinesReplaced, getNextE
 import { applyEditorSource } from './editor-actions.ts';
 import { appendInlineDeclaration } from './editor-insert-after.ts';
 import type { EditorEdge } from './editor-types.ts';
+import { diagramBox, outputBox } from './dom.ts';
+import { moveNodeToViewportCenter } from './decision-nav.ts';
 
 export function insertStaticBefore() {
   if (!state.selectedEditorNodeId)
@@ -76,5 +78,6 @@ export function insertDecisionBefore() {
   for (const edge of predecessors)
     newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${decisionId}` : `  ${edge.from} --> ${decisionId}`);
   newLines.push(`  ${newChoiceId} --> ${selected}`);
-  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  const appliedSource = applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines));
+  setEditorActionPromise(appliedSource.then(() => moveNodeToViewportCenter(outputBox, diagramBox, decisionId)));
 }

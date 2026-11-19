@@ -6,6 +6,8 @@ import { setInspectorTextFocus } from './node-inspector-focus.ts';
 import { getEditorGraph } from './editor-graph.ts';
 import { getDeclarationSuffix } from './editor-parse.ts';
 import { setEditorActionPromise } from './editor-metadata.ts';
+import { diagramBox, outputBox } from './dom.ts';
+import { moveNodeToViewportCenter } from './decision-nav.ts';
 
 export async function createStaticAfter(sourceId: string, graph: EditorGraph) {
   const staticId = getNextEditorId('B_NEW', graph);
@@ -26,6 +28,7 @@ export async function insertStaticAfterNode(sourceId: string, graph: EditorGraph
   await applyEditorSource(source);
   state.focusDestinationAfterTextId = staticId;
   selectEditorNode(staticId);
+  moveNodeToViewportCenter(outputBox, diagramBox, staticId);
   setInspectorTextFocus();
 }
 
@@ -78,6 +81,7 @@ export async function insertDecisionAfterNode(sourceId: string, graph: EditorGra
   }
   await applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines));
   selectEditorNode(decisionId);
+  moveNodeToViewportCenter(outputBox, diagramBox, decisionId);
   setInspectorTextFocus();
 }
 

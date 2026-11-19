@@ -96,6 +96,7 @@ var state = {
   advanceAfterDecisionText: null,
   focusDestinationAfterTextId: null,
   pendingRemoval: null,
+  connectFromNodeId: null,
   editorHistory: [codeBox.value],
   editorHistoryIndex: 0,
   editorActionPromise: undefined
@@ -2081,6 +2082,7 @@ ${newLines.join(`
   await applyEditorSource(source);
   state.focusDestinationAfterTextId = staticId;
   selectEditorNode(staticId);
+  moveNodeToViewportCenter(outputBox, diagramBox, staticId);
   setInspectorTextFocus();
 }
 function appendInlineDeclaration(newLines, restoredIds, graph, edge, endpointId) {
@@ -2130,6 +2132,7 @@ async function insertDecisionAfterNode(sourceId, graph) {
   }
   await applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines));
   selectEditorNode(decisionId);
+  moveNodeToViewportCenter(outputBox, diagramBox, decisionId);
   setInspectorTextFocus();
 }
 async function createDecisionAfter(sourceId, graph) {
@@ -2222,7 +2225,8 @@ function insertDecisionBefore() {
   for (const edge of predecessors)
     newLines.push(edge.label ? `  ${edge.from} -- "${edge.label}" --> ${decisionId}` : `  ${edge.from} --> ${decisionId}`);
   newLines.push(`  ${newChoiceId} --> ${selected}`);
-  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  const appliedSource = applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines));
+  setEditorActionPromise(appliedSource.then(() => moveNodeToViewportCenter(outputBox, diagramBox, decisionId)));
 }
 
 // editor-remove.ts
@@ -2747,6 +2751,22 @@ async function saveEditorViewState() {
   await saveDiagram();
 }
 
+// editor-connect.ts
+function connectNodesWithShiftClick(clickedId) {
+  const fromId = state.connectFromNodeId;
+  if (!fromId) {
+    state.connectFromNodeId = clickedId;
+    selectEditorNode(clickedId);
+    return;
+  }
+  if (fromId === clickedId)
+    return;
+  state.connectFromNodeId = null;
+  const graph = getEditorGraph();
+  const newLines = [`  ${fromId} --> ${clickedId}`];
+  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, new Set, newLines)));
+}
+
 // editor-commit.ts
 function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotesInput.value.trim()) {
   if (!id)
@@ -2830,7 +2850,8 @@ function applyDestination(destination) {
       const source = destination ? replaceOutgoing(id, destination, currentGraph) : removeOutgoing(id, currentGraph);
       await applyEditorSource(source);
     }
-    moveNodeToViewportCenter(outputBox, diagramBox, id);
+    const centeredId = createsDecision ? state.selectedEditorNodeId : id;
+    moveNodeToViewportCenter(outputBox, diagramBox, centeredId);
   }
   appendEditorAction(applyDestinationChange);
 }
@@ -3328,6 +3349,13 @@ function selectNodeSourceLine(id) {
 var selectClickedNode = (event) => {
   const nodeEl = event.target.closest("g.node");
   const id = nodeEl ? getNodeId(nodeEl) : null;
+  if (event.shiftKey) {
+    if (id) {
+      connectNodesWithShiftClick(id);
+      return;
+    }
+  }
+  state.connectFromNodeId = null;
   if (id)
     selectNodeSourceLine(id);
   selectEditorNode(id);

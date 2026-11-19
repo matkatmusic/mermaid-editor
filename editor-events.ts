@@ -11,6 +11,7 @@ import { parentOf } from './graph-slice.ts';
 import { writeChosenPath } from './path-export.ts';
 import { measureSourceLines } from './source-lines.ts';
 import { saveEditorViewState } from './editor-view-state.ts';
+import { connectNodesWithShiftClick } from './editor-connect.ts';
 import './editor-inspector-events.ts';
 import './editor-class-events.ts';
 import './editor-classes-dialog.ts';
@@ -49,6 +50,13 @@ function selectNodeSourceLine(id: string) {
 const selectClickedNode = (event: MouseEvent) => {
   const nodeEl = (event.target as HTMLElement).closest('g.node');
   const id = nodeEl ? getNodeId(nodeEl) : null;
+  if (event.shiftKey) {
+    if (id) {
+      connectNodesWithShiftClick(id);
+      return;
+    }
+  }
+  state.connectFromNodeId = null;
   if (id)
     selectNodeSourceLine(id);
   selectEditorNode(id);
