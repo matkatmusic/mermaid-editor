@@ -65,6 +65,9 @@ var searchClearBtn = document.getElementById("searchClearBtn");
 var searchPreviousBtn = document.getElementById("searchPreviousBtn");
 var searchNextBtn = document.getElementById("searchNextBtn");
 var searchCounter = document.getElementById("searchCounter");
+var viewportMenu = document.getElementById("viewportMenu");
+var addDecisionBlockMenuBtn = document.getElementById("addDecisionBlockMenuBtn");
+var addStaticBlockMenuBtn = document.getElementById("addStaticBlockMenuBtn");
 
 // state.ts
 var MAIN_ZOOM_STEP = 10;
@@ -3483,6 +3486,58 @@ selectBox.addEventListener("change", loadSelectedDiagram);
 openFileBtn.addEventListener("click", openFileFromDialog);
 codeBox.addEventListener("input", renderCodeBoxEdit);
 document.getElementById("fileMenuItems").addEventListener("click", closeFileMenu);
+
+// editor-add-standalone.ts
+async function addStandaloneStaticBlock() {
+  const graph = getEditorGraph();
+  const staticId = getNextEditorId("B_NEW", graph);
+  const newLines = [`  ${staticId}["New static block"]`];
+  await applyEditorSource(buildSourceWithLinesReplaced(graph, new Set, newLines));
+  selectEditorNode(staticId);
+  setInspectorTextFocus();
+}
+async function addStandaloneDecisionBlock() {
+  const graph = getEditorGraph();
+  const decisionId = getNextEditorId("Q_NEW", graph);
+  const yesId = buildChoiceId(decisionId, "Y");
+  const noId = buildChoiceId(decisionId, "N");
+  const newLines = [
+    `  ${decisionId}{"New Decision"}`,
+    `  ${yesId}["Yes"]`,
+    `  ${noId}["No"]`,
+    `  ${decisionId} --> ${yesId}`,
+    `  ${decisionId} --> ${noId}`
+  ];
+  await applyEditorSource(buildSourceWithLinesReplaced(graph, new Set, newLines));
+  selectEditorNode(decisionId);
+  setInspectorTextFocus();
+}
+
+// viewport-menu.ts
+function openViewportMenu(event) {
+  event.preventDefault();
+  viewportMenu.style.left = event.clientX + "px";
+  viewportMenu.style.top = event.clientY + "px";
+  viewportMenu.hidden = false;
+}
+function closeViewportMenu() {
+  viewportMenu.hidden = true;
+}
+function closeViewportMenuOnEscape(event) {
+  if (event.key === "Escape")
+    closeViewportMenu();
+}
+function addDecisionBlockFromMenu() {
+  appendEditorAction(addStandaloneDecisionBlock);
+}
+function addStaticBlockFromMenu() {
+  appendEditorAction(addStandaloneStaticBlock);
+}
+outputBox.addEventListener("contextmenu", openViewportMenu);
+addDecisionBlockMenuBtn.addEventListener("click", addDecisionBlockFromMenu);
+addStaticBlockMenuBtn.addEventListener("click", addStaticBlockFromMenu);
+document.addEventListener("click", closeViewportMenu);
+document.addEventListener("keydown", closeViewportMenuOnEscape);
 
 // viewer.ts
 applyMainZoom(false);

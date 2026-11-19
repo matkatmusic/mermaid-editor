@@ -12,6 +12,7 @@ import { showOpenedFile } from './open-file.ts';
 import { listAllPathIds } from './path-export-all.ts';
 import './editor-events.ts';
 import './main-events.ts';
+import './viewport-menu.ts';
 
 // render();
 // loadList();

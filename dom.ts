@@ -75,3 +75,6 @@ export const searchClearBtn = document.getElementById('searchClearBtn') as HTMLB
 export const searchPreviousBtn = document.getElementById('searchPreviousBtn') as HTMLButtonElement;
 export const searchNextBtn = document.getElementById('searchNextBtn') as HTMLButtonElement;
 export const searchCounter = document.getElementById('searchCounter')!;
+export const viewportMenu = document.getElementById('viewportMenu')!;
+export const addDecisionBlockMenuBtn = document.getElementById('addDecisionBlockMenuBtn') as HTMLButtonElement;
+export const addStaticBlockMenuBtn = document.getElementById('addStaticBlockMenuBtn') as HTMLButtonElement;
