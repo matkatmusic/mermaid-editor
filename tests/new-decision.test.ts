@@ -75,18 +75,17 @@ test('test_add_choice_on_inspector_appends_a_new_terminal_choice_without_touchin
   await assertEditorSourceIsSavedAndValid();
 });
 
-test('test_add_choice_on_inspector_keeps_the_original_decision_selected', async () => {
+test('test_add_choice_on_inspector_selects_the_new_choice', async () => {
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  B_START["Start"]\n  Q_DECISION{"Q"}\n  Q_CHOICE_DECISION_YES["Yes"]\n  B_END["End"]\n  B_START --> Q_DECISION\n  Q_DECISION --> Q_CHOICE_DECISION_YES\n  Q_CHOICE_DECISION_YES --> B_END');
   await dispatchNodeClick('Q_DECISION');
   const historyBefore = await executeExpression('editorHistory.length');
   await clickInspectorAction('add-choice');
-  // Step: the inspector remains on the decision; the new choice is not selected or focused.
+  // Step: the inspector is open and the new choice is the selected node.
   const state = await inspectorState();
   assert.equal(state.hidden, false);
-  assert.equal(state.title, 'Decision block');
-  assert.equal(state.text, 'Q');
-  assert.deepEqual(await inspectorFocus(), { activeId: '', selectedId: 'Q_DECISION' });
+  assert.equal(state.text, 'New choice');
+  assert.equal((await inspectorFocus()).selectedId, 'Q_CHOICE_DECISION_NEW');
   const source = await executeExpression('codeBox.value');
   assert.ok(source.includes('Q_CHOICE_DECISION_NEW["New choice"]'));
   assert.ok(source.includes('Q_DECISION --> Q_CHOICE_DECISION_NEW'));

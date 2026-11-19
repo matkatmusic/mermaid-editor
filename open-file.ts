@@ -1,8 +1,11 @@
 import { state } from './state.ts';
 import { applyTypeMetadata, splitEditorMetadata } from './editor-metadata.ts';
 import { codeBox, selectBox, statusBox } from './dom.ts';
-import { loadList, resetEditorHistory, setDrawerOpen } from './diagram-io.ts';
+import { applyMainViewport, loadList, resetEditorHistory, setDrawerOpen } from './diagram-io.ts';
 import { render } from './render.ts';
+import { selectEditorNode } from './editor-actions.ts';
+import { getEditorGraph } from './editor-graph.ts';
+import { applyMainZoom } from './zoom.ts';
 import { createDiagramWatcher, setLastSavedDiagramText } from './diagram-save.ts';
 
 // The server opens the macOS file dialog, so the full path is known.
@@ -29,7 +32,7 @@ export async function openFileFromDialog() {
   showOpenedFile(path, text);
 }
 
-export function showOpenedFile(path: string, text: string) {
+export async function showOpenedFile(path: string, text: string) {
   if (state.watcher)
     state.watcher.close();
   state.currentName = null;
@@ -42,15 +45,22 @@ export function showOpenedFile(path: string, text: string) {
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
   state.diagramScale = null;
-  state.currentDecisionId = null;
+  const { metadata } = splitEditorMetadata(text);
+  state.currentDecisionId = metadata?.lastSelectedNodeId ?? null;
+  state.mainZoomPercent = metadata?.mainZoomPercent ?? 100;
   // codeBox.value = await file.text();
   codeBox.value = text;
-  applyTypeMetadata(splitEditorMetadata(codeBox.value).metadata);
+  applyTypeMetadata(metadata);
   resetEditorHistory(codeBox.value);
   selectBox.value = '';
-  render();
+  await render();
+  applyMainZoom(false);
   loadList();
   setDrawerOpen(true);
   setLastSavedDiagramText(text);
   createDiagramWatcher(path, '/api/watch-opened', '/api/opened-file');
+  const graph = getEditorGraph();
+  if (graph.nodes.has(metadata?.lastSelectedNodeId ?? ''))
+    selectEditorNode(metadata!.lastSelectedNodeId);
+  applyMainViewport(metadata, graph);
 }

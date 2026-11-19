@@ -10,6 +10,7 @@ import { parseEdges } from './diagram-source.ts';
 import { parentOf } from './graph-slice.ts';
 import { writeChosenPath } from './path-export.ts';
 import { measureSourceLines } from './source-lines.ts';
+import { saveEditorViewState } from './editor-view-state.ts';
 import './editor-inspector-events.ts';
 import './editor-class-events.ts';
 import './editor-classes-dialog.ts';
@@ -51,6 +52,7 @@ const selectClickedNode = (event: MouseEvent) => {
   if (id)
     selectNodeSourceLine(id);
   selectEditorNode(id);
+  saveEditorViewState();
   if (id) {
     const graph = getEditorGraph();
     const node = graph.nodes.get(id);

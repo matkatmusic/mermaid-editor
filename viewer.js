@@ -2141,7 +2141,7 @@ async function appendChoiceToDecision(questionId, graph) {
   const cid = buildChoiceId(questionId, suffix);
   const newLines = [`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`];
   await applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines));
-  selectEditorNode(questionId);
+  selectEditorNode(cid);
 }
 function addChoiceOnDecision() {
   if (!state.selectedEditorNodeId)
@@ -2462,7 +2462,7 @@ async function openFileFromDialog() {
   const { path, text } = await openResponse.json();
   showOpenedFile(path, text);
 }
-function showOpenedFile(path, text) {
+async function showOpenedFile(path, text) {
   if (state.watcher)
     state.watcher.close();
   state.currentName = null;
@@ -2474,16 +2474,23 @@ function showOpenedFile(path, text) {
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
   state.diagramScale = null;
-  state.currentDecisionId = null;
+  const { metadata } = splitEditorMetadata(text);
+  state.currentDecisionId = metadata?.lastSelectedNodeId ?? null;
+  state.mainZoomPercent = metadata?.mainZoomPercent ?? 100;
   codeBox.value = text;
-  applyTypeMetadata(splitEditorMetadata(codeBox.value).metadata);
+  applyTypeMetadata(metadata);
   resetEditorHistory(codeBox.value);
   selectBox.value = "";
-  render();
+  await render();
+  applyMainZoom(false);
   loadList();
   setDrawerOpen(true);
   setLastSavedDiagramText(text);
   createDiagramWatcher(path, "/api/watch-opened", "/api/opened-file");
+  const graph = getEditorGraph();
+  if (graph.nodes.has(metadata?.lastSelectedNodeId ?? ""))
+    selectEditorNode(metadata.lastSelectedNodeId);
+  applyMainViewport(metadata, graph);
 }
 
 // path-write.ts
@@ -2720,6 +2727,22 @@ async function writeAllPathsWithEditsDisabled() {
   }
 }
 document.getElementById("exportAllPathsBtn").addEventListener("click", writeAllPathsWithEditsDisabled);
+
+// editor-view-state.ts
+async function saveEditorViewState() {
+  const hasSaveTarget = !!state.currentName || !!state.openedFileHandle || !!state.loadedPath;
+  if (!hasSaveTarget)
+    return;
+  const sourceWithMetadata = buildSourceWithMetadata(codeBox.value);
+  if (sourceWithMetadata === codeBox.value)
+    return;
+  const { scrollTop, selectionStart, selectionEnd } = codeBox;
+  codeBox.value = sourceWithMetadata;
+  codeBox.scrollTop = scrollTop;
+  codeBox.setSelectionRange(selectionStart, selectionEnd);
+  renderSourceLines();
+  await saveDiagram();
+}
 
 // editor-commit.ts
 function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotesInput.value.trim()) {
@@ -3305,6 +3328,7 @@ var selectClickedNode = (event) => {
   if (id)
     selectNodeSourceLine(id);
   selectEditorNode(id);
+  saveEditorViewState();
   if (id) {
     const graph = getEditorGraph();
     const node = graph.nodes.get(id);
@@ -3472,4 +3496,4 @@ async function loadLastOpened() {
   showOpenedFile(saved.path, saved.text);
 }
 loadLastOpened();
-Object.assign(window, { loadDiagram, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds });
+Object.assign(window, { loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds });
