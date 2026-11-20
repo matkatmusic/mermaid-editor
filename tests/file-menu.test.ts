@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { openEditorDrawer } from "./editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -9,7 +9,7 @@ registerBrowserHooks(import.meta.url, openEditorDrawer);
 test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
   // Scenario: four file actions live in one dropdown menu; entries keep old ids and handlers.
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(300);
+  await waitForRender();
 
   // Step: the four actions are no longer bare toolbar buttons and now live inside #fileMenu.
   const placement = await executeExpression(`JSON.stringify({
@@ -65,7 +65,7 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
 
   // Step: restore the accountability diagram so later runs start clean.
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', async () => {
@@ -111,7 +111,7 @@ test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', asyn
   assert.equal(result.saveDialogs, 1);
   assert.deepEqual(result.writes.slice(1), ['picked.mmd:flowchart TD\n  B_NEW[New idea]', 'picked.mmd:flowchart TD\n  B_NEW[New idea]']);
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test('test_canceling_the_open_dialog_logs_a_message_and_leaves_the_diagram_unchanged', async () => {

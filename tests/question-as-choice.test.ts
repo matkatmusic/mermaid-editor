@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "./editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -61,12 +61,12 @@ test('test_a_question_that_follows_a_question_is_a_choice_button_that_opens_its_
   await resetEditorFixture();
   await setEditorSource(QUESTION_AS_CHOICE_FIXTURE);
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   // Step: the first question shows the second question as one of its choice buttons.
   assert.deepEqual(await chooseButtonLabels(), ["Q_BROAD_INFORMATION='information'", 'Q_CHOICE_ABOUT_OTHER=other']);
   // Step: picking it shows its own two choices.
   await executeExpression("document.querySelector('#phoneDiagram [data-choose=\"Q_BROAD_INFORMATION\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.deepEqual(await executeExpression("phonePath.slice()"), ['Q_BROAD_INFORMATION']);
   assert.deepEqual(await chooseButtonLabels(), ['Q_CHOICE_BROAD_INFORMATION_PASS=> threshold', 'Q_CHOICE_BROAD_INFORMATION_FAIL=≤ threshold']);
   assert.equal(await executeExpression("document.querySelector('#phoneDiagram [data-active-question]').dataset.nodeId"), 'Q_BROAD_INFORMATION');
@@ -76,9 +76,9 @@ test('test_a_single_choice_question_picks_its_choice_itself_and_undo_skips_it', 
   await resetEditorFixture();
   await setEditorSource(SINGLE_CHOICE_FIXTURE);
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression("document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_A_GO\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(300);
+  await waitForRender();
   // Step: one tap lands on the final question; the single-choice box shows with no choice button.
   assert.equal(await executeExpression("document.querySelector('#phoneDiagram [data-active-question]').dataset.nodeId"), 'Q_FINAL');
   assert.equal(await executeExpression("!!document.querySelector('#phoneDiagram [data-node-id=\"Q_SINGLE\"]')"), true);
@@ -86,7 +86,7 @@ test('test_a_single_choice_question_picks_its_choice_itself_and_undo_skips_it', 
   assert.deepEqual(await executeExpression("phonePath.slice()"), ['Q_CHOICE_A_GO']);
   // Step: undo goes back to the last real tap.
   await executeExpression("document.querySelector('#phoneDiagram [data-undo]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.equal(await executeExpression("document.querySelector('#phoneDiagram [data-active-question]').dataset.nodeId"), 'Q_A');
 });
 
@@ -94,9 +94,9 @@ test('test_a_single_choice_question_whose_child_is_a_block_shows_that_block', as
   await resetEditorFixture();
   await setEditorSource(SINGLE_CHOICE_TO_BLOCK_FIXTURE);
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression("document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_A_GO\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.equal(await executeExpression("!!document.querySelector('#phoneDiagram .phone-block[data-node-id=\"B_BLOCK_ASK\"]')"), true);
 });
 
@@ -104,9 +104,9 @@ test('test_write_path_keeps_the_auto_picked_single_choice_step', async () => {
   await resetEditorFixture();
   await setEditorSource(SINGLE_CHOICE_FIXTURE);
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression("document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_A_GO\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   await waitMilliseconds(500);
   // Step: the status line names the file just written.

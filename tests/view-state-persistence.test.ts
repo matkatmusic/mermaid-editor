@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { openEditorDrawer, resetEditorFixture, dispatchNodeClick } from "./editor-helpers.ts";
 import { EDITOR_FIXTURE_NAME, SEARCH_FIXTURE } from "./fixtures.ts";
 
@@ -17,7 +17,7 @@ test("test_clicking_a_node_writes_its_id_into_the_editor_text_and_the_saved_file
   await resetEditorFixture();
   // Step: load a search fixture so the node ids are known, then save it with a trailer that selects nothing.
   await executeExpression(`codeBox.value = ${JSON.stringify(SEARCH_FIXTURE)}; codeBox.dispatchEvent(new Event('input'))`);
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression("window.selectEditorNode('B_START'); window.selectEditorNode(null)");
   // Step: click the node Q_SECOND.
   await dispatchNodeClick("Q_SECOND");

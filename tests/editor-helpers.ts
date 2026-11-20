@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression } from "./cdp.ts";
 import { SERVER_PORT } from "./browser-harness.ts";
 import { EDITOR_FIXTURE_NAME, editorFixtureSource } from "./fixtures.ts";
 
@@ -27,7 +27,6 @@ export async function resetEditorFixture() {
   await executeExpression(
     `loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`
   );
-  await waitMilliseconds(300);
 }
 
 export async function selectEditorNode(id: string | null) {
@@ -46,7 +45,6 @@ export async function assertEditorSourceIsSavedAndValid() {
   assert.equal(saved, source);
   await executeExpression(`mermaid.parse(${JSON.stringify(source)})`);
   await executeExpression(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
-  await waitMilliseconds(300);
   const reloaded = await executeExpression("codeBox.value");
   assert.equal(reloaded, source);
 }
@@ -60,8 +58,7 @@ export async function dispatchNodeDblclick(id: string) {
 }
 
 export async function setEditorSource(source: string) {
-  await executeExpression(`codeBox.value = ${JSON.stringify('PLACEHOLDER')}; codeBox.dispatchEvent(new Event('input'))`.replace(JSON.stringify('PLACEHOLDER'), JSON.stringify(source)));
-  await waitMilliseconds(300);
+  await executeExpression(`codeBox.value = ${JSON.stringify(source)}; codeBox.dispatchEvent(new Event('input')); render()`);
 }
 
 export async function getOutputScrollTop() {

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { resetEditorFixture, setEditorSource } from "./editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url);
@@ -11,7 +11,7 @@ test("test_diagram_loop_appends_the_repeated_nodes_instead_of_stopping", async (
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_N\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   const state = await executeExpression(`JSON.stringify((() => {
     return {
       listenCount: document.querySelectorAll('#phoneDiagram [data-node-id="B_SELF_LISTEN"]').length,
@@ -24,7 +24,7 @@ test("test_diagram_loop_appends_the_repeated_nodes_instead_of_stopping", async (
   assert.equal(state.hasActive, true);
   // Step: reset so later tests start clean.
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test("test_clicking_a_phone_choice_selects_and_centers_the_next_decision_without_moving_the_page", async () => {
@@ -34,12 +34,12 @@ test("test_clicking_a_phone_choice_selects_and_centers_the_next_decision_without
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   const pageAfter = await executeExpression("window.scrollY");
   assert.equal(pageAfter, pageBefore);
   assert.equal(await executeExpression("selectedEditorNodeId"), 'Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID');
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test("test_phone_view_handles_a_diagram_with_no_edges", async () => {
@@ -57,14 +57,14 @@ test("test_phone_view_handles_a_diagram_with_no_edges", async () => {
   assert.equal(hasNodeA, "true");
   // Step: restore the accountability diagram for any tests that follow.
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test("test_phone_choice_width_splits_the_viewport_by_choice_count", async () => {
   // Step: a fresh three-choice fixture, independent of the accountability diagram.
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  Q_FIRST{"First?"}\n  Q_CHOICE_FIRST_A["A"]\n  Q_CHOICE_FIRST_B["B"]\n  Q_CHOICE_FIRST_C["C"]\n  Q_FIRST --> Q_CHOICE_FIRST_A\n  Q_FIRST --> Q_CHOICE_FIRST_B\n  Q_FIRST --> Q_CHOICE_FIRST_C');
-  await waitMilliseconds(300);
+  await waitForRender();
   const widths = await executeExpression(`JSON.stringify((() => {
     const choices = Array.from(document.querySelectorAll('#phoneDiagram .phone-choice-row .phone-choice'));
     return { widths: choices.map(el => el.getBoundingClientRect().width) };
@@ -73,7 +73,7 @@ test("test_phone_choice_width_splits_the_viewport_by_choice_count", async () => 
   for (const width of widths.widths)
     assert.ok(Math.abs(width - widths.widths[0]) < 1, JSON.stringify(widths));
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test("test_syntax_error_keeps_last_good_diagram_and_shows_error_log", async () => {
@@ -86,7 +86,7 @@ test("test_syntax_error_keeps_last_good_diagram_and_shows_error_log", async () =
   await executeExpression(
     "codeBox.value = 'flowchart TD\\n  B_OK[ok]\\n  B_GOOD[good]\\n  B_OK --> B_GOOD'; codeBox.dispatchEvent(new Event('input'))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   const hasSvg = await executeExpression("!!document.querySelector('#diagram svg')");
   assert.equal(hasSvg, true);
   // Step: set broken diagram text; the last good svg stays and the error log opens.
@@ -106,10 +106,10 @@ test("test_syntax_error_keeps_last_good_diagram_and_shows_error_log", async () =
   await executeExpression(
     "codeBox.value = 'flowchart TD\\n  B_OK[ok]\\n  B_GOOD[good]\\n  B_OK --> B_GOOD'; codeBox.dispatchEvent(new Event('input'))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   const errorLogClosed = await executeExpression("document.getElementById('errorLog').classList.contains('open')");
   assert.equal(errorLogClosed, false);
   // Step: restore the accountability diagram so later runs start clean.
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(300);
+  await waitForRender();
 });

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { EDITOR_FIXTURE_NAME, SCROLL_FIXTURE_NAME, editorFixtureSource, scrollFixtureSource } from "./fixtures.ts";
 import { dispatchNodeClick, openEditorDrawer, getOutputScrollTop, setEditorSource } from "./editor-helpers.ts";
 import { inspectorFocus, inspectorPlacement } from "./inspector-helpers.ts";
@@ -24,7 +24,7 @@ test("test_inspector_keeps_the_diagram_scroll_position", async () => {
   // Step: committing the text with Enter rerenders, saves, and keeps the scroll position.
   await executeExpression("(() => { const input = document.getElementById('nodeTextInput'); input.value = 'Other side raises an issue'; input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()");
   await executeExpression("window.editorActionPromise");
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.equal(await getOutputScrollTop(), 150);
   // Step: dismissing keeps the scroll position.
   await dispatchNodeClick("B_RAISE_ISSUE");

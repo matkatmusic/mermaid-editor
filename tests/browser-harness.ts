@@ -1,11 +1,11 @@
 import { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { cpSync, mkdtempSync } from "node:fs";
+import { cpSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { createServer } from "node:net";
-import { closeCdp, openCdp, executeExpression, send, waitMilliseconds, waitForFunction, waitForPort } from "./cdp.ts";
+import { closeCdp, closeCdpPage, openCdp, executeExpression, send, waitMilliseconds, waitForFunction, waitForPort } from "./cdp.ts";
 import { EDITOR_FIXTURE_NAME, editorFixtureSource } from "./fixtures.ts";
 
 export let SERVER_PORT: number;
@@ -35,35 +35,65 @@ function isPortFree(port: number) {
   });
 }
 
+export interface BrowserSession {
+    serverPort: number;
+    cdpPort: number;
+    diagramsCopyDir: string;
+    serverProc: ChildProcess;
+    chromeProc: ChildProcess;
+}
+
+export async function startServerAndChrome(serverPort: number, cdpPort: number): Promise<BrowserSession> {
+    const [serverPortFree, cdpPortFree] = await Promise.all([isPortFree(serverPort), isPortFree(cdpPort)]);
+    const bothPortsFree = serverPortFree && cdpPortFree;
+    if (!bothPortsFree) {
+        const problems: string[] = [];
+        if (!serverPortFree)
+            problems.push(`SERVER_PORT ${serverPort} is busy`);
+        if (!cdpPortFree)
+            problems.push(`CDP_PORT ${cdpPort} is busy`);
+        throw new Error(`pick free ports; ${problems.join(", ")}`);
+    }
+    spawnSync("bun", ["build", "viewer.ts", "--outfile", "viewer.js"], { stdio: "inherit" });
+    // The server saves into a temp copy so tests never overwrite the real diagrams.
+    const diagramsCopyDir = mkdtempSync(join(tmpdir(), "diagrams-copy-"));
+    cpSync(join(process.cwd(), "..", "diagrams"), diagramsCopyDir, { recursive: true });
+    const serverProc = spawn("bun", ["server.js", "--port", String(serverPort)], { stdio: "ignore", env: { ...process.env, DIAGRAMS_DIR: diagramsCopyDir, LAST_OPENED_FILE: join(diagramsCopyDir, ".last-opened.json") } });
+    await waitForPort(serverPort);
+
+    const userDataDir = mkdtempSync(join(tmpdir(), "phone-view-test-"));
+    const chromeProc = spawn(CHROME_PATH, [
+        "--headless=new",
+        "--disable-gpu",
+        `--remote-debugging-port=${cdpPort}`,
+        `--user-data-dir=${userDataDir}`,
+    ], { stdio: "ignore" });
+    await waitForPort(cdpPort);
+    return { serverPort, cdpPort, diagramsCopyDir, serverProc, chromeProc };
+}
+
+// Gives every test file the same diagrams the first file saw: removes files tests created, restores files tests changed.
+function resetSharedDiagramsDir(diagramsCopyDir: string) {
+    for (const entryName of readdirSync(diagramsCopyDir))
+        rmSync(join(diagramsCopyDir, entryName), { recursive: true, force: true });
+    cpSync(join(process.cwd(), "..", "diagrams"), diagramsCopyDir, { recursive: true });
+}
+
 async function initSetup(fileName: string) {
   // Scenario: start the real server and headless Chrome, then connect via CDP to drive the page like a user.
-  SERVER_PORT = Number(process.env.SERVER_PORT) || computeHashPort(fileName, 20000, 10000);
-  CDP_PORT = Number(process.env.CDP_PORT) || computeHashPort(fileName, 30000, 10000);
-  const [serverPortFree, cdpPortFree] = await Promise.all([isPortFree(SERVER_PORT), isPortFree(CDP_PORT)]);
-  const bothPortsFree = serverPortFree && cdpPortFree;
-  if (!bothPortsFree) {
-    const problems: string[] = [];
-    if (!serverPortFree)
-      problems.push(`SERVER_PORT ${SERVER_PORT} is busy`);
-    if (!cdpPortFree)
-      problems.push(`CDP_PORT ${CDP_PORT} is busy`);
-    throw new Error(`pick free ports; ${problems.join(", ")}`);
+  // With --test-global-setup the server and Chrome already run, so this file only resets the diagrams and opens a page.
+  const sharedDiagramsDir = process.env.SHARED_DIAGRAMS_DIR;
+  if (sharedDiagramsDir) {
+    SERVER_PORT = Number(process.env.SHARED_SERVER_PORT);
+    CDP_PORT = Number(process.env.SHARED_CDP_PORT);
+    resetSharedDiagramsDir(sharedDiagramsDir);
+  } else {
+    SERVER_PORT = Number(process.env.SERVER_PORT) || computeHashPort(fileName, 20000, 10000);
+    CDP_PORT = Number(process.env.CDP_PORT) || computeHashPort(fileName, 30000, 10000);
+    const session = await startServerAndChrome(SERVER_PORT, CDP_PORT);
+    serverProc = session.serverProc;
+    chromeProc = session.chromeProc;
   }
-  spawnSync("bun", ["build", "viewer.ts", "--outfile", "viewer.js"], { stdio: "inherit" });
-  // The server saves into a temp copy so tests never overwrite the real diagrams.
-  const diagramsCopyDir = mkdtempSync(join(tmpdir(), "diagrams-copy-"));
-  cpSync(join(process.cwd(), "..", "diagrams"), diagramsCopyDir, { recursive: true });
-  serverProc = spawn("bun", ["server.js", "--port", String(SERVER_PORT)], { stdio: "ignore", env: { ...process.env, DIAGRAMS_DIR: diagramsCopyDir, LAST_OPENED_FILE: join(diagramsCopyDir, ".last-opened.json") } });
-  await waitForPort(SERVER_PORT);
-
-  const userDataDir = mkdtempSync(join(tmpdir(), "phone-view-test-"));
-  chromeProc = spawn(CHROME_PATH, [
-    "--headless=new",
-    "--disable-gpu",
-    `--remote-debugging-port=${CDP_PORT}`,
-    `--user-data-dir=${userDataDir}`,
-  ], { stdio: "ignore" });
-  await waitForPort(CDP_PORT);
 
   await openCdp(CDP_PORT);
   await send("Page.enable");
@@ -110,6 +140,8 @@ export function registerBrowserHooks(testFileUrl: string, afterSetup?: () => Pro
       await restoreFixture.catch(clearSetupFailure);
     }
     closeCdp();
+    if (process.env.SHARED_DIAGRAMS_DIR)
+      await closeCdpPage(CDP_PORT);
     chromeProc?.kill("SIGKILL");
     serverProc?.kill();
   };

@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { getNodeIds, openEditorDrawer, setEditorSource } from "./editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -58,7 +58,7 @@ test('test_functions_only_toggle_filters_both_views_to_functions_and_restores_on
   assert.equal(await mainHasEdge('L_B_MAIN_B_PARSE_'), false);
   // Step: restore the accountability diagram so later runs start clean.
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test('test_all_committed_diagrams_validate_with_mermaid', async () => {

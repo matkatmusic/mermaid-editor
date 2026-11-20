@@ -1,4 +1,5 @@
 let ws: WebSocket;
+let targetId: string;
 let nextId = 1;
 const pending = new Map<number, (value: any) => void>();
 
@@ -41,6 +42,11 @@ export async function executeExpression(expression: string) {
   return result.value;
 }
 
+// Re-renders from the current page state and waits for it, so any earlier unfinished render is superseded.
+export async function waitForRender() {
+  await executeExpression("render()");
+}
+
 export function waitMilliseconds(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -71,12 +77,17 @@ function receiveMessage(event: MessageEvent) {
 export async function openCdp(cdpPort: number) {
   const targetResponse = await fetch(`http://localhost:${cdpPort}/json/new?about:blank`, { method: "PUT" });
   const target = await targetResponse.json();
+  targetId = target.id;
   ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
     ws.addEventListener("open", resolve, { once: true });
     ws.addEventListener("error", reject, { once: true });
   });
   ws.addEventListener("message", receiveMessage);
+}
+
+export async function closeCdpPage(cdpPort: number) {
+  await fetch(`http://localhost:${cdpPort}/json/close/${targetId}`);
 }
 
 export function closeCdp() {

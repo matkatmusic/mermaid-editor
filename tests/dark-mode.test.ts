@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { openEditorDrawer } from "./editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -28,7 +28,7 @@ test('test_masked_decision_color_follows_dark_mode', async () => {
   await executeExpression("loadDiagram('accountability.mmd')");
   await waitMilliseconds(500);
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression(`document.querySelector('#phoneDiagram [data-choose="Q_CHOICE_THEM_DONE_SPEAKING_Y"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await waitMilliseconds(400);
   const maskColor = () => executeExpression(
@@ -42,7 +42,7 @@ test('test_masked_decision_color_follows_dark_mode', async () => {
   await waitMilliseconds(400);
   assert.equal(await maskColor(), 'rgba(0, 0, 0, 0.55)');
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   await setDark(true);
   await waitMilliseconds(400);
 });

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender } from "./cdp.ts";
 
 registerBrowserHooks(import.meta.url);
 
@@ -38,11 +38,11 @@ test("test_split_workspace_always_renders_regular_and_phone_views_with_distinct_
 
   // Step: click opens editor selection; phone choice advances the phone path and picks the next open decision.
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression("document.querySelector('#diagram [id*=\"flowchart-Q_THEM_DONE_SPEAKING-\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   assert.equal(await executeExpression("selectedEditorNodeId"), 'Q_THEM_DONE_SPEAKING');
   await executeExpression("document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.equal(await executeExpression("phonePath.length"), 1);
   assert.equal(await executeExpression("selectedEditorNodeId"), 'Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID');
 });
@@ -50,7 +50,7 @@ test("test_split_workspace_always_renders_regular_and_phone_views_with_distinct_
 test("test_phone_view_shows_the_start_slice", async () => {
   // Step: a prior test's phone click can leave the path dirty; reset first.
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   // Step: the open decision at the start is the diagram's first question, unmasked, with no separator yet.
   const state = await executeExpression(`JSON.stringify((() => {
     const active = document.querySelector('#phoneDiagram [data-active-question]');
@@ -88,7 +88,7 @@ test("test_clicking_a_decision_choice_masks_it_and_opens_the_next_decision", asy
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   const state = await executeExpression(`JSON.stringify((() => {
     const active = document.querySelector('#phoneDiagram [data-active-question]');
     const pastQuestion = document.querySelector('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]');
@@ -111,7 +111,7 @@ test("test_clicking_a_decision_choice_masks_it_and_opens_the_next_decision", asy
 test("test_reset_returns_to_the_start_slice", async () => {
   // Step: press Reset.
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   const activeId = await executeExpression("document.querySelector('#phoneDiagram [data-active-question]')?.dataset.nodeId");
   assert.equal(activeId, 'Q_THEM_DONE_SPEAKING');
   assert.equal(await executeExpression("phonePath.length"), 0);

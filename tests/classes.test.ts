@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { EDITOR_FIXTURE_NAME, SCROLL_FIXTURE_NAME, editorFixtureSource } from "./fixtures.ts";
 import { dispatchNodeClick, openEditorDrawer, resetEditorFixture, setEditorSource } from "./editor-helpers.ts";
 import { clickInspectorAction } from "./inspector-helpers.ts";
@@ -17,7 +17,7 @@ test("test_class_picker_creates_and_assigns_a_class_and_recolors_both_views", as
   await fillClassEditor('reflection', '#123456', '#000000');
   await executeExpression("document.getElementById('classEditorCreateBtn').click()");
   await executeExpression("window.editorActionPromise");
-  await waitMilliseconds(300);
+  await waitForRender();
   // Step: both the main SVG and the phone block recolor from the new class's fill.
   const colors = await executeExpression(`JSON.stringify((() => {
     const rect = document.querySelector('#diagram [id*="flowchart-B_Start-"] rect');
@@ -32,7 +32,7 @@ test("test_class_picker_creates_and_assigns_a_class_and_recolors_both_views", as
   assert.doesNotMatch(saved, /typeColors|nodeTypes/);
   // Step: reloading keeps the class and its color, read fresh from the source.
   await executeExpression(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.equal(await executeExpression(`document.querySelector('#phoneDiagram [data-node-id="B_Start"]').style.background`), 'rgb(18, 52, 86)');
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: 'PUT', body: editorFixtureSource });
 });
@@ -62,12 +62,12 @@ test("test_assigning_a_class_to_a_newly_inserted_decision_colors_it", async () =
   await setEditorSource('flowchart TD\n  Q_OLD{"Old decision"}\n  B_START["Start"]\n  B_START --> B_END\n  B_END["End"]\n  classDef decision fill:#fff3b0,stroke:#b8860b\n  class Q_OLD decision');
   await dispatchNodeClick('B_START');
   await clickInspectorAction('insert-decision-after');
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.equal(await executeExpression("document.getElementById('selectedNode').textContent"), 'Q_NEW_1');
   await executeExpression("document.getElementById('classPickerBtn').click()");
   await executeExpression('document.querySelector(\'#classPickerList [data-class-name="decision"]\').click()');
   await executeExpression('window.editorActionPromise');
-  await waitMilliseconds(300);
+  await waitForRender();
   const fill = await executeExpression(`getComputedStyle(document.querySelector('#diagram [id*="flowchart-Q_NEW_1-"] path, #diagram [id*="flowchart-Q_NEW_1-"] polygon, #diagram [id*="flowchart-Q_NEW_1-"] rect')).fill`);
   assert.equal(fill, 'rgb(255, 243, 176)');
 });
@@ -90,7 +90,7 @@ test("test_unclassed_nodes_get_diagonal_stripes_in_both_views", async () => {
   assert.match(stripes.onePhone, /repeating-linear-gradient/);
   assert.match(stripes.twoPhone, /rgb\(0, 255, 0\)/);
   await executeExpression(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test("test_classes_dialog_renames_recolors_and_deletes_a_class", async () => {
@@ -125,5 +125,5 @@ test("test_classes_dialog_renames_recolors_and_deletes_a_class", async () => {
   // Step: an open modal makes the rest of the page inert, so later tests could not focus anything.
   await executeExpression("document.getElementById('classesCloseBtn').click()");
   await executeExpression(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
-  await waitMilliseconds(300);
+  await waitForRender();
 });

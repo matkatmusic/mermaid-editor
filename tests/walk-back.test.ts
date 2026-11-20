@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { selectEditorNode } from "./editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url);
@@ -45,5 +45,5 @@ test("test_walk_back_button_selects_the_parent_and_asks_when_there_are_several",
   assert.equal(await executeExpression("document.getElementById('walkBackBtn').disabled"), true);
   // Step: put the default diagram back for later tests.
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(300);
+  await waitForRender();
 });

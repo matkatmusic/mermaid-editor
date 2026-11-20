@@ -1,11 +1,13 @@
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { SEARCH_FIXTURE } from "./fixtures.ts";
 import { resetEditorFixture, selectEditorNode, setEditorSource } from "./editor-helpers.ts";
 
 export async function typeSearch(query: string) {
   // Scenario: put text in the search field and fire the input event that one keypress fires.
   await executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = ${JSON.stringify(query)}; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-  await waitMilliseconds(300);
+  // A second render started before the keypress's own render ends discards that render's centering.
+  await waitMilliseconds(500);
+  await waitForRender();
 }
 
 export async function searchState() {
@@ -32,11 +34,18 @@ export async function startSearchTest() {
 }
 
 export async function nodeIsInMainView(id: string) {
-  return executeExpression(`(() => {
-    const pane = document.getElementById('output').getBoundingClientRect();
-    const node = document.querySelector('#diagram [id*="flowchart-${id}-"]').getBoundingClientRect();
-    const x = node.left + node.width / 2;
-    const y = node.top + node.height / 2;
-    return x >= pane.left && x <= pane.right && y >= pane.top && y <= pane.bottom;
-  })()`);
+  // The pane has empty padding around the diagram, so a node is visible only once the pane has scrolled to it: poll up to 3 seconds.
+  let isInView = false;
+  for (let attempt = 0; attempt < 30 && !isInView; attempt++) {
+    isInView = await executeExpression(`(() => {
+      const pane = document.getElementById('output').getBoundingClientRect();
+      const node = document.querySelector('#diagram [id*="flowchart-${id}-"]').getBoundingClientRect();
+      const x = node.left + node.width / 2;
+      const y = node.top + node.height / 2;
+      return x >= pane.left && x <= pane.right && y >= pane.top && y <= pane.bottom;
+    })()`);
+    if (!isInView)
+      await waitMilliseconds(100);
+  }
+  return isInView;
 }

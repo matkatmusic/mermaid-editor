@@ -1,18 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 
 registerBrowserHooks(import.meta.url);
 
 test("test_write_chosen_path_writes_numbered_path_files_next_to_the_diagram", async () => {
   // Scenario: the test server saves into its temp DIAGRAMS_DIR copy, so the real diagrams stay untouched.
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   // Step: the first Write chosen path click writes accountability-path-0.mmd.
   await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   await waitMilliseconds(500);
@@ -34,5 +34,5 @@ test("test_write_chosen_path_writes_numbered_path_files_next_to_the_diagram", as
   const namesAfterSecond: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json());
   assert.ok(namesAfterSecond.includes("accountability-path-1.mmd"), JSON.stringify(namesAfterSecond));
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
 });

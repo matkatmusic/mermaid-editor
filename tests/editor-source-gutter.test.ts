@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { SCROLL_FIXTURE_NAME, scrollFixtureSource } from "./fixtures.ts";
 import { measureSourceLineBounds, openEditorDrawer } from "./editor-helpers.ts";
 
@@ -39,7 +39,7 @@ test("test_gutter_follows_the_code_box_scroll_and_updates_on_input", async () =>
   // Step: a typed newline adds one number, and the gutter stays on the textarea's scroll position.
   const before = await executeExpression(`${gutterNumbers}.length`);
   await executeExpression("codeBox.value += '\\n  B_EXTRA[x]'; codeBox.dispatchEvent(new Event('input'))");
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.equal(await executeExpression(`${gutterNumbers}.length`), before + 1);
   assert.equal(await executeExpression("document.getElementById('sourceGutter').scrollTop"), await executeExpression("codeBox.scrollTop"));
 

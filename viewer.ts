@@ -8,6 +8,7 @@ import { removeQuestion } from './editor-remove-question.ts';
 import { applyEditorRedo, applyEditorUndo } from './editor-history.ts';
 import { applyMainZoom } from './zoom.ts';
 import { loadDiagram } from './diagram-load.ts';
+import { render } from './render.ts';
 import { showOpenedFile } from './open-file.ts';
 import { listAllPathIds } from './path-export-all.ts';
 import './editor-events.ts';
@@ -29,4 +30,4 @@ async function loadLastOpened() {
 }
 loadLastOpened();
 
-Object.assign(window, { loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds });
+Object.assign(window, { render, loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds });

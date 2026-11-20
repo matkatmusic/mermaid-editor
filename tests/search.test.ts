@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { openEditorDrawer, selectEditorNode, setEditorSource } from "./editor-helpers.ts";
 import { SEARCH_FIXTURE } from "./fixtures.ts";
 import { nodeIsInMainView, searchState, startSearchTest, typeSearch } from "./search-helpers.ts";
@@ -83,7 +83,9 @@ test('test_search_cycle_buttons_show_only_for_two_or_more_hits_and_step_through_
   assert.equal(twoHits.selected, 'Q_FIRST');
   // Step: Next steps to the second hit and keeps the selected item widget open.
   await executeExpression("document.getElementById('searchNextBtn').click()");
-  await waitMilliseconds(300);
+  // A second render started before the click's own render ends discards the click's centering.
+  await waitMilliseconds(500);
+  await waitForRender();
   const second = await searchState();
   assert.equal(second.selected, 'Q_SECOND');
   assert.equal(second.counter, '2 / 2');
@@ -91,11 +93,11 @@ test('test_search_cycle_buttons_show_only_for_two_or_more_hits_and_step_through_
   assert.equal(await nodeIsInMainView('Q_SECOND'), true);
   // Step: Next wraps from the last hit to the first hit.
   await executeExpression("document.getElementById('searchNextBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.equal((await searchState()).selected, 'Q_FIRST');
   // Step: Previous wraps from the first hit to the last hit.
   await executeExpression("document.getElementById('searchPreviousBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   const wrapped = await searchState();
   assert.equal(wrapped.selected, 'Q_SECOND');
   assert.equal(wrapped.counter, '2 / 2');
