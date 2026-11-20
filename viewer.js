@@ -88,10 +88,14 @@ var state = {
   phoneFocusNodeId: null,
   phoneFocusUsesDecisionContext: false,
   phonePreviewChoiceId: null,
+  phoneStartNodeId: null,
+  phoneClickedNodeId: null,
+  phoneClickedAtMs: 0,
   diagramScale: null,
   mainZoomPercent: 100,
   functionsOnly: false,
   selectedEditorNodeId: null,
+  multiSelectedNodeIds: [],
   currentDecisionId: null,
   advanceAfterDecisionText: null,
   focusDestinationAfterTextId: null,
@@ -794,6 +798,91 @@ function filterToFunctions(source) {
 `);
 }
 
+// class-lines.ts
+var CLASSDEF_LINE_RE = /^(\s*)classDef\s+(\S+)\s+(.+?)\s*$/;
+var CLASS_LINE_RE = /^(\s*)class\s+(\S+)\s+(\S+)\s*$/;
+function moveClassLinesToEnd(source) {
+  const otherLines = [];
+  const classLines = [];
+  for (const line of source.split(`
+`)) {
+    if (CLASS_LINE_RE.test(line))
+      classLines.push(line);
+    else
+      otherLines.push(line);
+  }
+  return [...otherLines, ...classLines].join(`
+`);
+}
+function isCommented(line) {
+  return line.trim().startsWith("%%");
+}
+function parseStyleProps(styleText) {
+  const order = [];
+  const props = {};
+  for (const part of styleText.split(",")) {
+    const trimmed = part.trim();
+    if (!trimmed)
+      continue;
+    const colonIndex = trimmed.indexOf(":");
+    if (colonIndex === -1)
+      continue;
+    const key = trimmed.slice(0, colonIndex).trim();
+    const value = trimmed.slice(colonIndex + 1).trim();
+    if (!(key in props))
+      order.push(key);
+    props[key] = value;
+  }
+  return { order, props };
+}
+function buildStyleText(order, props) {
+  const parts = [];
+  for (const key of order)
+    parts.push(`${key}:${props[key]}`);
+  return parts.join(",");
+}
+function parseClassDefs(source) {
+  const defs = [];
+  const lines = source.split(`
+`);
+  for (let i = 0;i < lines.length; i++) {
+    const isLineCommented = isCommented(lines[i]);
+    if (isLineCommented)
+      continue;
+    const match = lines[i].match(CLASSDEF_LINE_RE);
+    if (!match)
+      continue;
+    const { props } = parseStyleProps(match[3]);
+    defs.push({ name: match[2], fill: props.fill ?? "", stroke: props.stroke ?? "", lineIndex: i });
+  }
+  return defs;
+}
+function findClassDef(source, name) {
+  for (const def of parseClassDefs(source)) {
+    const isNamedClass = def.name === name;
+    if (isNamedClass)
+      return def;
+  }
+  return;
+}
+function findClassOfNode(source, nodeId) {
+  let found = null;
+  for (const line of source.split(`
+`)) {
+    const isLineCommented = isCommented(line);
+    if (isLineCommented)
+      continue;
+    const match = line.match(CLASS_LINE_RE);
+    if (!match)
+      continue;
+    const ids = match[2].split(",");
+    const listsNode = ids.includes(nodeId);
+    if (listsNode)
+      found = match[3];
+  }
+  return found;
+}
+
 // graph-slice.ts
 function parentOf(id, edges) {
   let found;
@@ -882,78 +971,6 @@ function choicesOf(id, edges) {
   for (const [from, to] of edges) {
     if (from === id)
       found.push(to);
-  }
-  return found;
-}
-
-// class-lines.ts
-var CLASSDEF_LINE_RE = /^(\s*)classDef\s+(\S+)\s+(.+?)\s*$/;
-var CLASS_LINE_RE = /^(\s*)class\s+(\S+)\s+(\S+)\s*$/;
-function isCommented(line) {
-  return line.trim().startsWith("%%");
-}
-function parseStyleProps(styleText) {
-  const order = [];
-  const props = {};
-  for (const part of styleText.split(",")) {
-    const trimmed = part.trim();
-    if (!trimmed)
-      continue;
-    const colonIndex = trimmed.indexOf(":");
-    if (colonIndex === -1)
-      continue;
-    const key = trimmed.slice(0, colonIndex).trim();
-    const value = trimmed.slice(colonIndex + 1).trim();
-    if (!(key in props))
-      order.push(key);
-    props[key] = value;
-  }
-  return { order, props };
-}
-function buildStyleText(order, props) {
-  const parts = [];
-  for (const key of order)
-    parts.push(`${key}:${props[key]}`);
-  return parts.join(",");
-}
-function parseClassDefs(source) {
-  const defs = [];
-  const lines = source.split(`
-`);
-  for (let i = 0;i < lines.length; i++) {
-    const isLineCommented = isCommented(lines[i]);
-    if (isLineCommented)
-      continue;
-    const match = lines[i].match(CLASSDEF_LINE_RE);
-    if (!match)
-      continue;
-    const { props } = parseStyleProps(match[3]);
-    defs.push({ name: match[2], fill: props.fill ?? "", stroke: props.stroke ?? "", lineIndex: i });
-  }
-  return defs;
-}
-function findClassDef(source, name) {
-  for (const def of parseClassDefs(source)) {
-    const isNamedClass = def.name === name;
-    if (isNamedClass)
-      return def;
-  }
-  return;
-}
-function findClassOfNode(source, nodeId) {
-  let found = null;
-  for (const line of source.split(`
-`)) {
-    const isLineCommented = isCommented(line);
-    if (isLineCommented)
-      continue;
-    const match = line.match(CLASS_LINE_RE);
-    if (!match)
-      continue;
-    const ids = match[2].split(",");
-    const listsNode = ids.includes(nodeId);
-    if (listsNode)
-      found = match[3];
   }
   return found;
 }
@@ -1086,7 +1103,8 @@ function setMainZoomPercent(percent) {
 }
 
 // phone-render.ts
-function findRoot(edges) {
+function findRoots(edges) {
+  const roots = [];
   for (const [candidate] of edges) {
     let hasIncoming = false;
     for (const [, to] of edges) {
@@ -1096,10 +1114,62 @@ function findRoot(edges) {
         break;
       }
     }
-    if (!hasIncoming)
-      return candidate;
+    const isNewRoot = !hasIncoming && !roots.includes(candidate);
+    if (isNewRoot)
+      roots.push(candidate);
   }
-  return;
+  return roots;
+}
+function isPhoneAwaitingStartNode(edges) {
+  const roots = findRoots(edges);
+  const hasSeveralStartNodes = roots.length > 1;
+  if (!hasSeveralStartNodes)
+    return false;
+  const hasNoAnswers = phonePath.length === 0;
+  if (!hasNoAnswers)
+    return false;
+  return !roots.includes(state.phoneStartNodeId);
+}
+function selectPhonePathToNode(nodeId, edges, graph) {
+  const isChoice = graph.nodes.get(nodeId)?.kind === "choice";
+  const targetId = isChoice ? parentOf(nodeId, edges) : nodeId;
+  let startNodeId;
+  let answers;
+  for (const root of findRoots(edges)) {
+    answers = findAnswersFromRoot(root, targetId, edges, graph);
+    if (answers) {
+      startNodeId = root;
+      break;
+    }
+  }
+  if (!answers)
+    throw new Error(`No phone path leads from a start node to ${nodeId}`);
+  phonePath.length = 0;
+  phonePath.push(...answers);
+  if (isChoice)
+    phonePath.push(nodeId);
+  state.phoneStartNodeId = startNodeId;
+  state.phoneClickedNodeId = nodeId;
+  state.phoneClickedAtMs = Date.now();
+  state.phoneFocusNodeId = null;
+  state.phoneFocusUsesDecisionContext = false;
+  state.phonePreviewChoiceId = null;
+}
+function findHistoryRoot(edges, graph) {
+  const roots = findRoots(edges);
+  const isClickedStartNodeKnown = roots.includes(state.phoneStartNodeId);
+  if (isClickedStartNodeKnown)
+    return state.phoneStartNodeId;
+  const hasNoAnswers = phonePath.length === 0;
+  if (hasNoAnswers)
+    return roots[0];
+  const firstAnsweredQuestion = parentOf(phonePath[0], edges);
+  for (const root of roots) {
+    const answers = findAnswersFromRoot(root, firstAnsweredQuestion, edges, graph);
+    if (answers)
+      return root;
+  }
+  return roots[0];
 }
 function compareNodesByLine(a, b) {
   return a.lineIndex - b.lineIndex;
@@ -1118,7 +1188,7 @@ function buildHistoryRows(edges, graph) {
     return standaloneRows;
   }
   const rows = [];
-  let cur = findRoot(edges);
+  let cur = findHistoryRoot(edges, graph);
   let pathIndex = 0;
   const maxSteps = graph.nodes.size + phonePath.length + 1;
   for (let step = 0;step < maxSteps; step++) {
@@ -1161,7 +1231,16 @@ function isPhoneShowingHistory() {
   return !hasFocusedDecision && !hasPreviewChoice;
 }
 function findAnswersLeadingTo(questionId, edges, graph) {
-  const root = findRoot(edges);
+  for (const root of findRoots(edges)) {
+    const answers = findAnswersFromRoot(root, questionId, edges, graph);
+    if (answers) {
+      state.phoneStartNodeId = root;
+      return answers;
+    }
+  }
+  throw new Error(`No phone path leads from the start to ${questionId}`);
+}
+function findAnswersFromRoot(root, questionId, edges, graph) {
   const queue = [{ nodeId: root, answers: [] }];
   const visited = new Set;
   for (let i = 0;i < queue.length; i++) {
@@ -1188,7 +1267,7 @@ function findAnswersLeadingTo(questionId, edges, graph) {
     if (isSingleChain)
       queue.push({ nodeId: nexts[0], answers });
   }
-  throw new Error(`No phone path leads from the start to ${questionId}`);
+  return;
 }
 
 // phone-rows.ts
@@ -1258,6 +1337,7 @@ function buildRows(edges, graph) {
 }
 
 // phone-html.ts
+var PHONE_CLICKED_BORDER_MS = 3000;
 var UNCLASSED_PHONE_STYLE = "background:repeating-linear-gradient(45deg, #f4b4b4 0 8px, #fde8e8 8px 16px)";
 var classIndex = { assignments: new Map, defsByName: new Map };
 function getPhoneNodeAppearance(node) {
@@ -1324,6 +1404,12 @@ function buildRowHtml(row, graph, edges, isMasked) {
 }
 function renderPhone(edges, graph) {
   classIndex = buildClassStyleIndex(codeBox.value);
+  if (isPhoneShowingHistory()) {
+    if (isPhoneAwaitingStartNode(edges)) {
+      phoneDiagramBox.innerHTML = '<div id="phoneStartPrompt">Select a starting node to walk a path through that diagram</div>';
+      return;
+    }
+  }
   const rows = buildRows(edges, graph);
   let lastPastIndex = -1;
   let hasOpenQuestion = false;
@@ -1356,6 +1442,15 @@ function renderPhone(edges, graph) {
   const historyBox = phoneDiagramBox.querySelector("#phoneHistory");
   if (historyBox)
     historyBox.scrollTop = historyBox.scrollHeight;
+  const hasClickedNode = state.phoneClickedNodeId !== null;
+  if (hasClickedNode) {
+    const isClickRecent = Date.now() - state.phoneClickedAtMs < PHONE_CLICKED_BORDER_MS;
+    if (isClickRecent) {
+      const clickedEl = phoneDiagramBox.querySelector(`[data-node-id="${state.phoneClickedNodeId}"]`);
+      if (clickedEl)
+        clickedEl.classList.add("phone-clicked");
+    }
+  }
 }
 
 // source-lines.ts
@@ -1465,7 +1560,7 @@ async function render() {
       }
     }
     state.currentBottomQ = bottomQ;
-    const mainSource = state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value;
+    const mainSource = moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value);
     const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const myRenderId = state.renderId;
@@ -1927,6 +2022,7 @@ function executeEditorAction(action) {
 }
 function selectEditorNode(id) {
   state.selectedEditorNodeId = id;
+  state.multiSelectedNodeIds = [];
   if (state.advanceAfterDecisionText?.decisionId !== id)
     state.advanceAfterDecisionText = null;
   if (state.focusDestinationAfterTextId !== id)
@@ -1944,8 +2040,9 @@ function renderEditorSelection() {
     el.classList.remove("editor-selected");
   for (const el of diagramBox.querySelectorAll(".editor-preview"))
     el.classList.remove("editor-preview");
-  if (state.selectedEditorNodeId) {
-    const el = diagramBox.querySelector('[id*="flowchart-' + state.selectedEditorNodeId + '-"]');
+  const selectedIds = state.selectedEditorNodeId ? [state.selectedEditorNodeId] : state.multiSelectedNodeIds;
+  for (const selectedId of selectedIds) {
+    const el = diagramBox.querySelector('[id*="flowchart-' + selectedId + '-"]');
     if (el)
       el.classList.add("editor-selected");
   }
@@ -2148,6 +2245,7 @@ async function appendChoiceToDecision(questionId, graph) {
   const newLines = [`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`];
   await applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines));
   selectEditorNode(cid);
+  moveNodeToViewportCenter(outputBox, diagramBox, cid);
 }
 function addChoiceOnDecision() {
   if (!state.selectedEditorNodeId)
@@ -2234,7 +2332,11 @@ function removeChoice() {
   if (!state.selectedEditorNodeId)
     return;
   const graph = getEditorGraph();
-  const id = state.selectedEditorNodeId;
+  const newSource = buildChoiceRemovedSource(graph, state.selectedEditorNodeId);
+  selectEditorNode(null);
+  setEditorActionPromise(applyEditorSource(newSource));
+}
+function buildChoiceRemovedSource(graph, id) {
   const node = graph.nodes.get(id);
   const removedLineIndexes = new Set;
   const newLines = [];
@@ -2249,14 +2351,17 @@ function removeChoice() {
     if (otherEndpoint !== id)
       appendInlineDecl(edge, otherEndpoint, graph, newLines);
   }
-  selectEditorNode(null);
-  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  return buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines);
 }
 function removeBlock() {
   if (!state.selectedEditorNodeId)
     return;
   const graph = getEditorGraph();
-  const id = state.selectedEditorNodeId;
+  const newSource = buildBlockRemovedSource(graph, state.selectedEditorNodeId);
+  selectEditorNode(null);
+  setEditorActionPromise(applyEditorSource(newSource));
+}
+function buildBlockRemovedSource(graph, id) {
   const node = graph.nodes.get(id);
   const removedLineIndexes = new Set;
   const newLines = [];
@@ -2280,8 +2385,7 @@ function removeBlock() {
   for (const predecessor of predecessors)
     for (const successor of successors)
       newLines.push(`  ${predecessor} --> ${successor}`);
-  selectEditorNode(null);
-  setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines)));
+  return buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines);
 }
 function removeChoices() {
   if (!state.selectedEditorNodeId)
@@ -2353,6 +2457,13 @@ function applyQuestionRemoval() {
   const graph = getEditorGraph();
   if (!choices.length)
     selectEditorNode(null);
+  const newSource = buildQuestionRemovedSource(graph, questionId, choices, index);
+  function applyRemovedQuestionSource() {
+    return applyEditorSource(newSource);
+  }
+  executeEditorAction(applyRemovedQuestionSource);
+}
+function buildQuestionRemovedSource(graph, questionId, choices, index) {
   const removedLineIndexes = new Set;
   const newLines = [];
   const qNode = graph.nodes.get(questionId);
@@ -2392,11 +2503,7 @@ function applyQuestionRemoval() {
     for (const predecessor of predecessors)
       newLines.push(`  ${predecessor} --> ${keepSuccessor}`);
   }
-  const newSource = buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines);
-  function applyRemovedQuestionSource() {
-    return applyEditorSource(newSource);
-  }
-  executeEditorAction(applyRemovedQuestionSource);
+  return buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines);
 }
 
 // editor-history.ts
@@ -2437,6 +2544,7 @@ async function loadDiagram(name) {
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
+  state.phoneStartNodeId = null;
   state.diagramScale = null;
   state.currentDecisionId = metadata?.lastSelectedNodeId ?? null;
   state.mainZoomPercent = metadata?.mainZoomPercent ?? 100;
@@ -2480,6 +2588,7 @@ async function showOpenedFile(path, text) {
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
+  state.phoneStartNodeId = null;
   state.diagramScale = null;
   const { metadata } = splitEditorMetadata(text);
   state.currentDecisionId = metadata?.lastSelectedNodeId ?? null;
@@ -2657,12 +2766,14 @@ function collectPaths(path, usedEdges, edges, paths) {
     paths.push([...path]);
 }
 function listAllPathIds(edges) {
-  const paths = [];
-  const root = findRoot(edges);
-  if (root === undefined)
-    return paths;
-  collectPaths([root], new Set, edges, paths);
-  return paths;
+  const startNodes = findRoots(edges);
+  const allPaths = [];
+  for (const startNode of startNodes) {
+    const paths = [];
+    collectPaths([startNode], new Set, edges, paths);
+    allPaths.push(...paths);
+  }
+  return allPaths;
 }
 async function writeAllPaths() {
   const sources = [];
@@ -2766,6 +2877,156 @@ function connectNodesWithShiftClick(clickedId) {
   const newLines = [`  ${fromId} --> ${clickedId}`];
   setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, new Set, newLines)));
 }
+
+// editor-multiselect.ts
+function getSelectedNodeIds() {
+  if (state.multiSelectedNodeIds.length)
+    return state.multiSelectedNodeIds;
+  if (state.selectedEditorNodeId)
+    return [state.selectedEditorNodeId];
+  return [];
+}
+function toggleNodeInSelection(id) {
+  const currentIds = getSelectedNodeIds();
+  const nextIds = currentIds.includes(id) ? currentIds.filter((currentId) => currentId !== id) : [...currentIds, id];
+  if (nextIds.length <= 1) {
+    selectEditorNode(nextIds[0] ?? null);
+    return;
+  }
+  selectEditorNode(null);
+  state.multiSelectedNodeIds = nextIds;
+  renderEditorSelection();
+}
+
+// editor-keys.ts
+function isTextBoxTarget(target) {
+  const element = target;
+  const isInput = element.tagName === "INPUT";
+  const isTextarea = element.tagName === "TEXTAREA";
+  const isSelect = element.tagName === "SELECT";
+  return isInput || isTextarea || isSelect || element.isContentEditable;
+}
+function isDiagramViewTarget(target) {
+  return target === document.body || outputBox.contains(target);
+}
+function buildSourceWithNodesRemoved(ids) {
+  let source = codeBox.value;
+  for (const id of ids) {
+    const { graph, problems } = parseEditorGraph(source);
+    if (problems.length)
+      throw new Error(problems.join("; "));
+    const node = graph.nodes.get(id);
+    if (!node)
+      continue;
+    if (node.kind === "question") {
+      const choices = graph.edges.filter((edge) => edge.from === id).map((edge) => edge.to);
+      source = buildQuestionRemovedSource(graph, id, choices, 0);
+    } else if (node.kind === "choice")
+      source = buildChoiceRemovedSource(graph, id);
+    else
+      source = buildBlockRemovedSource(graph, id);
+  }
+  return source;
+}
+function removeSelectedNodesOnDeleteKey(event) {
+  const isDeleteKey = event.key === "Delete" || event.key === "Backspace";
+  if (!isDeleteKey)
+    return;
+  if (!isDiagramViewTarget(event.target))
+    return;
+  const selectedIds = [...getSelectedNodeIds()];
+  if (!selectedIds.length)
+    return;
+  event.preventDefault();
+  const newSource = buildSourceWithNodesRemoved(selectedIds);
+  selectEditorNode(null);
+  executeEditorAction(() => applyEditorSource(newSource));
+}
+document.addEventListener("keydown", removeSelectedNodesOnDeleteKey);
+function runUndoRedoOnCmdZ(event) {
+  if (!event.metaKey)
+    return;
+  if (event.key.toLowerCase() !== "z")
+    return;
+  if (isTextBoxTarget(event.target))
+    return;
+  event.preventDefault();
+  if (event.shiftKey)
+    applyEditorRedo();
+  else
+    applyEditorUndo();
+}
+document.addEventListener("keydown", runUndoRedoOnCmdZ);
+function saveOnCmdS(event) {
+  if (!event.metaKey)
+    return;
+  if (event.key.toLowerCase() !== "s")
+    return;
+  event.preventDefault();
+  document.getElementById("saveBtn").click();
+}
+document.addEventListener("keydown", saveOnCmdS);
+function focusSearchOnCmdF(event) {
+  if (!event.metaKey)
+    return;
+  if (event.key.toLowerCase() !== "f")
+    return;
+  event.preventDefault();
+  searchInput.focus();
+  searchInput.select();
+}
+document.addEventListener("keydown", focusSearchOnCmdF);
+function zoomOnCmdPlusMinus(event) {
+  if (!event.metaKey)
+    return;
+  const isZoomIn = event.key === "+" || event.key === "=";
+  const isZoomOut = event.key === "-";
+  if (isZoomIn) {
+    event.preventDefault();
+    zoomInBtn.click();
+  } else if (isZoomOut) {
+    event.preventDefault();
+    zoomOutBtn.click();
+  }
+}
+document.addEventListener("keydown", zoomOnCmdPlusMinus);
+function selectNeighborNodeOnArrowKey(event) {
+  const isArrowUp = event.key === "ArrowUp";
+  const isArrowDown = event.key === "ArrowDown";
+  if (!isArrowUp && !isArrowDown)
+    return;
+  if (!isDiagramViewTarget(event.target))
+    return;
+  const selectedId = state.selectedEditorNodeId;
+  if (!selectedId)
+    return;
+  const { graph, problems } = parseEditorGraph(codeBox.value);
+  if (problems.length)
+    throw new Error(problems.join("; "));
+  const neighborEdge = isArrowDown ? graph.edges.find((edge) => edge.from === selectedId) : graph.edges.find((edge) => edge.to === selectedId);
+  if (!neighborEdge)
+    return;
+  event.preventDefault();
+  const neighborId = isArrowDown ? neighborEdge.to : neighborEdge.from;
+  selectEditorNode(neighborId);
+  moveNodeToViewportCenter(outputBox, diagramBox, neighborId);
+  saveEditorViewState();
+}
+document.addEventListener("keydown", selectNeighborNodeOnArrowKey);
+function moveToQuestionOnAngleBracket(event) {
+  const isNext = event.key === ">";
+  const isPrevious = event.key === "<";
+  if (!isNext && !isPrevious)
+    return;
+  if (isTextBoxTarget(event.target))
+    return;
+  event.preventDefault();
+  if (isNext)
+    nextDecisionBtn.click();
+  else
+    previousDecisionBtn.click();
+}
+document.addEventListener("keydown", moveToQuestionOnAngleBracket);
 
 // editor-commit.ts
 function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotesInput.value.trim()) {
@@ -3355,28 +3616,20 @@ var selectClickedNode = (event) => {
       return;
     }
   }
+  if (event.metaKey) {
+    if (id) {
+      toggleNodeInSelection(id);
+      return;
+    }
+  }
   state.connectFromNodeId = null;
   if (id)
     selectNodeSourceLine(id);
   selectEditorNode(id);
   saveEditorViewState();
   if (id) {
-    const graph = getEditorGraph();
-    const node = graph.nodes.get(id);
-    if (node?.kind === "question") {
-      state.phoneFocusNodeId = id;
-      state.phoneFocusUsesDecisionContext = true;
-      state.phonePreviewChoiceId = null;
-      render();
-    } else {
-      const feedingChoice = findNearestFeedingChoice(id, graph);
-      if (feedingChoice) {
-        state.phoneFocusNodeId = null;
-        state.phoneFocusUsesDecisionContext = false;
-        state.phonePreviewChoiceId = feedingChoice;
-        render();
-      }
-    }
+    selectPhonePathToNode(id, parseEdges(codeBox.value), getEditorGraph());
+    render();
   }
 };
 outputBox.addEventListener("click", selectClickedNode);
@@ -3479,6 +3732,7 @@ function resetChosenPath() {
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
+  state.phoneStartNodeId = null;
   applyPathHighlight();
   render();
   outputBox.scrollTo({ top: 0, behavior: "smooth" });
@@ -3579,4 +3833,4 @@ async function loadLastOpened() {
   showOpenedFile(saved.path, saved.text);
 }
 loadLastOpened();
-Object.assign(window, { loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds });
+Object.assign(window, { render, loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds });

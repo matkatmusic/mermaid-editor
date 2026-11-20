@@ -1,4 +1,5 @@
 import { state } from './state.ts';
+import type { EditorGraph } from './editor-types.ts';
 import { getEditorGraph } from './editor-graph.ts';
 import { appendInlineDecl, buildSourceWithLinesReplaced } from './source-edit.ts';
 import { applyEditorSource, executeEditorAction, selectEditorNode, renderRemovalPreview } from './editor-actions.ts';
@@ -43,6 +44,14 @@ export function applyQuestionRemoval() {
   if (!choices.length)
     // Clear selection before committing so the saved metadata doesn't point at the node this removes.
     selectEditorNode(null);
+  const newSource = buildQuestionRemovedSource(graph, questionId, choices, index);
+  function applyRemovedQuestionSource() {
+    return applyEditorSource(newSource);
+  }
+  executeEditorAction(applyRemovedQuestionSource);
+}
+
+export function buildQuestionRemovedSource(graph: EditorGraph, questionId: string, choices: string[], index: number) {
   const removedLineIndexes = new Set<number>();
   const newLines: string[] = [];
   const qNode = graph.nodes.get(questionId);
@@ -82,9 +91,5 @@ export function applyQuestionRemoval() {
     for (const predecessor of predecessors)
       newLines.push(`  ${predecessor} --> ${keepSuccessor}`);
   }
-  const newSource = buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines);
-  function applyRemovedQuestionSource() {
-    return applyEditorSource(newSource);
-  }
-  executeEditorAction(applyRemovedQuestionSource);
+  return buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines);
 }

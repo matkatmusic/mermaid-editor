@@ -41,6 +41,7 @@ export function executeEditorAction(action: () => Promise<void>) {
 
 export function selectEditorNode(id: string | null) {
   state.selectedEditorNodeId = id;
+  state.multiSelectedNodeIds = [];
   if (state.advanceAfterDecisionText?.decisionId !== id)
     state.advanceAfterDecisionText = null;
   if (state.focusDestinationAfterTextId !== id)
@@ -59,8 +60,9 @@ export function renderEditorSelection() {
     el.classList.remove('editor-selected');
   for (const el of diagramBox.querySelectorAll('.editor-preview'))
     el.classList.remove('editor-preview');
-  if (state.selectedEditorNodeId) {
-    const el = diagramBox.querySelector('[id*="flowchart-' + state.selectedEditorNodeId + '-"]');
+  const selectedIds = state.selectedEditorNodeId ? [state.selectedEditorNodeId] : state.multiSelectedNodeIds;
+  for (const selectedId of selectedIds) {
+    const el = diagramBox.querySelector('[id*="flowchart-' + selectedId + '-"]');
     if (el)
       el.classList.add('editor-selected');
   }

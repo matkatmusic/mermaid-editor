@@ -78,6 +78,7 @@ bun /Users/matkatmusicllc/Programming/relationship-mermaid/mermaid-editor/check-
 
 - **File menu:** click **File** at the top left. The menu holds **New**, **Save**, **Open file...**, **Reset**, **Classes...**, and **Diagrams**. The menu closes after you pick an item.
 - **Diagrams:** open **Diagrams** in the File menu and pick a `.mmd` file from the diagrams folder.
+- **Cmd-S:** does the same as **Save**, also while you type in the source editor. The browser save-page box stays closed.
 - **New:** starts a blank diagram with one block, `B_NEW`. The source editor opens. The diagram has no file yet: click **Save** once before you use the node inspector.
 - **Open file...:** shows a macOS file window. Pick any `.mmd` file on the computer. The window works on macOS only.
 - **Save:** writes the diagram. A diagram from the Diagrams list goes back to the diagrams folder. A file from **Open file...** goes back to its own place. A new diagram asks the browser for a file name.
@@ -96,13 +97,16 @@ bun /Users/matkatmusicllc/Programming/relationship-mermaid/mermaid-editor/check-
 
 ### The diagram view
 
-- **Select a node:** click it. The node inspector opens below the diagram. The source editor marks the node's line. The phone view on the right changes to show that node's place. Press **Escape** to clear the selection.
+- **Select a node:** click it. The node inspector opens below the diagram. The source editor marks the node's line. The phone view on the right shows the path to that node. Press **Escape** to clear the selection.
+- **Select many nodes:** hold Cmd and click a node to add it to the selection. Hold Cmd and click a selected node to take it out. A click without Cmd selects only that node. Every selected node has the same highlight. While two or more nodes are selected, the node inspector shows no node. Press **Escape** to clear the whole selection.
+- **Delete nodes:** press **Delete** or **Backspace** to remove every selected node, the same way the **Remove** button does. A decision with choices keeps the path of its first choice. All the removals are one undo step and one save. The keys work only when the focus is in the diagram view (you clicked a node and have not clicked a text box since). In a text box, Delete edits the text as usual.
+- **Move along the arrows:** press the **Up** arrow key to select the node that leads to the selected node. Press the **Down** arrow key to select the node that the selected node leads to. If there are several, the first in the source order wins. The new node is centered. These keys also work only when the focus is in the diagram view.
 - **Edit the node text fast:** double-click a node. The text in the **Node text** box becomes selected, so you can type the new text.
 - **Connect two nodes:** hold Shift and click node A. Then hold Shift and click node B. The editor adds the line `A --> B`. A click without Shift, or a click on empty space, cancels the first pick. A second Shift-click on the same node does nothing.
 - **Right-click menu:** right-click anywhere in the diagram. A menu opens at the pointer with **Add Decision Block** and **Add Static Block**. The new block has no arrows. **Add Decision Block** also adds **Yes** and **No** choices. The new node is selected and its text is selected, so you can type at once. Press **Escape** or click elsewhere to close the menu.
-- **Zoom:** click **+** or **−** to change the zoom by 10 percent. Click **100%** to reset. The number beside the buttons shows the zoom. The file keeps the zoom.
+- **Zoom:** click **+** or **−** to change the zoom by 10 percent. **Cmd-plus** (or **Cmd-=**) and **Cmd-minus** do the same, and the browser page zoom stays off. Click **100%** to reset. The number beside the buttons shows the zoom. The file keeps the zoom.
 - **Dark mode:** the **Dark mode** box at the top switches the colors. It is on at the start.
-- **Decisions:** click the left arrow or the right arrow after **Decisions:** to select and center the previous or next question. The counter shows, for example, `3 / 24`.
+- **Decisions:** click the left arrow or the right arrow after **Decisions:** to select and center the previous or next question. The keys **<** and **>** do the same, except while the cursor is in a text box. The counter shows, for example, `3 / 24`.
 - **Functions only:** tick **Functions only** to show only the blocks that are function calls, like `doThing(x)`, and the calls between them.
 - **Notes:** a node that has a note shows a small dot. The dot color is the opposite of the node color, so it stays easy to see.
 - **Source editor:** click the three-line button between the source editor and the diagram to show or hide the source editor. Type in it to change the diagram at once. A problem shows in the box under the text. The numbers on the left are line numbers.
@@ -139,10 +143,11 @@ These buttons change with the node kind.
 - Click the undo button (the left curved arrow, "Undo edit") or the redo button (the right curved arrow, "Redo edit") at the top.
 - Each change from the node inspector, the right-click menu, or the Classes window is one step.
 - Typing in the source editor starts the history again from that text.
-- There are no keyboard keys for undo and redo.
+- **Cmd-Z** is undo. **Cmd-Shift-Z** is redo. They do nothing while the cursor is in a text box (the node inspector boxes, the search box, the source editor). There the browser keeps its own text undo.
 
 ### Search
 
+- Press **Cmd-F** to put the cursor in **Search nodes** and select its text. The browser find box stays closed.
 - Type in **Search nodes** at the top. The editor matches the node name or the node text. Capital letters do not matter.
 - Each key you type searches again. The first match is selected and moved into view.
 - The counter shows the match number, for example `1 / 3`. After an edit, the count updates.
@@ -161,11 +166,13 @@ A class gives nodes a fill color and a stroke color. The file keeps classes as M
 
 The phone frame on the right shows the diagram one step at a time, like a person who follows the diagram.
 
+- **Several start nodes:** a start node is a node with no arrow into it. If the diagram has more than one, the frame shows only "Select a starting node to walk a path through that diagram" until you click a node in the diagram. **Reset decisions** brings that text back. A diagram with one start node does not show it.
+- **Click a node in the diagram:** the frame shows the path from a start node to the clicked node. A clicked start node starts the walk at that node. If more than one path leads to the node, the shortest one is used. The walk then goes on to the next open question, and the frame draws a pulsing orange border around the clicked node for a few seconds. A clicked choice shows as the chosen answer.
 - **Walk the diagram:** the frame shows the start. Click a choice button to answer a question. The next steps show. Past answers are dimmed. A question that has only one choice is answered for you.
 - **Change an answer:** click a dimmed choice that has the return arrow to switch to that answer.
 - **Undo, Reset decisions:** after the first answer, **Undo** takes back the last answer. **Reset decisions** clears all answers. **Reset** in the File menu clears the answers too.
 - **Write path:** after the first answer, click **Write path**. The editor saves the path you chose as a new file named `<name>-path-<N>.mmd`. N is one more than the highest number already used. A diagram from the Diagrams list writes the file into the diagrams folder. A file from **Open file...** asks you once to pick a folder in the browser.
-- **Export all paths:** click **Export all paths** at the top. The editor writes one file for every full path through the diagram, with the same names. The status shows `Writing 2/9 paths`. While it runs, the editing controls are locked.
+- **Export all paths:** click **Export all paths** at the top. The editor writes one file for every full path from every start node of the diagram, with the same names and numbers. The status shows `Writing 2/9 paths`. While it runs, the editing controls are locked.
 
 ## Server routes
 
