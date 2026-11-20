@@ -99,6 +99,7 @@ async function appendChoiceToDecision(questionId: string, graph: EditorGraph) {
   const newLines = [`  ${cid}["New choice"]`, `  ${questionId} --> ${cid}`];
   await applyEditorSource(buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines));
   selectEditorNode(cid);
+  moveNodeToViewportCenter(outputBox, diagramBox, cid);
 }
 
 export function addChoiceOnDecision() {
