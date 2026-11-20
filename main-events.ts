@@ -57,6 +57,7 @@ function resetChosenPath() {
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
+  state.phoneStartNodeId = null;
   applyPathHighlight();
   render();
   outputBox.scrollTo({ top: 0, behavior: 'smooth' });

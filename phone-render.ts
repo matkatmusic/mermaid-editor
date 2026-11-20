@@ -1,9 +1,11 @@
 import type { Edge } from './dom.ts';
 import type { EditorGraph, EditorNode } from './editor-types.ts';
 import { phonePath, state } from './state.ts';
-import { choicesOf } from './graph-slice.ts';
+import { choicesOf, parentOf } from './graph-slice.ts';
 
-export function findRoot(edges: Edge[]) {
+// Every start node (no incoming edge), in the order the edges list them.
+export function findRoots(edges: Edge[]) {
+  const roots: string[] = [];
   for (const [candidate] of edges) {
     let hasIncoming = false;
     for (const [, to] of edges) {
@@ -13,10 +15,73 @@ export function findRoot(edges: Edge[]) {
         break;
       }
     }
-    if (!hasIncoming)
-      return candidate;
+    const isNewRoot = !hasIncoming && !roots.includes(candidate);
+    if (isNewRoot)
+      roots.push(candidate);
   }
-  return undefined;
+  return roots;
+}
+
+// The first start node: where the phone starts before any answer.
+export function findRoot(edges: Edge[]) {
+  return findRoots(edges)[0];
+}
+
+// With several start nodes and no click yet, the phone shows a prompt instead of rows.
+export function isPhoneAwaitingStartNode(edges: Edge[]) {
+  const roots = findRoots(edges);
+  const hasSeveralStartNodes = roots.length > 1;
+  if (!hasSeveralStartNodes)
+    return false;
+  const hasNoAnswers = phonePath.length === 0;
+  if (!hasNoAnswers)
+    return false;
+  return !roots.includes(state.phoneStartNodeId!);
+}
+
+// A click on any main-view node: the phone shows the path from a start node to it, then walks on to the next open decision.
+export function selectPhonePathToNode(nodeId: string, edges: Edge[], graph: EditorGraph) {
+  const isChoice = graph.nodes.get(nodeId)?.kind === 'choice';
+  const targetId = isChoice ? parentOf(nodeId, edges) : nodeId;
+  let startNodeId: string | undefined;
+  let answers: string[] | undefined;
+  for (const root of findRoots(edges)) {
+    answers = findAnswersFromRoot(root, targetId, edges, graph);
+    if (answers) {
+      startNodeId = root;
+      break;
+    }
+  }
+  if (!answers)
+    throw new Error(`No phone path leads from a start node to ${nodeId}`);
+  phonePath.length = 0;
+  phonePath.push(...answers);
+  if (isChoice)
+    phonePath.push(nodeId);
+  state.phoneStartNodeId = startNodeId!;
+  state.phoneClickedNodeId = nodeId;
+  state.phoneClickedAtMs = Date.now();
+  state.phoneFocusNodeId = null;
+  state.phoneFocusUsesDecisionContext = false;
+  state.phonePreviewChoiceId = null;
+}
+
+// The clicked start node when there is one; otherwise the start node that leads to the first answer.
+function findHistoryRoot(edges: Edge[], graph: EditorGraph) {
+  const roots = findRoots(edges);
+  const isClickedStartNodeKnown = roots.includes(state.phoneStartNodeId!);
+  if (isClickedStartNodeKnown)
+    return state.phoneStartNodeId!;
+  const hasNoAnswers = phonePath.length === 0;
+  if (hasNoAnswers)
+    return roots[0];
+  const firstAnsweredQuestion = parentOf(phonePath[0], edges);
+  for (const root of roots) {
+    const answers = findAnswersFromRoot(root, firstAnsweredQuestion, edges, graph);
+    if (answers)
+      return root;
+  }
+  return roots[0];
 }
 
 export type Row =
@@ -44,7 +109,7 @@ export function buildHistoryRows(edges: Edge[], graph: EditorGraph): Row[] {
     return standaloneRows;
   }
   const rows: Row[] = [];
-  let cur = findRoot(edges);
+  let cur: string | undefined = findHistoryRoot(edges, graph);
   let pathIndex = 0;
   // A loop can revisit a node, adding a new row each time; maxSteps only bounds a pure block cycle.
   const maxSteps = graph.nodes.size + phonePath.length + 1;
@@ -89,9 +154,19 @@ export function isPhoneShowingHistory() {
   return !hasFocusedDecision && !hasPreviewChoice;
 }
 
-// Shortest answer list that buildHistoryRows walks from the root to questionId.
+// Shortest answer list that buildHistoryRows walks from any start node to questionId.
 export function findAnswersLeadingTo(questionId: string, edges: Edge[], graph: EditorGraph): string[] {
-  const root = findRoot(edges);
+  for (const root of findRoots(edges)) {
+    const answers = findAnswersFromRoot(root, questionId, edges, graph);
+    if (answers) {
+      state.phoneStartNodeId = root;
+      return answers;
+    }
+  }
+  throw new Error(`No phone path leads from the start to ${questionId}`);
+}
+
+function findAnswersFromRoot(root: string, questionId: string, edges: Edge[], graph: EditorGraph): string[] | undefined {
   const queue: { nodeId: string | undefined; answers: string[] }[] = [{ nodeId: root, answers: [] }];
   const visited = new Set<string>();
   for (let i = 0; i < queue.length; i++) {
@@ -118,5 +193,5 @@ export function findAnswersLeadingTo(questionId: string, edges: Edge[], graph: E
     if (isSingleChain)
       queue.push({ nodeId: nexts[0], answers });
   }
-  throw new Error(`No phone path leads from the start to ${questionId}`);
+  return undefined;
 }

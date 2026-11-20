@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 
 registerBrowserHooks(import.meta.url);
 
@@ -19,6 +19,19 @@ test("test_list_all_path_ids_uses_each_edge_once_per_path_and_loops_back_to_a_de
   assert.deepEqual(paths, [
     ["B_START", "Q_ASK", "Q_CHOICE_ASK_YES", "B_END"],
     ["B_START", "Q_ASK", "Q_CHOICE_ASK_NO", "Q_ASK", "Q_CHOICE_ASK_YES", "B_END"],
+  ]);
+});
+
+test("test_list_all_path_ids_lists_paths_from_every_start_node", async () => {
+  // Scenario: two start nodes with no incoming edge; paths from both are listed.
+  const edges = [
+    ["B_FIRST", "B_FIRST_END"],
+    ["B_SECOND", "B_SECOND_END"],
+  ];
+  const paths = await executeExpression(`JSON.stringify(listAllPathIds(${JSON.stringify(edges)}))`).then(JSON.parse);
+  assert.deepEqual(paths, [
+    ["B_FIRST", "B_FIRST_END"],
+    ["B_SECOND", "B_SECOND_END"],
   ]);
 });
 
@@ -56,5 +69,5 @@ test("test_export_all_paths_button_writes_one_numbered_file_per_path", async () 
   assert.ok(loopPath.startsWith("%% Decisions made:\n%%   Done? -> No\n%%   Done? -> Yes\nflowchart TD\n"), loopPath);
   // Step: put the default diagram back for later tests.
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(300);
+  await waitForRender();
 });

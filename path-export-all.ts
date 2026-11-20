@@ -3,7 +3,7 @@ import type { Edge } from './dom.ts';
 import { parseEdges } from './diagram-source.ts';
 import { setStatus } from './diagram-io.ts';
 import { state } from './state.ts';
-import { findRoot } from './phone-render.ts';
+import { findRoots } from './phone-render.ts';
 import { buildChosenPathSource } from './path-export.ts';
 import { selectPathFolder, writeToOpenedFileFolder, writeToServerDiagrams } from './path-write.ts';
 
@@ -28,12 +28,14 @@ function collectPaths(path: string[], usedEdges: Set<string>, edges: Edge[], pat
 }
 
 export function listAllPathIds(edges: Edge[]): string[][] {
-  const paths: string[][] = [];
-  const root = findRoot(edges);
-  if (root === undefined)
-    return paths;
-  collectPaths([root], new Set(), edges, paths);
-  return paths;
+  const startNodes = findRoots(edges);
+  const allPaths: string[][] = [];
+  for (const startNode of startNodes) {
+    const paths: string[][] = [];
+    collectPaths([startNode], new Set(), edges, paths);
+    allPaths.push(...paths);
+  }
+  return allPaths;
 }
 
 export async function writeAllPaths() {

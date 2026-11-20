@@ -1,11 +1,14 @@
 import { codeBox, phoneDiagramBox } from './dom.ts';
 import type { Edge } from './dom.ts';
 import type { EditorGraph, EditorNode } from './editor-types.ts';
-import { phonePath } from './state.ts';
+import { phonePath, state } from './state.ts';
 import { choicesOf } from './graph-slice.ts';
 import { buildClassStyleIndex, findNodeStyle, type ClassStyleIndex } from './class-style-index.ts';
-import type { Row } from './phone-render.ts';
+import { isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './phone-render.ts';
 import { buildRows } from './phone-rows.ts';
+
+// How long after a click the phone keeps the animated border on the clicked node; matches the CSS animation length.
+const PHONE_CLICKED_BORDER_MS = 3000;
 
 const UNCLASSED_PHONE_STYLE = 'background:repeating-linear-gradient(45deg, #f4b4b4 0 8px, #fde8e8 8px 16px)';
 
@@ -82,6 +85,12 @@ function buildRowHtml(row: Row, graph: EditorGraph, edges: Edge[], isMasked: boo
 
 export function renderPhone(edges: Edge[], graph: EditorGraph) {
   classIndex = buildClassStyleIndex(codeBox.value);
+  if (isPhoneShowingHistory()) {
+    if (isPhoneAwaitingStartNode(edges)) {
+      phoneDiagramBox.innerHTML = '<div id="phoneStartPrompt">Select a starting node to walk a path through that diagram</div>';
+      return;
+    }
+  }
   const rows = buildRows(edges, graph);
   let lastPastIndex = -1;
   let hasOpenQuestion = false;
@@ -115,4 +124,13 @@ export function renderPhone(edges: Edge[], graph: EditorGraph) {
   const historyBox = phoneDiagramBox.querySelector<HTMLElement>('#phoneHistory');
   if (historyBox)
     historyBox.scrollTop = historyBox.scrollHeight;
+  const hasClickedNode = state.phoneClickedNodeId !== null;
+  if (hasClickedNode) {
+    const isClickRecent = Date.now() - state.phoneClickedAtMs < PHONE_CLICKED_BORDER_MS;
+    if (isClickRecent) {
+      const clickedEl = phoneDiagramBox.querySelector(`[data-node-id="${state.phoneClickedNodeId}"]`);
+      if (clickedEl)
+        clickedEl.classList.add('phone-clicked');
+    }
+  }
 }

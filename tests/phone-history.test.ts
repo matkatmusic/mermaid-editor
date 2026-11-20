@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender } from "./cdp.ts";
 import { dispatchNodeClick } from "./editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url);
@@ -11,17 +11,17 @@ test("test_clicking_a_declined_option_reverts_to_that_branch", async () => {
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.deepEqual(await executeExpression("phonePath.slice()"), ['Q_CHOICE_THEM_DONE_SPEAKING_Y', 'Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N']);
   // Step: scroll up and click the declined "No" on the first decision instead.
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-node-id=\"Q_THEM_DONE_SPEAKING\"] ~ .phone-choice-row [data-node-id=\"Q_CHOICE_THEM_DONE_SPEAKING_N\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   // Step: the path now holds only the reverted branch; the second decision is cleared, not just undone.
   assert.deepEqual(await executeExpression("phonePath.slice()"), ['Q_CHOICE_THEM_DONE_SPEAKING_N']);
   const chosenAfterRevert = await executeExpression(
@@ -30,7 +30,7 @@ test("test_clicking_a_declined_option_reverts_to_that_branch", async () => {
   assert.equal(chosenAfterRevert, true);
   // Step: reset for later tests.
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test("test_undo_decision_pops_the_last_answer_and_hides_with_no_answers", async () => {
@@ -38,10 +38,10 @@ test("test_undo_decision_pops_the_last_answer_and_hides_with_no_answers", async 
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.equal(await executeExpression("!!document.querySelector('#phoneTopBar [data-undo]')"), true);
   await executeExpression("document.querySelector('#phoneDiagram [data-undo]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.deepEqual(await executeExpression("phonePath.slice()"), []);
   assert.equal(await executeExpression("!!document.querySelector('#phoneDiagram [data-undo]')"), false);
 });
@@ -50,13 +50,13 @@ test("test_phone_reset_decisions_clears_every_answer", async () => {
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression("document.querySelector('#phoneTopBar [data-reset-decisions]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.deepEqual(await executeExpression("phonePath.slice()"), []);
   assert.equal(await executeExpression("!!document.querySelector('#phoneTopBar')"), false);
 });
@@ -64,27 +64,27 @@ test("test_phone_reset_decisions_clears_every_answer", async () => {
 test("test_answering_a_main_view_focused_decision_rebuilds_the_phone_path_to_it", async () => {
   // Scenario: before the fix, this answer was appended off-path and the phone stuck at the first decision.
   await dispatchNodeClick("Q_CLARIFY_ISSUE_COUNT");
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_CLARIFY_ISSUE_COUNT_MULTIPLE\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   assert.deepEqual(await executeExpression("phonePath.slice()"), ['Q_CHOICE_THEM_DONE_SPEAKING_Y', 'Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N', 'Q_CHOICE_CLARIFY_ISSUE_COUNT_MULTIPLE']);
   const chosen = await executeExpression("document.querySelector('#phoneDiagram [data-node-id=\"Q_CHOICE_CLARIFY_ISSUE_COUNT_MULTIPLE\"]').classList.contains('phone-choice-chosen')");
   assert.equal(chosen, true);
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test("test_multiple_past_decisions_are_all_masked_while_scrolling", async () => {
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   // Step: both answered decisions are masked; exactly one separator sits right before the open decision.
   const state = await executeExpression(`JSON.stringify((() => {
     return {
@@ -97,7 +97,7 @@ test("test_multiple_past_decisions_are_all_masked_while_scrolling", async () => 
   assert.equal(state.separatorCount, 1);
   assert.ok(state.activeId);
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test("test_clicking_the_no_answer_masks_the_decision_with_both_options_visible", async () => {
@@ -105,7 +105,7 @@ test("test_clicking_the_no_answer_masks_the_decision_with_both_options_visible",
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_N\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
-  await waitMilliseconds(300);
+  await waitForRender();
   const state = await executeExpression(`JSON.stringify((() => {
     const pastWrap = document.querySelector('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]').closest('.phone-decision-past');
     return {
@@ -119,5 +119,5 @@ test("test_clicking_the_no_answer_masks_the_decision_with_both_options_visible",
   assert.equal(state.declinedIsYes, true);
   // Step: reset so later tests start clean.
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
 });

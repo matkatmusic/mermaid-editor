@@ -4,14 +4,15 @@ import { selectEditorNode } from './editor-actions.ts';
 import { getEditorGraph } from './editor-graph.ts';
 import { phonePath, state } from './state.ts';
 import { render } from './render.ts';
-import { findNearestFeedingChoice } from './decision-search.ts';
-import { findAnswersLeadingTo, isPhoneShowingHistory } from './phone-render.ts';
+import { findAnswersLeadingTo, isPhoneShowingHistory, selectPhonePathToNode } from './phone-render.ts';
 import { parseEdges } from './diagram-source.ts';
 import { parentOf } from './graph-slice.ts';
 import { writeChosenPath } from './path-export.ts';
 import { measureSourceLines } from './source-lines.ts';
 import { saveEditorViewState } from './editor-view-state.ts';
 import { connectNodesWithShiftClick } from './editor-connect.ts';
+import { toggleNodeInSelection } from './editor-multiselect.ts';
+import './editor-keys.ts';
 import './editor-inspector-events.ts';
 import './editor-class-events.ts';
 import './editor-classes-dialog.ts';
@@ -56,29 +57,20 @@ const selectClickedNode = (event: MouseEvent) => {
       return;
     }
   }
+  if (event.metaKey) {
+    if (id) {
+      toggleNodeInSelection(id);
+      return;
+    }
+  }
   state.connectFromNodeId = null;
   if (id)
     selectNodeSourceLine(id);
   selectEditorNode(id);
   saveEditorViewState();
   if (id) {
-    const graph = getEditorGraph();
-    const node = graph.nodes.get(id);
-    if (node?.kind === 'question') {
-      state.phoneFocusNodeId = id;
-      state.phoneFocusUsesDecisionContext = true;
-      state.phonePreviewChoiceId = null;
-      render();
-    }
-    else {
-      const feedingChoice = findNearestFeedingChoice(id, graph);
-      if (feedingChoice) {
-        state.phoneFocusNodeId = null;
-        state.phoneFocusUsesDecisionContext = false;
-        state.phonePreviewChoiceId = feedingChoice;
-        render();
-      }
-    }
+    selectPhonePathToNode(id, parseEdges(codeBox.value), getEditorGraph());
+    render();
   }
 };
 outputBox.addEventListener('click', selectClickedNode);

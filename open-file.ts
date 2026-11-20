@@ -44,6 +44,7 @@ export async function showOpenedFile(path: string, text: string) {
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
+  state.phoneStartNodeId = null;
   state.diagramScale = null;
   const { metadata } = splitEditorMetadata(text);
   state.currentDecisionId = metadata?.lastSelectedNodeId ?? null;

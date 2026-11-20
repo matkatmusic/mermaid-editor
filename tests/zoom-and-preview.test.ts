@@ -1,41 +1,39 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { dispatchNodeClick, openEditorDrawer, resetEditorFixture, setEditorSource } from "./editor-helpers.ts";
 import { clickInspectorAction } from "./inspector-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 
-test('test_main_view_choice_and_regular_nodes_preview_their_feeding_decision_as_chosen', async () => {
+test('test_main_view_click_shows_the_path_to_the_clicked_node_in_the_phone', async () => {
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  B_ROOT["Root"]\n  Q_FIRST{"First?"}\n  Q_CHOICE_FIRST_Y["Yes"]\n  Q_CHOICE_FIRST_N["No"]\n  B_ONE["One"]\n  B_TWO["Two"]\n  Q_NEXT{"Next?"}\n  Q_CHOICE_NEXT_Y["Yes"]\n  Q_CHOICE_NEXT_N["No"]\n  B_ROOT --> Q_FIRST\n  Q_FIRST --> Q_CHOICE_FIRST_Y --> B_ONE --> B_TWO --> Q_NEXT\n  Q_FIRST --> Q_CHOICE_FIRST_N\n  Q_NEXT --> Q_CHOICE_NEXT_Y\n  Q_NEXT --> Q_CHOICE_NEXT_N');
   await dispatchNodeClick('B_TWO');
-  await waitMilliseconds(300);
-  assert.equal(await executeExpression('phonePreviewChoiceId'), 'Q_CHOICE_FIRST_Y');
+  await waitForRender();
+  assert.equal(await executeExpression('phonePreviewChoiceId'), null);
   assert.equal(await executeExpression('phoneFocusNodeId'), null);
-  assert.equal(await executeExpression('phonePath.length'), 0);
+  assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
   for (const id of ['Q_FIRST', 'Q_CHOICE_FIRST_Y', 'B_ONE', 'B_TWO', 'Q_NEXT', 'Q_CHOICE_NEXT_Y', 'Q_CHOICE_NEXT_N'])
     assert.equal(await executeExpression(`!!document.querySelector('#phoneDiagram [data-node-id="${id}"]')`), true, id);
   assert.equal(await executeExpression("currentBottomQ"), 'Q_NEXT');
 
-  // A choice previews the same non-logged decision outcome.
-  await dispatchNodeClick('Q_CHOICE_FIRST_Y');
-  await waitMilliseconds(300);
-  assert.equal(await executeExpression('phonePreviewChoiceId'), 'Q_CHOICE_FIRST_Y');
+  // A choice joins the path as the chosen answer.
+  await dispatchNodeClick('Q_CHOICE_FIRST_N');
+  await waitForRender();
+  assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_N']);
+
+  // The start node alone gives an empty path.
+  await dispatchNodeClick('B_ROOT');
+  await waitMilliseconds(500);
   assert.equal(await executeExpression('phonePath.length'), 0);
 
-  // A regular node with no feeding decision leaves that preview untouched.
-  await dispatchNodeClick('B_ROOT');
-  await waitMilliseconds(100);
-  assert.equal(await executeExpression('phonePreviewChoiceId'), 'Q_CHOICE_FIRST_Y');
-
-  // Decisions themselves remain the only nodes focused directly by the phone.
+  // A decision is the open decision at the end of its path.
   await dispatchNodeClick('Q_NEXT');
-  await waitMilliseconds(300);
-  assert.equal(await executeExpression('phoneFocusNodeId'), 'Q_NEXT');
-  assert.equal(await executeExpression('phonePreviewChoiceId'), null);
-  assert.equal(await executeExpression('currentBottomQ'), 'Q_NEXT');
+  await waitForRender();
+  assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
+  assert.equal(await executeExpression("document.querySelector('#phoneDiagram [data-active-question]').dataset.nodeId"), 'Q_NEXT');
 });
 
 test('test_header_zoom_controls_resize_only_the_main_mermaid_diagram', async () => {
@@ -78,7 +76,7 @@ test('test_previous_selections_stay_masked_through_each_phone_choice', async () 
   await executeExpression("loadDiagram('accountability.mmd')");
   await waitMilliseconds(500);
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
   await executeExpression(`document.querySelector('#phoneDiagram [data-choose="Q_CHOICE_THEM_DONE_SPEAKING_Y"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await waitMilliseconds(400);
   const firstState = await executeExpression(`JSON.stringify((() => {
@@ -108,7 +106,7 @@ test('test_previous_selections_stay_masked_through_each_phone_choice', async () 
   assert.equal(secondState.secondMasked, true);
   assert.equal(secondState.separatorCount, 1);
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(300);
+  await waitForRender();
 });
 
 test('test_add_and_insert_actions_preserve_the_zoom_scale_in_the_regular_view', async () => {

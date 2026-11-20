@@ -29,10 +29,14 @@ export const state = {
   phoneFocusNodeId: null as string | null,
   phoneFocusUsesDecisionContext: false,
   phonePreviewChoiceId: null as string | null,
+  phoneStartNodeId: null as string | null, // the start node the user clicked; the phone walk begins there
+  phoneClickedNodeId: null as string | null, // the last node clicked in the main view; the phone shows a border around it for a bit
+  phoneClickedAtMs: 0,
   diagramScale: null as number | null,
   mainZoomPercent: 100,
   functionsOnly: false,
   selectedEditorNodeId: null as string | null,
+  multiSelectedNodeIds: [] as string[], // two or more Cmd-clicked nodes; selectedEditorNodeId is null while this has entries
   currentDecisionId: null as string | null,
   advanceAfterDecisionText: null as { decisionId: string; choiceId: string } | null,
   focusDestinationAfterTextId: null as string | null,

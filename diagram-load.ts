@@ -28,6 +28,7 @@ export async function loadDiagram(name: string) {
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
+  state.phoneStartNodeId = null;
   state.diagramScale = null;
   state.currentDecisionId = metadata?.lastSelectedNodeId ?? null;
   state.mainZoomPercent = metadata?.mainZoomPercent ?? 100;
