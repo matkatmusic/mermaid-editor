@@ -10,6 +10,19 @@ export interface ClassDef {
 export const CLASSDEF_LINE_RE = /^(\s*)classDef\s+(\S+)\s+(.+?)\s*$/;
 export const CLASS_LINE_RE = /^(\s*)class\s+(\S+)\s+(\S+)\s*$/;
 
+// Mermaid drops a class when its `class` line comes before the node definition, so Mermaid gets the class lines last.
+export function moveClassLinesToEnd(source: string): string {
+  const otherLines: string[] = [];
+  const classLines: string[] = [];
+  for (const line of source.split('\n')) {
+    if (CLASS_LINE_RE.test(line))
+      classLines.push(line);
+    else
+      otherLines.push(line);
+  }
+  return [...otherLines, ...classLines].join('\n');
+}
+
 export function isCommented(line: string) {
   return line.trim().startsWith('%%');
 }

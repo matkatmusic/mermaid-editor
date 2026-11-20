@@ -4,6 +4,7 @@ import { getEditorGraph } from './editor-graph.ts';
 import { clearInvalidPhonePreview, updateDecisionCounter } from './decision-nav.ts';
 import { parseEdges } from './diagram-source.ts';
 import { filterToFunctions } from './function-routing.ts';
+import { moveClassLinesToEnd } from './class-lines.ts';
 import { sliceIds } from './graph-slice.ts';
 import { phonePath, state } from './state.ts';
 import { applyNodeTypeColors, applyNoteDots } from './node-type-colors.ts';
@@ -58,7 +59,7 @@ export async function render() {
       }
     }
     state.currentBottomQ = bottomQ;
-    const mainSource = state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value;
+    const mainSource = moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value);
     const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const myRenderId = state.renderId;
