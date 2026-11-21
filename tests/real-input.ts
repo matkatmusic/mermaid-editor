@@ -4,13 +4,14 @@ import { executeExpression, send, waitForRender } from "./cdp.ts";
 export const Modifier = { None: 0, Alt: 1, Control: 2, Meta: 4, Shift: 8 } as const;
 
 export const KeyName = {
-    Tab: "Tab", Backspace: "Backspace", Delete: "Delete", Escape: "Escape", ArrowUp: "ArrowUp", ArrowDown: "ArrowDown",
+    Tab: "Tab", Enter: "Enter", Backspace: "Backspace", Delete: "Delete", Escape: "Escape", ArrowUp: "ArrowUp", ArrowDown: "ArrowDown",
     Z: "z", UpperZ: "Z", S: "s", F: "f", Equal: "=", Plus: "+", Minus: "-", GreaterThan: ">", LessThan: "<",
 } as const;
 type KeyNameValue = (typeof KeyName)[keyof typeof KeyName];
 
 const KEY_CODES: Record<KeyNameValue, { code: string; windowsVirtualKeyCode: number }> = {
     Tab: { code: "Tab", windowsVirtualKeyCode: 9 },
+    Enter: { code: "Enter", windowsVirtualKeyCode: 13 },
     Backspace: { code: "Backspace", windowsVirtualKeyCode: 8 },
     Delete: { code: "Delete", windowsVirtualKeyCode: 46 },
     Escape: { code: "Escape", windowsVirtualKeyCode: 27 },
@@ -34,6 +35,13 @@ export async function pressKey(keyName: KeyNameValue, modifiers: number = Modifi
     await send("Input.dispatchKeyEvent", { type: "keyUp", ...keyEvent });
     await executeExpression("editorActionPromise");
     await waitForRender();
+}
+
+// Presses and releases Enter with Shift held; the "\r" text makes a textarea insert its line break.
+export async function pressShiftEnter() {
+    const keyEvent = { key: "Enter", modifiers: Modifier.Shift, ...KEY_CODES.Enter };
+    await send("Input.dispatchKeyEvent", { type: "keyDown", text: "\r", ...keyEvent });
+    await send("Input.dispatchKeyEvent", { type: "keyUp", ...keyEvent });
 }
 
 // Presses and releases the left mouse button at the center of the node.

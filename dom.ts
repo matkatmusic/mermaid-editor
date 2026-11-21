@@ -21,6 +21,7 @@ export const openFileBtn = document.getElementById('openFileBtn')!;
 export const openFileInput = document.getElementById('openFileInput') as HTMLInputElement;
 export const mainBox = document.getElementById('main')!;
 export const outputBox = document.getElementById('output')!;
+export const multiSelectBadge = document.getElementById('multiSelectBadge')!;
 export const phoneDiagramBox = document.getElementById('phoneDiagram')!;
 export const previousDecisionBtn = document.getElementById('previousDecisionBtn')!;
 export const nextDecisionBtn = document.getElementById('nextDecisionBtn')!;
@@ -35,7 +36,16 @@ export const selectedNodeBox = document.getElementById('selectedNode')!;
 export const nodeInspector = document.getElementById('nodeInspector')!;
 export const nodeInspectorTitle = document.getElementById('nodeInspectorTitle')!;
 export const nodeTextInput = document.getElementById('nodeTextInput') as HTMLTextAreaElement;
-export const nodeNotesRow = document.getElementById('nodeNotesRow')!;
+// Retired: the free-form Node Identifier box is replaced by the Node Name box.
+// export const nodeIdInput = document.getElementById('nodeIdInput') as HTMLInputElement;
+// export const nodeIdError = document.getElementById('nodeIdError')!;
+export const nodeKindStaticBox = document.getElementById('nodeKindStatic') as HTMLInputElement;
+export const nodeKindQuestionBox = document.getElementById('nodeKindQuestion') as HTMLInputElement;
+export const nodeKindChoiceBox = document.getElementById('nodeKindChoice') as HTMLInputElement;
+export const nodeParentLabel = document.getElementById('nodeParentLabel')!;
+export const nodeNameInput = document.getElementById('nodeNameInput') as HTMLInputElement;
+export const nodeNameCheck = document.getElementById('nodeNameCheck')!;
+export const nodeNotesRow =document.getElementById('nodeNotesRow')!;
 export const nodeNotesInput = document.getElementById('nodeNotesInput') as HTMLTextAreaElement;
 // Retired: replaced by the Class picker below (see class-defs.ts).
 // export const nodeTypeRow = document.getElementById('nodeTypeRow')!;

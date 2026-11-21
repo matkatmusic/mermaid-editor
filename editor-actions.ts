@@ -1,6 +1,6 @@
 declare const mermaid: any;
 import { buildSourceWithMetadata, setEditorActionPromise } from './editor-metadata.ts';
-import { codeBox, diagramBox, nodeActions, selectedNodeBox } from './dom.ts';
+import { codeBox, diagramBox, multiSelectBadge, nodeActions, selectedNodeBox } from './dom.ts';
 import { state } from './state.ts';
 import { render } from './render.ts';
 import { saveDiagram } from './diagram-save.ts';
@@ -60,6 +60,8 @@ export function renderEditorSelection() {
     el.classList.remove('editor-selected');
   for (const el of diagramBox.querySelectorAll('.editor-preview'))
     el.classList.remove('editor-preview');
+  multiSelectBadge.hidden = state.multiSelectedNodeIds.length < 2;
+  multiSelectBadge.textContent = `selected: ${state.multiSelectedNodeIds.length} nodes`;
   const selectedIds = state.selectedEditorNodeId ? [state.selectedEditorNodeId] : state.multiSelectedNodeIds;
   for (const selectedId of selectedIds) {
     const el = diagramBox.querySelector('[id*="flowchart-' + selectedId + '-"]');

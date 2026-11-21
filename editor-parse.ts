@@ -13,6 +13,15 @@ export function decodeLabelQuotes(label: string) {
   return label.replace(/#quot;/g, '"');
 }
 
+// The source keeps a node on one line, so a typed line break is stored as <br/>.
+export function encodeLabelLineBreaks(text: string) {
+  return text.replace(/\n/g, '<br/>');
+}
+
+export function decodeLabelLineBreaks(label: string) {
+  return label.replace(/<br\/>/g, '\n');
+}
+
 export function parseEditorToken(token: string) {
   const match = token.match(/^([A-Za-z0-9_]+)([\s\S]*)$/);
   if (!match)

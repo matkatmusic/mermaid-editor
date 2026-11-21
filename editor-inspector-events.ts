@@ -1,4 +1,5 @@
-import { destinationSelect, nodeInspectorActions, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from './dom.ts';
+import { checkTypedNodeName, commitNodeName } from './editor-rename.ts';
+import { destinationSelect, nodeInspectorActions, nodeNameInput, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from './dom.ts';
 import { getNodeId } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { getEditorGraph } from './editor-graph.ts';
@@ -113,6 +114,9 @@ function writeNodeTextOnCommitKey(event: KeyboardEvent) {
   const isCommitKey = isEnter || isTab;
   if (!isCommitKey)
     return;
+  const isShiftEnter = isEnter && event.shiftKey;
+  if (isShiftEnter)
+    return;
   event.preventDefault();
   updateNodeText();
 }
@@ -146,6 +150,32 @@ function writeNodeTextOnChange() {
   document.addEventListener('pointerup', scheduleCommitAfterClick, { once: true });
 }
 nodeTextInput.addEventListener('change', writeNodeTextOnChange);
+function renameNodeOnCommitKey(event: KeyboardEvent) {
+  const isCommitKey = event.key === 'Enter' || event.key === 'Tab';
+  if (!isCommitKey)
+    return;
+  event.preventDefault();
+  commitNodeName();
+}
+nodeNameInput.addEventListener('keydown', renameNodeOnCommitKey);
+nodeNameInput.addEventListener('input', checkTypedNodeName);
+// Click-away renames too; after a pointer press the rename waits for the click to land.
+function renameNodeOnChange() {
+  const id = state.selectedEditorNodeId;
+  const text = nodeNameInput.value;
+  if (!isPointerPressed) {
+    commitNodeName(id, text);
+    return;
+  }
+  function renameNodeLater() {
+    commitNodeName(id, text);
+  }
+  function scheduleRenameAfterClick() {
+    setTimeout(renameNodeLater);
+  }
+  document.addEventListener('pointerup', scheduleRenameAfterClick, { once: true });
+}
+nodeNameInput.addEventListener('change', renameNodeOnChange);
 function writeNodeNoteOnChange() {
   const id = state.selectedEditorNodeId;
   const text = nodeNotesInput.value.trim();
@@ -162,6 +192,15 @@ function writeNodeNoteOnChange() {
   document.addEventListener('pointerup', scheduleNoteCommitAfterClick, { once: true });
 }
 nodeNotesInput.addEventListener('change', writeNodeNoteOnChange);
+function writeNodeNoteOnEnter(event: KeyboardEvent) {
+  if (event.key !== 'Enter')
+    return;
+  if (event.shiftKey)
+    return;
+  event.preventDefault();
+  updateNodeNote();
+}
+nodeNotesInput.addEventListener('keydown', writeNodeNoteOnEnter);
 function clearSelectionOnEscape(event: KeyboardEvent) {
   if (event.key !== 'Escape')
     return;

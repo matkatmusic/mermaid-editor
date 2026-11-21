@@ -1,10 +1,11 @@
 import { INSPECTOR_TITLES } from './editor-types.ts';
 import type { EditorGraph } from './editor-types.ts';
 import { getEditorGraph } from './editor-graph.ts';
-import { destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from './dom.ts';
+import { getNodeNamePart, getParentQuestionId, showNameCheck } from './editor-rename.ts';
+import { nodeKindChoiceBox, nodeKindQuestionBox, nodeKindStaticBox, nodeNameInput, nodeParentLabel, destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from './dom.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { findOutgoingDestination } from './source-edit.ts';
-import { decodeLabelQuotes } from './editor-parse.ts';
+import { decodeLabelLineBreaks, decodeLabelQuotes } from './editor-parse.ts';
 import { renderClassPicker } from './node-inspector-class.ts';
 import { clearInspectorFocus, updateNodeInspectorPosition } from './node-inspector-focus.ts';
 
@@ -75,8 +76,16 @@ export function renderNodeInspector() {
   }
   const previewing = !!state.pendingRemoval;
   nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
-  nodeTextInput.value = decodeLabelQuotes(node.label);
-  nodeNotesInput.value = node.note;
+  nodeTextInput.value = decodeLabelLineBreaks(decodeLabelQuotes(node.label));
+  nodeKindStaticBox.checked = node.kind === 'block';
+  nodeKindQuestionBox.checked = node.kind === 'question';
+  nodeKindChoiceBox.checked = node.kind === 'choice';
+  const parentId = getParentQuestionId(graph, node.id);
+  const parentText = parentId === undefined ? 'parent: none' : `- parent: ${parentId}`;
+  nodeParentLabel.textContent = node.kind === 'choice' ? parentText : '';
+  nodeNameInput.value = getNodeNamePart(graph, node);
+  showNameCheck({ fullId: node.id });
+  nodeNotesInput.value = decodeLabelLineBreaks(node.note);
   // Retired Category/Color inputs; a class picker (any node kind) replaces them below.
   // nodeTypeRow.hidden = previewing || node.kind !== 'block';
   // nodeTypeColorRow.hidden = previewing;

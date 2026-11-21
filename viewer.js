@@ -16,6 +16,7 @@ var openFileBtn = document.getElementById("openFileBtn");
 var openFileInput = document.getElementById("openFileInput");
 var mainBox = document.getElementById("main");
 var outputBox = document.getElementById("output");
+var multiSelectBadge = document.getElementById("multiSelectBadge");
 var phoneDiagramBox = document.getElementById("phoneDiagram");
 var previousDecisionBtn = document.getElementById("previousDecisionBtn");
 var nextDecisionBtn = document.getElementById("nextDecisionBtn");
@@ -30,6 +31,12 @@ var selectedNodeBox = document.getElementById("selectedNode");
 var nodeInspector = document.getElementById("nodeInspector");
 var nodeInspectorTitle = document.getElementById("nodeInspectorTitle");
 var nodeTextInput = document.getElementById("nodeTextInput");
+var nodeKindStaticBox = document.getElementById("nodeKindStatic");
+var nodeKindQuestionBox = document.getElementById("nodeKindQuestion");
+var nodeKindChoiceBox = document.getElementById("nodeKindChoice");
+var nodeParentLabel = document.getElementById("nodeParentLabel");
+var nodeNameInput = document.getElementById("nodeNameInput");
+var nodeNameCheck = document.getElementById("nodeNameCheck");
 var nodeNotesRow = document.getElementById("nodeNotesRow");
 var nodeNotesInput = document.getElementById("nodeNotesInput");
 var nodeClassRow = document.getElementById("nodeClassRow");
@@ -222,6 +229,13 @@ function encodeLabelQuotes(text) {
 }
 function decodeLabelQuotes(label) {
   return label.replace(/#quot;/g, '"');
+}
+function encodeLabelLineBreaks(text) {
+  return text.replace(/\n/g, "<br/>");
+}
+function decodeLabelLineBreaks(label) {
+  return label.replace(/<br\/>/g, `
+`);
 }
 function parseEditorToken(token) {
   const match = token.match(/^([A-Za-z0-9_]+)([\s\S]*)$/);
@@ -1609,6 +1623,166 @@ async function saveDiagram() {
   }
 }
 
+// editor-rename.ts
+var KIND_PREFIXES = { question: "Q_", block: "B_", choice: "Q_CHOICE_" };
+var CHOICE_PREFIX = KIND_PREFIXES.choice;
+function buildRenamePlan(graph, oldId, newId) {
+  const node = graph.nodes.get(oldId);
+  if (newId === "")
+    return { error: "The identifier can not be empty." };
+  if (!/^[A-Za-z0-9_]+$/.test(newId))
+    return { error: "Use only letters, digits and _ in the identifier." };
+  const prefix = KIND_PREFIXES[node.kind];
+  const isQuestionWithChoicePrefix = node.kind === "question" && newId.startsWith(CHOICE_PREFIX);
+  if (!newId.startsWith(prefix) || isQuestionWithChoicePrefix)
+    return { error: `The identifier must start with ${prefix}` };
+  if (newId === prefix)
+    return { error: `Add a name after ${prefix}` };
+  const renames = new Map;
+  if (newId === oldId)
+    return { renames };
+  renames.set(oldId, newId);
+  if (node.kind === "question") {
+    const oldChoicePrefix = `${CHOICE_PREFIX}${oldId.slice(prefix.length)}_`;
+    const newChoicePrefix = `${CHOICE_PREFIX}${newId.slice(prefix.length)}_`;
+    for (const edge of graph.edges) {
+      const isChoiceOfQuestion = edge.from === oldId && edge.to.startsWith(oldChoicePrefix);
+      if (isChoiceOfQuestion)
+        renames.set(edge.to, newChoicePrefix + edge.to.slice(oldChoicePrefix.length));
+    }
+  }
+  for (const to of renames.values()) {
+    const isUsed = graph.nodes.has(to);
+    if (isUsed)
+      return { error: `The identifier ${to} is already used.` };
+  }
+  return { renames };
+}
+function buildRenamedSource(source, renames) {
+  const names = [...renames.keys()].map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const wordPattern = new RegExp(`(?<![A-Za-z0-9_])(?:${names.join("|")})(?![A-Za-z0-9_])`, "g");
+  const lines = source.split(`
+`);
+  const renamedLines = [];
+  for (const line of lines) {
+    const isNoteLine = line.trimStart().startsWith(NOTE_PREFIX);
+    renamedLines.push(isNoteLine ? line : line.replace(wordPattern, (word) => renames.get(word)));
+  }
+  return renamedLines.join(`
+`);
+}
+function renameStateIds(renames) {
+  const rename = (id) => id === null ? null : renames.get(id) ?? id;
+  for (let i = 0;i < phonePath.length; i++)
+    phonePath[i] = rename(phonePath[i]);
+  state.selectedEditorNodeId = rename(state.selectedEditorNodeId);
+  state.phoneStartNodeId = rename(state.phoneStartNodeId);
+  state.phoneClickedNodeId = rename(state.phoneClickedNodeId);
+  state.phoneFocusNodeId = rename(state.phoneFocusNodeId);
+  state.phonePreviewChoiceId = rename(state.phonePreviewChoiceId);
+  state.currentDecisionId = rename(state.currentDecisionId);
+}
+function getParentQuestionId(graph, choiceId) {
+  for (const edge of graph.edges) {
+    const isFromQuestion = edge.to === choiceId && graph.nodes.get(edge.from)?.kind === "question";
+    if (isFromQuestion)
+      return edge.from;
+  }
+  return;
+}
+function getNodeNamePart(graph, node) {
+  if (node.kind !== "choice")
+    return node.id.slice(KIND_PREFIXES[node.kind].length);
+  const parentId = getParentQuestionId(graph, node.id);
+  if (parentId === undefined)
+    return node.id.slice(CHOICE_PREFIX.length);
+  const parentPrefix = `${CHOICE_PREFIX}${parentId.slice(KIND_PREFIXES.question.length)}_`;
+  const startsWithParentPrefix = node.id.startsWith(parentPrefix);
+  return node.id.slice(startsWithParentPrefix ? parentPrefix.length : CHOICE_PREFIX.length);
+}
+function buildFullId(graph, node, name) {
+  if (node.kind !== "choice")
+    return `${KIND_PREFIXES[node.kind]}${name}`;
+  const parentId = getParentQuestionId(graph, node.id);
+  if (parentId === undefined)
+    return `${CHOICE_PREFIX}${name}`;
+  return `${CHOICE_PREFIX}${parentId.slice(KIND_PREFIXES.question.length)}_${name}`;
+}
+function checkNodeName(graph, node, name) {
+  if (name === "")
+    return { error: "error: node name cannot be empty" };
+  const illegalCharacters = [];
+  for (const character of name) {
+    const isLegal = /[A-Za-z0-9_]/.test(character);
+    const label = character === " " ? "space" : character;
+    if (!isLegal && !illegalCharacters.includes(label))
+      illegalCharacters.push(label);
+  }
+  if (illegalCharacters.length > 0)
+    return { error: `error: node names cannot contain ${illegalCharacters.join(", ")}` };
+  const fullId = buildFullId(graph, node, name);
+  if (fullId === node.id)
+    return { fullId };
+  if (graph.nodes.has(fullId))
+    return { error: `error: ${fullId} is already used` };
+  const plan = buildRenamePlan(graph, node.id, fullId);
+  if ("error" in plan)
+    return { error: `error: ${plan.error}` };
+  return { fullId };
+}
+function showNameCheck(check) {
+  const isError = "error" in check;
+  nodeNameCheck.textContent = isError ? check.error : `result: ${check.fullId}`;
+  nodeNameCheck.classList.toggle("error", isError);
+}
+function checkTypedNodeName() {
+  const node = getEditorGraph().nodes.get(state.selectedEditorNodeId ?? "");
+  if (!node)
+    return;
+  showNameCheck(checkNodeName(getEditorGraph(), node, nodeNameInput.value));
+}
+function commitNodeName(oldId = state.selectedEditorNodeId, name = nodeNameInput.value) {
+  if (!oldId)
+    return;
+  const graph = getEditorGraph();
+  const node = graph.nodes.get(oldId);
+  if (!node)
+    return;
+  const check = checkNodeName(graph, node, name);
+  if ("error" in check) {
+    const isStillSelected = state.selectedEditorNodeId === oldId;
+    if (isStillSelected) {
+      nodeNameInput.value = getNodeNamePart(graph, node);
+      showNameCheck(check);
+    }
+    return;
+  }
+  renameNodeIdentifier(oldId, check.fullId);
+}
+function renameNodeIdentifier(oldId, newId) {
+  if (!oldId)
+    return;
+  async function applyRename() {
+    const graph = getEditorGraph();
+    if (!graph.nodes.has(oldId))
+      return;
+    const plan = buildRenamePlan(graph, oldId, newId);
+    if ("error" in plan) {
+      const isStillSelected = state.selectedEditorNodeId === oldId;
+      if (isStillSelected) {
+        nodeNameInput.value = getNodeNamePart(graph, graph.nodes.get(oldId));
+        showNameCheck({ error: `error: ${plan.error}` });
+      }
+      return;
+    }
+    if (plan.renames.size === 0)
+      return;
+    renameStateIds(plan.renames);
+    await applyEditorSource(buildRenamedSource(codeBox.value, plan.renames));
+  }
+  appendEditorAction(applyRename);
+}
+
 // source-edit.ts
 function buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines) {
   const removedWithNotes = new Set(removedLineIndexes);
@@ -1751,8 +1925,16 @@ function renderNodeInspector() {
   }
   const previewing = !!state.pendingRemoval;
   nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
-  nodeTextInput.value = decodeLabelQuotes(node.label);
-  nodeNotesInput.value = node.note;
+  nodeTextInput.value = decodeLabelLineBreaks(decodeLabelQuotes(node.label));
+  nodeKindStaticBox.checked = node.kind === "block";
+  nodeKindQuestionBox.checked = node.kind === "question";
+  nodeKindChoiceBox.checked = node.kind === "choice";
+  const parentId = getParentQuestionId(graph, node.id);
+  const parentText = parentId === undefined ? "parent: none" : `- parent: ${parentId}`;
+  nodeParentLabel.textContent = node.kind === "choice" ? parentText : "";
+  nodeNameInput.value = getNodeNamePart(graph, node);
+  showNameCheck({ fullId: node.id });
+  nodeNotesInput.value = decodeLabelLineBreaks(node.note);
   nodeClassRow.hidden = previewing;
   nodeNotesRow.hidden = previewing;
   if (!previewing)
@@ -1959,6 +2141,8 @@ function renderEditorSelection() {
     el.classList.remove("editor-selected");
   for (const el of diagramBox.querySelectorAll(".editor-preview"))
     el.classList.remove("editor-preview");
+  multiSelectBadge.hidden = state.multiSelectedNodeIds.length < 2;
+  multiSelectBadge.textContent = `selected: ${state.multiSelectedNodeIds.length} nodes`;
   const selectedIds = state.selectedEditorNodeId ? [state.selectedEditorNodeId] : state.multiSelectedNodeIds;
   for (const selectedId of selectedIds) {
     const el = diagramBox.querySelector('[id*="flowchart-' + selectedId + '-"]');
@@ -3120,14 +3304,13 @@ function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotesInput.v
   async function applyNodeNoteUpdate() {
     const graph = getEditorGraph();
     const node = graph.nodes.get(id);
-    if (!node || node.note === text)
+    if (!node || decodeLabelLineBreaks(node.note) === text)
       return;
     const oldCount = node.note ? node.note.split(`
 `).length : 0;
     const lines = graph.lines.slice();
     const indent = lines[node.lineIndex].match(/^\s*/)[0];
-    const newNoteLines = text ? text.split(`
-`).map((l) => `${indent}${NOTE_PREFIX} ${l}`) : [];
+    const newNoteLines = text ? [`${indent}${NOTE_PREFIX} ${encodeLabelLineBreaks(text)}`] : [];
     lines.splice(node.lineIndex - oldCount, oldCount, ...newNoteLines);
     await applyEditorSource(lines.join(`
 `));
@@ -3148,7 +3331,7 @@ function updateNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.va
     const node = graph.nodes.get(id);
     if (!node)
       return;
-    const sourceText = encodeLabelQuotes(text);
+    const sourceText = encodeLabelLineBreaks(encodeLabelQuotes(text));
     if (node.label !== sourceText) {
       const newToken = node.kind === "question" ? `${id}{"${sourceText}"}` : `${id}["${sourceText}"]`;
       const lines = graph.lines.slice();
@@ -3185,7 +3368,7 @@ function applyDestination(destination) {
   if (isUnchanged)
     return;
   const text = nodeTextInput.value.trim();
-  if (encodeLabelQuotes(text) !== node.label)
+  if (encodeLabelLineBreaks(encodeLabelQuotes(text)) !== node.label)
     updateNodeText(id, text);
   async function applyDestinationChange() {
     const currentGraph = getEditorGraph();
@@ -3303,6 +3486,9 @@ function writeNodeTextOnCommitKey(event) {
   const isCommitKey = isEnter || isTab;
   if (!isCommitKey)
     return;
+  const isShiftEnter = isEnter && event.shiftKey;
+  if (isShiftEnter)
+    return;
   event.preventDefault();
   updateNodeText();
 }
@@ -3334,6 +3520,31 @@ function writeNodeTextOnChange() {
   document.addEventListener("pointerup", scheduleCommitAfterClick, { once: true });
 }
 nodeTextInput.addEventListener("change", writeNodeTextOnChange);
+function renameNodeOnCommitKey(event) {
+  const isCommitKey = event.key === "Enter" || event.key === "Tab";
+  if (!isCommitKey)
+    return;
+  event.preventDefault();
+  commitNodeName();
+}
+nodeNameInput.addEventListener("keydown", renameNodeOnCommitKey);
+nodeNameInput.addEventListener("input", checkTypedNodeName);
+function renameNodeOnChange() {
+  const id = state.selectedEditorNodeId;
+  const text = nodeNameInput.value;
+  if (!isPointerPressed) {
+    commitNodeName(id, text);
+    return;
+  }
+  function renameNodeLater() {
+    commitNodeName(id, text);
+  }
+  function scheduleRenameAfterClick() {
+    setTimeout(renameNodeLater);
+  }
+  document.addEventListener("pointerup", scheduleRenameAfterClick, { once: true });
+}
+nodeNameInput.addEventListener("change", renameNodeOnChange);
 function writeNodeNoteOnChange() {
   const id = state.selectedEditorNodeId;
   const text = nodeNotesInput.value.trim();
@@ -3350,6 +3561,15 @@ function writeNodeNoteOnChange() {
   document.addEventListener("pointerup", scheduleNoteCommitAfterClick, { once: true });
 }
 nodeNotesInput.addEventListener("change", writeNodeNoteOnChange);
+function writeNodeNoteOnEnter(event) {
+  if (event.key !== "Enter")
+    return;
+  if (event.shiftKey)
+    return;
+  event.preventDefault();
+  updateNodeNote();
+}
+nodeNotesInput.addEventListener("keydown", writeNodeNoteOnEnter);
 function clearSelectionOnEscape(event) {
   if (event.key !== "Escape")
     return;
