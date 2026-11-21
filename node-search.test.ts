@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 const source = readFileSync(join(import.meta.dirname, "node-search.ts"), "utf8");
 
-test("test_node_search_matches_the_id_or_the_label", () => {
-  assert.ok(source.includes("const isMatch = idMatches || labelMatches;"));
+test("test_node_search_matches_every_case_insensitive_occurrence_in_the_source_text", () => {
+  assert.ok(source.includes("const haystack = codeBox.value.toLowerCase();"));
+  assert.ok(source.includes("start = haystack.indexOf(needle, start + needle.length);"));
 });

@@ -109,7 +109,7 @@ bun /Users/matkatmusicllc/Programming/relationship-mermaid/mermaid-editor/check-
 - **Decisions:** click the left arrow or the right arrow after **Decisions:** to select and center the previous or next question. The keys **<** and **>** do the same, except while the cursor is in a text box. The counter shows, for example, `3 / 24`.
 - **Functions only:** tick **Functions only** to show only the blocks that are function calls, like `doThing(x)`, and the calls between them.
 - **Notes:** a node that has a note shows a small dot. The dot color is the opposite of the node color, so it stays easy to see.
-- **Source editor:** click the three-line button between the source editor and the diagram to show or hide the source editor. Type in it to change the diagram at once. A problem shows in the box under the text. The numbers on the left are line numbers.
+- **Source editor:** click the three-line button between the source editor and the diagram to show or hide the source editor. Type in it to change the diagram at once. A problem shows in the box under the text. Each "Line N" in that box is a link: click it to open the source editor, scroll to line N, and select that line. A node definition that runs over more than one line shows "the definition of ... must start and end on one line". The numbers on the left are line numbers.
 
 ### The node inspector
 
@@ -148,8 +148,9 @@ These buttons change with the node kind.
 ### Search
 
 - Press **Cmd-F** to put the cursor in **Search nodes** and select its text. The browser find box stays closed.
-- Type in **Search nodes** at the top. The editor matches the node name or the node text. Capital letters do not matter.
-- Each key you type searches again. The first match is selected and moved into view.
+- Type in **Search nodes** at the top. The editor searches the text in the source editor. Capital letters do not matter. Each place where the text appears is one match. This works even when the diagram has a syntax error.
+- Each key you type searches again. The first match is selected in the source editor and scrolled into view there. The cursor stays in the **Search nodes** box. If the drawer is closed, the search opens it.
+- If the diagram has no syntax error and the match is on a line that holds a node, that node is also selected and moved into the center of the diagram. On a line with an arrow, the node is the one whose name or text holds the match. If the match is on the arrow, the first node of the line is used.
 - The counter shows the match number, for example `1 / 3`. After an edit, the count updates.
 - With two or more matches, click the left angle or the right angle to go to the previous or next match. The list wraps around.
 - Click the **×** to clear the search.

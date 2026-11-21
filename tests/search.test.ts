@@ -37,13 +37,13 @@ test('test_search_by_node_text_is_case_insensitive_and_selects_the_first_hit', a
 
 test('test_search_by_node_name_selects_and_jumps_to_the_node', async () => {
   await startSearchTest();
-  // Step: "q_second" matches only the node name Q_SECOND.
+  // Step: "q_second" appears four times in the source (its definition and three edge lines).
   await typeSearch('q_second');
   const controls = await searchState();
-  // Step: the hit is selected, the selected item widget shows, and the hit is inside the main view.
+  // Step: the first hit is selected, the selected item widget shows, and the hit is inside the main view.
   assert.equal(controls.selected, 'Q_SECOND');
   assert.equal(controls.inspectorHidden, false);
-  assert.equal(controls.counter, '1 / 1');
+  assert.equal(controls.counter, '1 / 4');
   assert.equal(await nodeIsInMainView('Q_SECOND'), true);
 });
 
@@ -56,7 +56,7 @@ test('test_each_search_keypress_reruns_the_search_and_jumps_to_the_new_first_hit
   await typeSearch('se');
   const afterSecondKey = await searchState();
   assert.equal(afterSecondKey.selected, 'Q_SECOND');
-  assert.equal(afterSecondKey.counter, '1 / 3');
+  assert.equal(afterSecondKey.counter, '1 / 9');
   // Step: deleting a character reruns the search and goes back to B_START.
   await typeSearch('s');
   assert.equal((await searchState()).selected, 'B_START');
@@ -69,9 +69,9 @@ test('test_each_search_keypress_reruns_the_search_and_jumps_to_the_new_first_hit
 test('test_search_cycle_buttons_show_only_for_two_or_more_hits_and_step_through_them', async () => {
   await startSearchTest();
   // Step: one hit keeps the cycle buttons hidden.
-  await typeSearch('middle');
+  await typeSearch('second decision');
   const oneHit = await searchState();
-  assert.equal(oneHit.selected, 'B_MIDDLE');
+  assert.equal(oneHit.selected, 'Q_SECOND');
   assert.equal(oneHit.previousHidden, true);
   assert.equal(oneHit.nextHidden, true);
   assert.equal(oneHit.counter, '1 / 1');

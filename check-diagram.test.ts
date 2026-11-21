@@ -20,6 +20,13 @@ test("test_check_diagram_prints_ok_and_exits_0_for_a_compliant_file", () => {
   assert.equal(stdout.trim(), `OK ${file}`);
 });
 
+test("test_check_diagram_names_the_line_of_a_definition_that_spans_more_than_one_line", () => {
+  const { status, stdout } = runCli('flowchart TD\n  B_A["a"]\n  B_LONG["first\nsecond"]\n  B_A --> B_LONG\n');
+  assert.equal(status, 1);
+  assert.ok(stdout.includes('Line 3: the definition of "B_LONG" must start and end on one line. Its text has a line break.'));
+  assert.ok(!stdout.includes("standalone line"));
+});
+
 test("test_check_diagram_lists_editor_and_mermaid_problems_and_exits_1", () => {
   const { status, stdout } = runCli('flowchart TD\n  X_Bad["Bad"]\n  B_A --> --> B_B\n');
   assert.equal(status, 1);

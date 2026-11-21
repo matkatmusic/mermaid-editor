@@ -69,6 +69,25 @@ var viewportMenu = document.getElementById("viewportMenu");
 var addDecisionBlockMenuBtn = document.getElementById("addDecisionBlockMenuBtn");
 var addStaticBlockMenuBtn = document.getElementById("addStaticBlockMenuBtn");
 
+// node-inspector-focus.ts
+function updateNodeInspectorPosition() {}
+function setInspectorTextFocus() {
+  nodeTextInput.focus();
+  nodeTextInput.select();
+}
+function setInspectorDestinationFocus() {
+  destinationSelect.focus();
+}
+function clearInspectorFocus() {
+  const active = document.activeElement;
+  const isFocusedElement = active instanceof HTMLElement;
+  for (const el of isFocusedElement ? [active] : []) {
+    const isInsideInspector = nodeInspector.contains(el);
+    if (isInsideInspector)
+      el.blur();
+  }
+}
+
 // state.ts
 var MAIN_ZOOM_STEP = 10;
 var MIN_MAIN_ZOOM = 20;
@@ -113,101 +132,6 @@ for (const key of Object.keys(state)) {
     },
     configurable: true
   });
-}
-
-// diagram-source.ts
-function parseEdges(text) {
-  const edges = [];
-  for (const rawLine of text.split(`
-`)) {
-    const line = rawLine.trim();
-    const isComment = line.startsWith("%%");
-    const hasArrow = line.includes("-->");
-    const skipLine = isComment || !hasArrow;
-    if (skipLine)
-      continue;
-    const ids = [];
-    for (const s of line.split("-->")) {
-      ids.push(s.trim());
-    }
-    for (let i = 0;i + 1 < ids.length; i++)
-      edges.push([ids[i], ids[i + 1]]);
-  }
-  return edges;
-}
-
-// render-helpers.ts
-function findTrail(edges) {
-  const bright = new Set;
-  const visited = new Set;
-  let node = edges[0][0];
-  for (;; ) {
-    const hasNode = !!node;
-    if (!hasNode)
-      break;
-    const notVisited = !visited.has(node);
-    if (!notVisited)
-      break;
-    visited.add(node);
-    bright.add(node);
-    const nextNodes = [];
-    for (const [from, to] of edges) {
-      if (from === node)
-        nextNodes.push(to);
-    }
-    if (nextNodes.length <= 1) {
-      node = nextNodes[0];
-      continue;
-    }
-    let chosen;
-    for (const option of nextNodes) {
-      const isChosen = chosenAnswers.has(option);
-      if (isChosen) {
-        chosen = option;
-        break;
-      }
-    }
-    node = chosen;
-    if (!node)
-      for (const option of nextNodes)
-        bright.add(option);
-  }
-  return bright;
-}
-function applyPathHighlight() {
-  const svgNodes = diagramBox.querySelectorAll("g.node");
-  const svgEdges = diagramBox.querySelectorAll("path.flowchart-link");
-  const edges = parseEdges(codeBox.value);
-  const bright = chosenAnswers.size ? findTrail(edges) : null;
-  const isDim = (id) => bright !== null && !bright.has(id);
-  for (const el of svgNodes)
-    el.classList.toggle("dim", isDim(getNodeId(el)));
-  for (const el of svgEdges) {
-    const [from, to] = getEdgeEnds(el, edges);
-    el.classList.toggle("dim", isDim(from) || isDim(to));
-  }
-}
-function getEdgeEnds(el, edges) {
-  let found;
-  for (const edge of edges) {
-    const isEdgeElement = el.id.includes("L_" + edge[0] + "_" + edge[1] + "_");
-    if (isEdgeElement) {
-      found = edge;
-      break;
-    }
-  }
-  return found || [];
-}
-function getNodeId(el) {
-  return el.id.replace(/^.*flowchart-/, "").replace(/-\d+$/, "");
-}
-function reportEditorValidationError(error) {
-  const message = error instanceof Error ? error.message : String(error);
-  errorBox.textContent = message;
-  errorLog.textContent = message + `
-`;
-  errorLog.classList.add("open");
-  errorLog.scrollTop = errorLog.scrollHeight;
 }
 
 // editor-types.ts
@@ -404,6 +328,7 @@ function parseEditorGraph(source) {
   const declLines = new Map;
   const edges = [];
   const references = new Map;
+  const multiLineIds = new Set;
   const problems = [];
   for (let lineIndex = 0;lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex].trim();
@@ -429,11 +354,19 @@ function parseEditorGraph(source) {
       if (decl.shape) {
         storeDeclaration(declLines, decl, lineIndex);
         validateDeclaration(decl.id, decl.shape, lineIndex + 1, problems);
+      } else {
+        const opensQuotedLabel = line.match(/^([A-Za-z0-9_]+)(?:\[|\{|\(\[)"/);
+        if (opensQuotedLabel) {
+          multiLineIds.add(opensQuotedLabel[1]);
+          problems.push(`Line ${lineIndex + 1}: the definition of "${opensQuotedLabel[1]}" must start and end on one line. Its text has a line break.`);
+        }
       }
     }
   }
   for (const [id, lineIndex] of references) {
     const isUndeclared = !declLines.has(id);
+    if (isUndeclared && multiLineIds.has(id))
+      continue;
     if (isUndeclared)
       problems.push(`Line ${lineIndex + 1}: id "${id}" must be declared on its own standalone line and ${getDeclarationRequirement(id)}.`);
   }
@@ -473,84 +406,6 @@ function getEditorGraph() {
     throw error;
   }
   return graph;
-}
-
-// node-inspector-focus.ts
-function updateNodeInspectorPosition() {}
-function setInspectorTextFocus() {
-  nodeTextInput.focus();
-  nodeTextInput.select();
-}
-function setInspectorDestinationFocus() {
-  destinationSelect.focus();
-}
-function clearInspectorFocus() {
-  const active = document.activeElement;
-  const isFocusedElement = active instanceof HTMLElement;
-  for (const el of isFocusedElement ? [active] : []) {
-    const isInsideInspector = nodeInspector.contains(el);
-    if (isInsideInspector)
-      el.blur();
-  }
-}
-
-// diagram-io.ts
-function setStatus(text) {
-  statusBox.textContent = text;
-  function clearStatusIfUnchanged() {
-    if (statusBox.textContent === text)
-      statusBox.textContent = state.loadedPath ?? "";
-  }
-  setTimeout(clearStatusIfUnchanged, 2000);
-}
-function setDrawerOpen(open) {
-  drawer.classList.toggle("closed", !open);
-  updateNodeInspectorPosition();
-}
-async function loadList() {
-  currentFileName.textContent = state.currentName ?? "";
-  const listResponse = await fetch("/api/diagrams");
-  const names = await listResponse.json();
-  selectBox.innerHTML = '<option value="" disabled ' + (state.currentName ? "" : "selected") + ">Diagrams</option>";
-  for (const name of names) {
-    const option = document.createElement("option");
-    option.value = name;
-    option.textContent = name;
-    if (name === state.currentName)
-      option.selected = true;
-    selectBox.appendChild(option);
-  }
-}
-function resetEditorHistory(text) {
-  state.editorHistory = [text];
-  state.editorHistoryIndex = 0;
-  selectEditorNode(null);
-}
-function applyMainViewport(metadata, graph) {
-  const hasSavedLeft = typeof metadata?.outputScrollLeft === "number";
-  const hasSavedTop = typeof metadata?.outputScrollTop === "number";
-  if (hasSavedLeft)
-    outputBox.scrollLeft = metadata.outputScrollLeft;
-  if (hasSavedTop)
-    outputBox.scrollTop = metadata.outputScrollTop;
-  if (hasSavedLeft) {
-    if (hasSavedTop)
-      return;
-  }
-  const firstNode = graph.nodes.values().next().value;
-  if (!firstNode)
-    return;
-  const node = diagramBox.querySelector('[id*="flowchart-' + firstNode.id + '-"]');
-  if (!node)
-    return;
-  const outputRect = outputBox.getBoundingClientRect();
-  const nodeRect = node.getBoundingClientRect();
-  const nodeLeft = outputBox.scrollLeft + nodeRect.left - outputRect.left;
-  const nodeTop = outputBox.scrollTop + nodeRect.top - outputRect.top;
-  if (!hasSavedLeft)
-    outputBox.scrollLeft = Math.max(0, nodeLeft - 12);
-  if (!hasSavedTop)
-    outputBox.scrollTop = Math.max(0, nodeTop - 12);
 }
 
 // decision-search.ts
@@ -703,6 +558,27 @@ async function moveToDecision(step) {
   selectEditorNode(decision.id);
   updateDecisionCounter(graph);
   moveNodeToViewportCenter(outputBox, diagramBox, decision.id);
+}
+
+// diagram-source.ts
+function parseEdges(text) {
+  const edges = [];
+  for (const rawLine of text.split(`
+`)) {
+    const line = rawLine.trim();
+    const isComment = line.startsWith("%%");
+    const hasArrow = line.includes("-->");
+    const skipLine = isComment || !hasArrow;
+    if (skipLine)
+      continue;
+    const ids = [];
+    for (const s of line.split("-->")) {
+      ids.push(s.trim());
+    }
+    for (let i = 0;i + 1 < ids.length; i++)
+      edges.push([ids[i], ids[i + 1]]);
+  }
+  return edges;
 }
 
 // function-routing.ts
@@ -1923,23 +1799,49 @@ function renderNodeInspector() {
 var searchMatches = [];
 var searchIndex = 0;
 var searchRunId = 0;
-function compareNodesByLine2(a, b) {
-  return a.lineIndex - b.lineIndex;
-}
-function findMatchingNodes(graph, query) {
+function findSourceMatches(query) {
   const matches = [];
   if (query === "")
     return matches;
   const needle = query.toLowerCase();
-  for (const node of graph.nodes.values()) {
-    const idMatches = node.id.toLowerCase().includes(needle);
-    const labelMatches = node.label.toLowerCase().includes(needle);
-    const isMatch = idMatches || labelMatches;
-    if (isMatch)
-      matches.push(node);
+  const haystack = codeBox.value.toLowerCase();
+  let start = haystack.indexOf(needle);
+  while (start !== -1) {
+    matches.push({ start, end: start + needle.length });
+    start = haystack.indexOf(needle, start + needle.length);
   }
-  matches.sort(compareNodesByLine2);
   return matches;
+}
+function findNodeIdAtMatch(graph, match) {
+  const source = codeBox.value;
+  const lineStart = source.lastIndexOf(`
+`, match.start - 1) + 1;
+  const newlineAfter = source.indexOf(`
+`, match.start);
+  const lineEnd = newlineAfter === -1 ? source.length : newlineAfter;
+  const line = source.slice(lineStart, lineEnd);
+  const matchOffset = match.start - lineStart;
+  const parts = [];
+  let partStart = 0;
+  const arrows = [...line.matchAll(/-->|---|==>|-\.->/g)];
+  const partEnds = [...arrows.map((arrow) => arrow.index), line.length];
+  for (let i = 0;i < partEnds.length; i++) {
+    const partText = line.slice(partStart, partEnds[i]);
+    const idMatch = partText.match(/^\s*(?:\|[^|]*\|)?\s*([A-Za-z_][A-Za-z0-9_]*)/);
+    if (idMatch) {
+      const isNode = graph.nodes.has(idMatch[1]);
+      if (isNode)
+        parts.push({ id: idMatch[1], start: partStart, end: partEnds[i] });
+    }
+    if (i < arrows.length)
+      partStart = arrows[i].index + arrows[i][0].length;
+  }
+  for (const part of parts) {
+    const isMatchInsidePart = matchOffset >= part.start && matchOffset < part.end;
+    if (isMatchInsidePart)
+      return part.id;
+  }
+  return parts[0]?.id;
 }
 function updateSearchControls() {
   const hasText = searchInput.value !== "";
@@ -1951,9 +1853,27 @@ function updateSearchControls() {
   searchNextBtn.hidden = !hasSeveralMatches;
   searchCounter.textContent = `${current} / ${searchMatches.length}`;
 }
+function showMatchInSourceEditor(match) {
+  const isDrawerClosed = drawer.classList.contains("closed");
+  if (isDrawerClosed)
+    drawerToggle.click();
+  codeBox.setSelectionRange(match.start, match.end);
+  const lineIndex = codeBox.value.slice(0, match.start).split(`
+`).length - 1;
+  const { tops } = measureSourceLines();
+  codeBox.scrollTop = tops[lineIndex] - parseFloat(getComputedStyle(codeBox).paddingTop);
+}
 async function moveToSearchMatch() {
   const runId = ++searchRunId;
-  const id = searchMatches[searchIndex].id;
+  const match = searchMatches[searchIndex];
+  showMatchInSourceEditor(match);
+  const { graph, problems } = parseEditorGraph(codeBox.value);
+  const hasParseError = problems.length > 0;
+  if (hasParseError)
+    return;
+  const id = findNodeIdAtMatch(graph, match);
+  if (!id)
+    return;
   selectEditorNode(id);
   await render();
   if (runId !== searchRunId)
@@ -1962,14 +1882,7 @@ async function moveToSearchMatch() {
   moveNodeToViewportCenter(outputBox, diagramBox, id);
 }
 async function executeSearch() {
-  let graph;
-  try {
-    graph = getEditorGraph();
-  } catch (error) {
-    reportEditorValidationError(error);
-    return;
-  }
-  searchMatches = findMatchingNodes(graph, searchInput.value);
+  searchMatches = findSourceMatches(searchInput.value);
   searchIndex = 0;
   updateSearchControls();
   if (searchMatches.length === 0)
@@ -1977,7 +1890,7 @@ async function executeSearch() {
   await moveToSearchMatch();
 }
 function refreshSearchMatches() {
-  searchMatches = findMatchingNodes(getEditorGraph(), searchInput.value);
+  searchMatches = findSourceMatches(searchInput.value);
   searchIndex = Math.min(searchIndex, Math.max(searchMatches.length - 1, 0));
   updateSearchControls();
 }
@@ -2056,6 +1969,172 @@ function renderEditorSelection() {
 function renderRemovalPreview() {
   renderEditorSelection();
   renderNodeInspector();
+}
+
+// diagram-io.ts
+function setStatus(text) {
+  statusBox.textContent = text;
+  function clearStatusIfUnchanged() {
+    if (statusBox.textContent === text)
+      statusBox.textContent = state.loadedPath ?? "";
+  }
+  setTimeout(clearStatusIfUnchanged, 2000);
+}
+function setDrawerOpen(open) {
+  drawer.classList.toggle("closed", !open);
+  updateNodeInspectorPosition();
+}
+async function loadList() {
+  currentFileName.textContent = state.currentName ?? "";
+  const listResponse = await fetch("/api/diagrams");
+  const names = await listResponse.json();
+  selectBox.innerHTML = '<option value="" disabled ' + (state.currentName ? "" : "selected") + ">Diagrams</option>";
+  for (const name of names) {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    if (name === state.currentName)
+      option.selected = true;
+    selectBox.appendChild(option);
+  }
+}
+function resetEditorHistory(text) {
+  state.editorHistory = [text];
+  state.editorHistoryIndex = 0;
+  selectEditorNode(null);
+}
+function applyMainViewport(metadata, graph) {
+  const hasSavedLeft = typeof metadata?.outputScrollLeft === "number";
+  const hasSavedTop = typeof metadata?.outputScrollTop === "number";
+  if (hasSavedLeft)
+    outputBox.scrollLeft = metadata.outputScrollLeft;
+  if (hasSavedTop)
+    outputBox.scrollTop = metadata.outputScrollTop;
+  if (hasSavedLeft) {
+    if (hasSavedTop)
+      return;
+  }
+  const firstNode = graph.nodes.values().next().value;
+  if (!firstNode)
+    return;
+  const node = diagramBox.querySelector('[id*="flowchart-' + firstNode.id + '-"]');
+  if (!node)
+    return;
+  const outputRect = outputBox.getBoundingClientRect();
+  const nodeRect = node.getBoundingClientRect();
+  const nodeLeft = outputBox.scrollLeft + nodeRect.left - outputRect.left;
+  const nodeTop = outputBox.scrollTop + nodeRect.top - outputRect.top;
+  if (!hasSavedLeft)
+    outputBox.scrollLeft = Math.max(0, nodeLeft - 12);
+  if (!hasSavedTop)
+    outputBox.scrollTop = Math.max(0, nodeTop - 12);
+}
+
+// error-line-links.ts
+function selectSourceLine(lineNumber) {
+  const lines = codeBox.value.split(`
+`);
+  let start = 0;
+  for (let i = 0;i < lineNumber - 1; i++)
+    start += lines[i].length + 1;
+  setDrawerOpen(true);
+  const { tops } = measureSourceLines();
+  codeBox.scrollTop = tops[lineNumber - 1] - parseFloat(getComputedStyle(codeBox).paddingTop);
+  codeBox.focus({ preventScroll: true });
+  codeBox.setSelectionRange(start, start + lines[lineNumber - 1].length);
+}
+function renderErrorMessageWithLineLinks(element, message) {
+  const pieces = [];
+  for (const part of message.split(/(Line \d+)/)) {
+    const lineMatch = part.match(/^Line (\d+)$/);
+    if (!lineMatch) {
+      pieces.push(part);
+      continue;
+    }
+    const lineNumber = Number(lineMatch[1]);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "error-line-link";
+    button.dataset.line = String(lineNumber);
+    button.textContent = part;
+    button.addEventListener("click", () => selectSourceLine(lineNumber));
+    pieces.push(button);
+  }
+  element.replaceChildren(...pieces);
+}
+
+// render-helpers.ts
+function findTrail(edges) {
+  const bright = new Set;
+  const visited = new Set;
+  let node = edges[0][0];
+  for (;; ) {
+    const hasNode = !!node;
+    if (!hasNode)
+      break;
+    const notVisited = !visited.has(node);
+    if (!notVisited)
+      break;
+    visited.add(node);
+    bright.add(node);
+    const nextNodes = [];
+    for (const [from, to] of edges) {
+      if (from === node)
+        nextNodes.push(to);
+    }
+    if (nextNodes.length <= 1) {
+      node = nextNodes[0];
+      continue;
+    }
+    let chosen;
+    for (const option of nextNodes) {
+      const isChosen = chosenAnswers.has(option);
+      if (isChosen) {
+        chosen = option;
+        break;
+      }
+    }
+    node = chosen;
+    if (!node)
+      for (const option of nextNodes)
+        bright.add(option);
+  }
+  return bright;
+}
+function applyPathHighlight() {
+  const svgNodes = diagramBox.querySelectorAll("g.node");
+  const svgEdges = diagramBox.querySelectorAll("path.flowchart-link");
+  const edges = parseEdges(codeBox.value);
+  const bright = chosenAnswers.size ? findTrail(edges) : null;
+  const isDim = (id) => bright !== null && !bright.has(id);
+  for (const el of svgNodes)
+    el.classList.toggle("dim", isDim(getNodeId(el)));
+  for (const el of svgEdges) {
+    const [from, to] = getEdgeEnds(el, edges);
+    el.classList.toggle("dim", isDim(from) || isDim(to));
+  }
+}
+function getEdgeEnds(el, edges) {
+  let found;
+  for (const edge of edges) {
+    const isEdgeElement = el.id.includes("L_" + edge[0] + "_" + edge[1] + "_");
+    if (isEdgeElement) {
+      found = edge;
+      break;
+    }
+  }
+  return found || [];
+}
+function getNodeId(el) {
+  return el.id.replace(/^.*flowchart-/, "").replace(/-\d+$/, "");
+}
+function reportEditorValidationError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  renderErrorMessageWithLineLinks(errorBox, message);
+  renderErrorMessageWithLineLinks(errorLog, message + `
+`);
+  errorLog.classList.add("open");
+  errorLog.scrollTop = errorLog.scrollHeight;
 }
 
 // editor-add.ts

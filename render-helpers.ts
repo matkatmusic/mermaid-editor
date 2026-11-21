@@ -1,4 +1,5 @@
 import { codeBox, diagramBox, errorBox, errorLog } from './dom.ts';
+import { renderErrorMessageWithLineLinks } from './error-line-links.ts';
 import type { Edge } from './dom.ts';
 import { chosenAnswers } from './state.ts';
 import { parseEdges } from './diagram-source.ts';
@@ -110,8 +111,8 @@ export function moveToNextQuestion(edges: Edge[]) {
 
 export function reportEditorValidationError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
-  errorBox.textContent = message;
-  errorLog.textContent = message + '\n';
+  renderErrorMessageWithLineLinks(errorBox, message);
+  renderErrorMessageWithLineLinks(errorLog, message + '\n');
   errorLog.classList.add('open');
   errorLog.scrollTop = errorLog.scrollHeight;
 }

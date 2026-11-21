@@ -46,6 +46,19 @@ test("test_parse_editor_graph_reads_the_note_lines_above_a_declaration", () => {
   assert.equal(graph.nodes.get("B_B")!.note, "");
 });
 
+test("test_parse_editor_graph_reports_a_definition_that_spans_more_than_one_line_and_nothing_else", () => {
+  // Scenario: the label of B_LONG has a line break, so its definition does not end on the line where it starts.
+  const source = 'flowchart TD\n  B_A["a"]\n  B_LONG["first\nsecond"]\n  B_A --> B_LONG';
+  const { problems } = parseEditorGraph(source);
+  assert.deepEqual(problems, ['Line 3: the definition of "B_LONG" must start and end on one line. Its text has a line break.']);
+});
+
+test("test_parse_editor_graph_reports_a_decision_definition_that_spans_more_than_one_line", () => {
+  const source = 'flowchart TD\n  Q_ASK{"first\nsecond"}';
+  const { problems } = parseEditorGraph(source);
+  assert.deepEqual(problems, ['Line 2: the definition of "Q_ASK" must start and end on one line. Its text has a line break.']);
+});
+
 test("test_parse_editor_graph_reports_an_undeclared_id", () => {
   const { problems } = parseEditorGraph('flowchart TD\n  B_A["A"]\n  B_A --> B_Missing');
   assert.deepEqual(problems, ['Line 3: id "B_Missing" must be declared on its own standalone line and start with "B_" and use bracket shape [].']);

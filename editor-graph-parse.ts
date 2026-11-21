@@ -17,6 +17,7 @@ export function parseEditorGraph(source: string): { graph: EditorGraph; problems
   const declLines = new Map<string, DeclarationLine>();
   const edges: EditorEdge[] = [];
   const references = new Map<string, number>();
+  const multiLineIds = new Set<string>();
   const problems: string[] = [];
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex].trim();
@@ -44,10 +45,19 @@ export function parseEditorGraph(source: string): { graph: EditorGraph; problems
         storeDeclaration(declLines, decl, lineIndex);
         validateDeclaration(decl.id, decl.shape, lineIndex + 1, problems);
       }
+      else {
+        const opensQuotedLabel = line.match(/^([A-Za-z0-9_]+)(?:\[|\{|\(\[)"/);
+        if (opensQuotedLabel) {
+          multiLineIds.add(opensQuotedLabel[1]);
+          problems.push(`Line ${lineIndex + 1}: the definition of "${opensQuotedLabel[1]}" must start and end on one line. Its text has a line break.`);
+        }
+      }
     }
   }
   for (const [id, lineIndex] of references) {
     const isUndeclared = !declLines.has(id);
+    if (isUndeclared && multiLineIds.has(id))
+      continue;
     if (isUndeclared)
       problems.push(`Line ${lineIndex + 1}: id "${id}" must be declared on its own standalone line and ${getDeclarationRequirement(id)}.`);
   }

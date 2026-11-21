@@ -1,33 +1,77 @@
-import type { EditorGraph, EditorNode } from './editor-types.ts';
-import { getEditorGraph } from './editor-graph.ts';
-import { diagramBox, outputBox, searchClearBtn, searchCounter, searchInput, searchNextBtn, searchPreviousBtn } from './dom.ts';
-import { reportEditorValidationError } from './render-helpers.ts';
+import type { EditorGraph } from './editor-types.ts';
+import { parseEditorGraph } from './editor-graph-parse.ts';
+import { codeBox, diagramBox, drawer, drawerToggle, outputBox, searchClearBtn, searchCounter, searchInput, searchNextBtn, searchPreviousBtn } from './dom.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { render } from './render.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
+import { measureSourceLines } from './source-lines.ts';
 
-let searchMatches: EditorNode[] = [];
+type SearchMatch = { start: number; end: number };
+
+let searchMatches: SearchMatch[] = [];
 let searchIndex = 0;
 let searchRunId = 0;
 
-function compareNodesByLine(a: EditorNode, b: EditorNode) {
-  return a.lineIndex - b.lineIndex;
-}
+// Retired: the search is now a plain text search of the source editor, so a parse error cannot break it.
+// function findMatchingNodes(graph: EditorGraph, query: string) {
+//   const matches: EditorNode[] = [];
+//   if (query === '')
+//     return matches;
+//   const needle = query.toLowerCase();
+//   for (const node of graph.nodes.values()) {
+//     const idMatches = node.id.toLowerCase().includes(needle);
+//     const labelMatches = node.label.toLowerCase().includes(needle);
+//     const isMatch = idMatches || labelMatches;
+//     if (isMatch)
+//       matches.push(node);
+//   }
+//   matches.sort(compareNodesByLine);
+//   return matches;
+// }
 
-function findMatchingNodes(graph: EditorGraph, query: string) {
-  const matches: EditorNode[] = [];
+function findSourceMatches(query: string) {
+  const matches: SearchMatch[] = [];
   if (query === '')
     return matches;
   const needle = query.toLowerCase();
-  for (const node of graph.nodes.values()) {
-    const idMatches = node.id.toLowerCase().includes(needle);
-    const labelMatches = node.label.toLowerCase().includes(needle);
-    const isMatch = idMatches || labelMatches;
-    if (isMatch)
-      matches.push(node);
+  const haystack = codeBox.value.toLowerCase();
+  let start = haystack.indexOf(needle);
+  while (start !== -1) {
+    matches.push({ start, end: start + needle.length });
+    start = haystack.indexOf(needle, start + needle.length);
   }
-  matches.sort(compareNodesByLine);
   return matches;
+}
+
+// Each node part of a line is the text between two arrows, from the node name to the end of its text.
+function findNodeIdAtMatch(graph: EditorGraph, match: SearchMatch) {
+  const source = codeBox.value;
+  const lineStart = source.lastIndexOf('\n', match.start - 1) + 1;
+  const newlineAfter = source.indexOf('\n', match.start);
+  const lineEnd = newlineAfter === -1 ? source.length : newlineAfter;
+  const line = source.slice(lineStart, lineEnd);
+  const matchOffset = match.start - lineStart;
+  const parts: { id: string; start: number; end: number }[] = [];
+  let partStart = 0;
+  const arrows = [...line.matchAll(/-->|---|==>|-\.->/g)];
+  const partEnds = [...arrows.map((arrow) => arrow.index!), line.length];
+  for (let i = 0; i < partEnds.length; i++) {
+    const partText = line.slice(partStart, partEnds[i]);
+    const idMatch = partText.match(/^\s*(?:\|[^|]*\|)?\s*([A-Za-z_][A-Za-z0-9_]*)/);
+    if (idMatch) {
+      const isNode = graph.nodes.has(idMatch[1]);
+      if (isNode)
+        parts.push({ id: idMatch[1], start: partStart, end: partEnds[i] });
+    }
+    if (i < arrows.length)
+      partStart = arrows[i].index! + arrows[i][0].length;
+  }
+  for (const part of parts) {
+    const isMatchInsidePart = matchOffset >= part.start && matchOffset < part.end;
+    if (isMatchInsidePart)
+      return part.id;
+  }
+  return parts[0]?.id;
 }
 
 function updateSearchControls() {
@@ -41,9 +85,28 @@ function updateSearchControls() {
   searchCounter.textContent = `${current} / ${searchMatches.length}`;
 }
 
+function showMatchInSourceEditor(match: SearchMatch) {
+  const isDrawerClosed = drawer.classList.contains('closed');
+  if (isDrawerClosed)
+    drawerToggle.click();
+  // setSelectionRange on an unfocused textarea keeps the cursor in the Search box.
+  codeBox.setSelectionRange(match.start, match.end);
+  const lineIndex = codeBox.value.slice(0, match.start).split('\n').length - 1;
+  const { tops } = measureSourceLines();
+  codeBox.scrollTop = tops[lineIndex] - parseFloat(getComputedStyle(codeBox).paddingTop);
+}
+
 async function moveToSearchMatch() {
   const runId = ++searchRunId;
-  const id = searchMatches[searchIndex].id;
+  const match = searchMatches[searchIndex];
+  showMatchInSourceEditor(match);
+  const { graph, problems } = parseEditorGraph(codeBox.value);
+  const hasParseError = problems.length > 0;
+  if (hasParseError)
+    return;
+  const id = findNodeIdAtMatch(graph, match);
+  if (!id)
+    return;
   selectEditorNode(id);
   await render();
   // A newer keypress or cycle click started its own jump while this render awaited; that one wins.
@@ -54,15 +117,7 @@ async function moveToSearchMatch() {
 }
 
 export async function executeSearch() {
-  let graph: EditorGraph;
-  try {
-    graph = getEditorGraph();
-  }
-  catch (error) {
-    reportEditorValidationError(error);
-    return;
-  }
-  searchMatches = findMatchingNodes(graph, searchInput.value);
+  searchMatches = findSourceMatches(searchInput.value);
   searchIndex = 0;
   updateSearchControls();
   if (searchMatches.length === 0)
@@ -71,7 +126,7 @@ export async function executeSearch() {
 }
 
 export function refreshSearchMatches() {
-  searchMatches = findMatchingNodes(getEditorGraph(), searchInput.value);
+  searchMatches = findSourceMatches(searchInput.value);
   searchIndex = Math.min(searchIndex, Math.max(searchMatches.length - 1, 0));
   updateSearchControls();
 }
