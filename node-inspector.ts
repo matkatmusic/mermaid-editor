@@ -4,12 +4,14 @@ import { getEditorGraph } from './editor-graph.ts';
 import { destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from './dom.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { findOutgoingDestination } from './source-edit.ts';
+import { decodeLabelQuotes } from './editor-parse.ts';
 import { renderClassPicker } from './node-inspector-class.ts';
 import { clearInspectorFocus, updateNodeInspectorPosition } from './node-inspector-focus.ts';
 
 export function replaceDeclarationInLine(line: string, id: string, newToken: string) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`${escapedId}(\\{[^}]*\\}|\\[[^\\]]*\\]|\\(\\[[^\\]]*\\]\\))`);
+  // A quoted label may hold "]" or "}", so a quoted shape is tried before the plain one.
+  const re = new RegExp(`${escapedId}(\\{"[^"]*"\\}|\\["[^"]*"\\]|\\{[^}]*\\}|\\[[^\\]]*\\]|\\(\\[[^\\]]*\\]\\))`);
   return line.replace(re, newToken);
 }
 
@@ -73,7 +75,7 @@ export function renderNodeInspector() {
   }
   const previewing = !!state.pendingRemoval;
   nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
-  nodeTextInput.value = node.label;
+  nodeTextInput.value = decodeLabelQuotes(node.label);
   nodeNotesInput.value = node.note;
   // Retired Category/Color inputs; a class picker (any node kind) replaces them below.
   // nodeTypeRow.hidden = previewing || node.kind !== 'block';

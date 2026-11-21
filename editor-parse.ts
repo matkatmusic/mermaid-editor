@@ -4,6 +4,15 @@ export function trimEditorQuotes(text: string) {
   return text.replace(/^"(.*)"$/, '$1');
 }
 
+// A typed " would end the quoted label in the source, so the source holds Mermaid's entity instead.
+export function encodeLabelQuotes(text: string) {
+  return text.replace(/"/g, '#quot;');
+}
+
+export function decodeLabelQuotes(label: string) {
+  return label.replace(/#quot;/g, '"');
+}
+
 export function parseEditorToken(token: string) {
   const match = token.match(/^([A-Za-z0-9_]+)([\s\S]*)$/);
   if (!match)

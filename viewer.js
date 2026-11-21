@@ -217,6 +217,12 @@ setEditorActionPromise(Promise.resolve());
 function trimEditorQuotes(text) {
   return text.replace(/^"(.*)"$/, "$1");
 }
+function encodeLabelQuotes(text) {
+  return text.replace(/"/g, "#quot;");
+}
+function decodeLabelQuotes(label) {
+  return label.replace(/#quot;/g, '"');
+}
 function parseEditorToken(token) {
   const match = token.match(/^([A-Za-z0-9_]+)([\s\S]*)$/);
   if (!match)
@@ -1230,7 +1236,7 @@ function encodeHtml(text) {
   return withQuote.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
 }
 function getLabelOf(id, graph) {
-  return graph.nodes.get(id)?.label ?? id;
+  return decodeLabelQuotes(graph.nodes.get(id)?.label ?? id);
 }
 function buildChoiceButtonsHtml(choices, row, graph) {
   const isPast = row.status === "past";
@@ -1715,7 +1721,7 @@ function renderClassPicker(node) {
 // node-inspector.ts
 function replaceDeclarationInLine(line, id, newToken) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`${escapedId}(\\{[^}]*\\}|\\[[^\\]]*\\]|\\(\\[[^\\]]*\\]\\))`);
+  const re = new RegExp(`${escapedId}(\\{"[^"]*"\\}|\\["[^"]*"\\]|\\{[^}]*\\}|\\[[^\\]]*\\]|\\(\\[[^\\]]*\\]\\))`);
   return line.replace(re, newToken);
 }
 function createInspectorActionButton(action, label, spanTwoColumns = false) {
@@ -1745,7 +1751,7 @@ function renderNodeInspector() {
   }
   const previewing = !!state.pendingRemoval;
   nodeInspectorTitle.textContent = INSPECTOR_TITLES[node.kind];
-  nodeTextInput.value = node.label;
+  nodeTextInput.value = decodeLabelQuotes(node.label);
   nodeNotesInput.value = node.note;
   nodeClassRow.hidden = previewing;
   nodeNotesRow.hidden = previewing;
@@ -3142,8 +3148,9 @@ function updateNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.va
     const node = graph.nodes.get(id);
     if (!node)
       return;
-    if (node.label !== text) {
-      const newToken = node.kind === "question" ? `${id}{"${text}"}` : `${id}["${text}"]`;
+    const sourceText = encodeLabelQuotes(text);
+    if (node.label !== sourceText) {
+      const newToken = node.kind === "question" ? `${id}{"${sourceText}"}` : `${id}["${sourceText}"]`;
       const lines = graph.lines.slice();
       lines[node.lineIndex] = replaceDeclarationInLine(lines[node.lineIndex], id, newToken);
       await applyEditorSource(lines.join(`
@@ -3178,7 +3185,7 @@ function applyDestination(destination) {
   if (isUnchanged)
     return;
   const text = nodeTextInput.value.trim();
-  if (text !== node.label)
+  if (encodeLabelQuotes(text) !== node.label)
     updateNodeText(id, text);
   async function applyDestinationChange() {
     const currentGraph = getEditorGraph();

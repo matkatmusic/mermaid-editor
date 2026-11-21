@@ -4,12 +4,13 @@ import { executeExpression, send, waitForRender } from "./cdp.ts";
 export const Modifier = { None: 0, Alt: 1, Control: 2, Meta: 4, Shift: 8 } as const;
 
 export const KeyName = {
-    Backspace: "Backspace", Delete: "Delete", Escape: "Escape", ArrowUp: "ArrowUp", ArrowDown: "ArrowDown",
+    Tab: "Tab", Backspace: "Backspace", Delete: "Delete", Escape: "Escape", ArrowUp: "ArrowUp", ArrowDown: "ArrowDown",
     Z: "z", UpperZ: "Z", S: "s", F: "f", Equal: "=", Plus: "+", Minus: "-", GreaterThan: ">", LessThan: "<",
 } as const;
 type KeyNameValue = (typeof KeyName)[keyof typeof KeyName];
 
 const KEY_CODES: Record<KeyNameValue, { code: string; windowsVirtualKeyCode: number }> = {
+    Tab: { code: "Tab", windowsVirtualKeyCode: 9 },
     Backspace: { code: "Backspace", windowsVirtualKeyCode: 8 },
     Delete: { code: "Delete", windowsVirtualKeyCode: 46 },
     Escape: { code: "Escape", windowsVirtualKeyCode: 27 },

@@ -6,6 +6,7 @@ import { choicesOf } from './graph-slice.ts';
 import { buildClassStyleIndex, findNodeStyle, type ClassStyleIndex } from './class-style-index.ts';
 import { isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './phone-render.ts';
 import { buildRows } from './phone-rows.ts';
+import { decodeLabelQuotes } from './editor-parse.ts';
 
 // How long after a click the phone keeps the animated border on the clicked node; matches the CSS animation length.
 const PHONE_CLICKED_BORDER_MS = 3000;
@@ -32,7 +33,7 @@ function encodeHtml(text: string) {
 }
 
 function getLabelOf(id: string, graph: EditorGraph) {
-  return graph.nodes.get(id)?.label ?? id;
+  return decodeLabelQuotes(graph.nodes.get(id)?.label ?? id);
 }
 
 function buildChoiceButtonsHtml(choices: string[], row: Row, graph: EditorGraph) {

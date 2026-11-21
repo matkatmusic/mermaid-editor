@@ -2,6 +2,7 @@ import { findOutgoingDestination, removeOutgoing, replaceOutgoing } from './sour
 import { applyEditorSource, appendEditorAction, selectEditorNode } from './editor-actions.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { replaceDeclarationInLine } from './node-inspector.ts';
+import { encodeLabelQuotes } from './editor-parse.ts';
 import { setInspectorDestinationFocus } from './node-inspector-focus.ts';
 import { getEditorGraph } from './editor-graph.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
@@ -41,8 +42,9 @@ export function updateNodeText(id = state.selectedEditorNodeId, text = nodeTextI
     const node = graph.nodes.get(id!);
     if (!node)
       return;
-    if (node.label !== text) {
-      const newToken = node.kind === 'question' ? `${id}{"${text}"}` : `${id}["${text}"]`;
+    const sourceText = encodeLabelQuotes(text);
+    if (node.label !== sourceText) {
+      const newToken = node.kind === 'question' ? `${id}{"${sourceText}"}` : `${id}["${sourceText}"]`;
       const lines = graph.lines.slice();
       lines[node.lineIndex] = replaceDeclarationInLine(lines[node.lineIndex], id!, newToken);
       await applyEditorSource(lines.join('\n'));
@@ -78,7 +80,7 @@ export function applyDestination(destination: string) {
   if (isUnchanged)
     return;
   const text = nodeTextInput.value.trim();
-  if (text !== node!.label)
+  if (encodeLabelQuotes(text) !== node!.label)
     updateNodeText(id, text);
   async function applyDestinationChange() {
     const currentGraph = getEditorGraph();
