@@ -1426,30 +1426,8 @@ codeBox.addEventListener("scroll", syncGutterScroll);
 new ResizeObserver(renderSourceLines).observe(codeBox);
 
 // label-code.ts
-function applyCodeSpans(diagram) {
-  for (const label of diagram.querySelectorAll(".nodeLabel")) {
-    const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
-    const textNodes = [];
-    for (let current = walker.nextNode();current; current = walker.nextNode())
-      textNodes.push(current);
-    for (const textNode of textNodes) {
-      const parts = textNode.data.split(/`([^`]+)`/);
-      const hasCodeSpan = parts.length > 1;
-      if (!hasCodeSpan)
-        continue;
-      const pieces = [];
-      for (let i = 0;i < parts.length; i++) {
-        const isCodeText = i % 2 === 1;
-        if (isCodeText) {
-          const code = document.createElement("code");
-          code.textContent = parts[i];
-          pieces.push(code);
-        } else if (parts[i] !== "")
-          pieces.push(parts[i]);
-      }
-      textNode.replaceWith(...pieces);
-    }
-  }
+function buildSourceWithCodeTags(source) {
+  return source.replace(/"[^"\n]*"/g, (quoted) => quoted.replace(/`([^`]+)`/g, (_span, codeText) => "<code>" + codeText.replace(/&/g, "#amp;").replace(/</g, "#lt;").replace(/>/g, "#gt;") + "</code>"));
 }
 
 // render.ts
@@ -1492,7 +1470,7 @@ async function render() {
       }
     }
     state.currentBottomQ = bottomQ;
-    const mainSource = moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value);
+    const mainSource = buildSourceWithCodeTags(moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value));
     const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const myRenderId = state.renderId;
@@ -1506,7 +1484,6 @@ async function render() {
         state.diagramScale = 1;
     }
     diagramBox.innerHTML = regularSvg;
-    applyCodeSpans(diagramBox);
     renderPhone(phoneEdges, graph);
     applyNodeTypeColors(graph);
     applyNoteDots(graph);

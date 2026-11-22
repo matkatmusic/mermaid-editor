@@ -14,7 +14,7 @@ import { /* baseScale, */ viewBoxOf } from './zoom.ts';
 import { renderPhone } from './phone-html.ts';
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { renderSourceLines } from './source-lines.ts';
-import { applyCodeSpans } from './label-code.ts';
+import { buildSourceWithCodeTags } from './label-code.ts';
 
 export async function render() {
   renderSourceLines();
@@ -60,7 +60,7 @@ export async function render() {
       }
     }
     state.currentBottomQ = bottomQ;
-    const mainSource = moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value);
+    const mainSource = buildSourceWithCodeTags(moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value));
     const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const myRenderId = state.renderId;
@@ -79,7 +79,7 @@ export async function render() {
       //   state.diagramScale = await baseScale(edges);
     }
     diagramBox.innerHTML = regularSvg;
-    applyCodeSpans(diagramBox);
+    // applyCodeSpans(diagramBox);
     renderPhone(phoneEdges, graph);
     applyNodeTypeColors(graph);
     applyNoteDots(graph);

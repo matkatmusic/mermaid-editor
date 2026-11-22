@@ -74,7 +74,9 @@
   .phone-decision:not(.phone-decision-past) .phone-question { font-size: 20px; margin-top: 20px; margin-bottom: 20px; }
   .phone-decision:not(.phone-decision-past) .phone-choice { font-size: 17px; }
   #diagram .dim { opacity: 0.15; }
-  #diagram code, #phoneDiagram code { font-family: monospace; padding: 0 4px; border-radius: 3px; background: rgba(0,0,0,0.12); }
+  /* The hidden Mermaid measuring box needs the same code style, or Mermaid sizes the node too small. */
+  #diagram code, #phoneDiagram code, body > div[id^="ddiagram-"] code { font-family: monospace; padding: 0 4px; border-radius: 3px; background: rgba(0,0,0,0.12); }
+  #phoneDiagram code { overflow-wrap: anywhere; }
   #inspectorNotice { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 2147483646; padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); color: var(--text); box-shadow: 0 4px 16px rgba(0,0,0,0.25); font: 14px sans-serif; }
   #nodeActions { display: none; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--line); }
   /* #nodeActions.open { display: flex; } */

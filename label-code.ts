@@ -1,4 +1,10 @@
-// Text in single backticks shows as a code span in the rendered diagram; the backticks stay in the file.
+// Mermaid sizes each node before the page can change its text, so the code tag goes into the source that Mermaid gets.
+// Only the render path uses this text; the file and the source editor keep the backticks.
+export function buildSourceWithCodeTags(source: string) {
+  return source.replace(/"[^"\n]*"/g, (quoted) => quoted.replace(/`([^`]+)`/g, (_span, codeText: string) => '<code>' + codeText.replace(/&/g, '#amp;').replace(/</g, '#lt;').replace(/>/g, '#gt;') + '</code>'));
+}
+
+// Retired by task 76: this ran after Mermaid had sized the node, so the wider fixed-width text overflowed the box.
 export function applyCodeSpans(diagram: Element) {
   for (const label of diagram.querySelectorAll('.nodeLabel')) {
     const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
