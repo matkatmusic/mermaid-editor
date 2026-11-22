@@ -12,6 +12,7 @@ import { measureSourceLines } from './source-lines.ts';
 import { saveEditorViewState } from './editor-view-state.ts';
 import { connectNodesWithShiftClick } from './editor-connect.ts';
 import { toggleNodeInSelection } from './editor-multiselect.ts';
+import { refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
 import './editor-keys.ts';
 import './editor-inspector-events.ts';
 import './editor-class-events.ts';
@@ -49,6 +50,8 @@ function selectNodeSourceLine(id: string) {
 }
 
 const selectClickedNode = (event: MouseEvent) => {
+  if (refuseMoveWhileNodeNameIsInvalid())
+    return;
   const nodeEl = (event.target as HTMLElement).closest('g.node');
   const id = nodeEl ? getNodeId(nodeEl) : null;
   if (event.shiftKey) {

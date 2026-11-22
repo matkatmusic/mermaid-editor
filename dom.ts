@@ -45,6 +45,7 @@ export const nodeKindChoiceBox = document.getElementById('nodeKindChoice') as HT
 export const nodeParentLabel = document.getElementById('nodeParentLabel')!;
 export const nodeNameInput = document.getElementById('nodeNameInput') as HTMLInputElement;
 export const nodeNameCheck = document.getElementById('nodeNameCheck')!;
+export const inspectorNotice = document.getElementById('inspectorNotice')!;
 export const nodeNotesRow =document.getElementById('nodeNotesRow')!;
 export const nodeNotesInput = document.getElementById('nodeNotesInput') as HTMLTextAreaElement;
 // Retired: replaced by the Class picker below (see class-defs.ts).

@@ -36,13 +36,18 @@ function getLabelOf(id: string, graph: EditorGraph) {
   return decodeLabelQuotes(graph.nodes.get(id)?.label ?? id);
 }
 
+// Text in single backticks shows as a code span; the backticks stay in the file.
+function getLabelHtml(id: string, graph: EditorGraph) {
+  return encodeHtml(getLabelOf(id, graph)).replace(/\\n/g, '<br>').replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
 function buildChoiceButtonsHtml(choices: string[], row: Row, graph: EditorGraph) {
   const isPast = row.status === 'past';
   const declinedCount = choices.length - 1;
   const declinedPct = 30 / declinedCount;
   const buttons: string[] = [];
   for (const choiceId of choices) {
-    const label = encodeHtml(getLabelOf(choiceId, graph));
+    const label = getLabelHtml(choiceId, graph);
     const isActive = row.status === 'active';
     if (isActive) {
       buttons.push(`<button type="button" class="phone-choice" data-node-id="${choiceId}" data-choose="${choiceId}">${label}</button>`);
@@ -72,12 +77,12 @@ function buildRowHtml(row: Row, graph: EditorGraph, edges: Edge[], isMasked: boo
   if (row.status === 'block') {
     const blockClass = isMasked ? 'phone-block phone-block-past' : 'phone-block';
     const { boxStyle, labelStyle } = getPhoneNodeAppearance(node);
-    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${encodeHtml(getLabelOf(row.id, graph))}</span></div>`;
+    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
   }
   const choices = choicesOf(row.id, edges);
   const activeAttr = row.status === 'active' ? ' data-active-question' : '';
   const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node);
-  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${encodeHtml(getLabelOf(row.id, graph))}</span></div>`;
+  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
   const wrapClass = isMasked ? 'phone-decision phone-decision-past' : 'phone-decision';
   const isAutoPicked = row.status === 'past' && choices.length === 1;
   const buttonsHtml = isAutoPicked ? '' : buildChoiceButtonsHtml(choices, row, graph);

@@ -94,8 +94,8 @@ for (const drawerState of ["open", "closed"]) {
         assert.ok(before.offsetLeft >= 0 && before.offsetLeft <= 24, `offsetLeft ${before.offsetLeft}px`);
         assert.ok(before.offsetTop >= 0 && before.offsetTop <= 24, `offsetTop ${before.offsetTop}px`);
         assert.ok(after.scrollTop > before.scrollTop, `scrollTop ${before.scrollTop} -> ${after.scrollTop}`);
-        assert.equal(after.left, before.left);
-        assert.equal(after.top, before.top);
+        assert.equal(after.offsetLeft, before.offsetLeft);
+        assert.equal(after.offsetTop, before.offsetTop);
     });
 }
 

@@ -1,4 +1,4 @@
-import { checkTypedNodeName, commitNodeName } from './editor-rename.ts';
+import { checkTypedNodeName, commitNodeName, isNodeNameBoxInvalid, refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
 import { destinationSelect, nodeInspectorActions, nodeNameInput, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from './dom.ts';
 import { getNodeId } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
@@ -13,10 +13,13 @@ import { applyEditorRedo, applyEditorUndo } from './editor-history.ts';
 import { applyDestination, applyDestinationSelection, updateNodeNote, updateNodeText } from './editor-commit.ts';
 import { addChoiceOnDecision, insertDecisionAfterNode, insertStaticAfterNode } from './editor-insert-after.ts';
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
+import { getOneLineLabel } from './editor-parse.ts';
 
 function openNodeTextEditor(event: MouseEvent) {
   const nodeEl = (event.target as HTMLElement).closest('g.node');
   if (!nodeEl)
+    return;
+  if (refuseMoveWhileNodeNameIsInvalid())
     return;
   selectEditorNode(getNodeId(nodeEl));
   nodeTextInput.focus();
@@ -89,7 +92,7 @@ function walkBackFromSelectedNode() {
     button.type = 'button';
     button.className = 'phone-choice';
     button.dataset.nodeId = id;
-    button.textContent = graph.nodes.get(id)!.label;
+    button.textContent = getOneLineLabel(graph.nodes.get(id)!.label);
     return button;
   });
   walkBackChoices.replaceChildren(...choiceButtons);
@@ -161,6 +164,9 @@ nodeNameInput.addEventListener('keydown', renameNodeOnCommitKey);
 nodeNameInput.addEventListener('input', checkTypedNodeName);
 // Click-away renames too; after a pointer press the rename waits for the click to land.
 function renameNodeOnChange() {
+  // A bad name stays in the box, so a click on another node can be refused and the user can fix the name.
+  if (isNodeNameBoxInvalid())
+    return;
   const id = state.selectedEditorNodeId;
   const text = nodeNameInput.value;
   if (!isPointerPressed) {

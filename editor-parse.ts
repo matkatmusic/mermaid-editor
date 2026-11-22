@@ -14,12 +14,20 @@ export function decodeLabelQuotes(label: string) {
 }
 
 // The source keeps a node on one line, so a typed line break is stored as <br/>.
-export function encodeLabelLineBreaks(text: string) {
-  return text.replace(/\n/g, '<br/>');
+// A text that already used a literal \n (and no <br>) keeps using \n, so a no-op edit does not change the file.
+export function encodeLabelLineBreaks(text: string, previousLabel = '') {
+  const usesBackslashN = previousLabel.includes('\\n') && !/<br\s*\/?>/i.test(previousLabel);
+  return text.replace(/\n/g, usesBackslashN ? '\\n' : '<br/>');
 }
 
+// Reads <br>, <br/> and <br /> (any case) and a literal \n; a save writes <br/>, or \n when the text used \n.
 export function decodeLabelLineBreaks(label: string) {
-  return label.replace(/<br\/>/g, '\n');
+  return label.replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n');
+}
+
+// For one-line lists: a quote shows as a quote and every line break shows as a space.
+export function getOneLineLabel(label: string) {
+  return decodeLabelQuotes(label).replace(/<br\s*\/?>/gi, ' ').replace(/\\n/g, ' ');
 }
 
 export function parseEditorToken(token: string) {

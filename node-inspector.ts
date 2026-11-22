@@ -5,7 +5,7 @@ import { getNodeNamePart, getParentQuestionId, showNameCheck } from './editor-re
 import { nodeKindChoiceBox, nodeKindQuestionBox, nodeKindStaticBox, nodeNameInput, nodeParentLabel, destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from './dom.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { findOutgoingDestination } from './source-edit.ts';
-import { decodeLabelLineBreaks, decodeLabelQuotes } from './editor-parse.ts';
+import { decodeLabelLineBreaks, decodeLabelQuotes, getOneLineLabel } from './editor-parse.ts';
 import { renderClassPicker } from './node-inspector-class.ts';
 import { clearInspectorFocus, updateNodeInspectorPosition } from './node-inspector-focus.ts';
 
@@ -145,7 +145,7 @@ export function renderNodeInspector() {
         continue;
       if (isHiddenChoice)
         continue;
-      destinationSelect.add(new Option(`${candidate.label} (${candidate.id})`, candidate.id));
+      destinationSelect.add(new Option(`${getOneLineLabel(candidate.label)} (${candidate.id})`, candidate.id));
     }
     destinationSelect.value = destination ?? '';
     nodeInspectorDismissBtn.textContent = destination ? 'Cancel' : 'Close';

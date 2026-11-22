@@ -21,7 +21,7 @@ export function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotes
     const oldCount = node.note ? node.note.split('\n').length : 0;
     const lines = graph.lines.slice();
     const indent = lines[node.lineIndex].match(/^\s*/)![0];
-    const newNoteLines = text ? [`${indent}${NOTE_PREFIX} ${encodeLabelLineBreaks(text)}`] : [];
+    const newNoteLines = text ? [`${indent}${NOTE_PREFIX} ${encodeLabelLineBreaks(text, node.note)}`] : [];
     lines.splice(node.lineIndex - oldCount, oldCount, ...newNoteLines);
     await applyEditorSource(lines.join('\n'));
   }
@@ -42,7 +42,7 @@ export function updateNodeText(id = state.selectedEditorNodeId, text = nodeTextI
     const node = graph.nodes.get(id!);
     if (!node)
       return;
-    const sourceText = encodeLabelLineBreaks(encodeLabelQuotes(text));
+    const sourceText = encodeLabelLineBreaks(encodeLabelQuotes(text), node.label);
     if (node.label !== sourceText) {
       const newToken = node.kind === 'question' ? `${id}{"${sourceText}"}` : `${id}["${sourceText}"]`;
       const lines = graph.lines.slice();
@@ -80,7 +80,7 @@ export function applyDestination(destination: string) {
   if (isUnchanged)
     return;
   const text = nodeTextInput.value.trim();
-  if (encodeLabelLineBreaks(encodeLabelQuotes(text)) !== node!.label)
+  if (encodeLabelLineBreaks(encodeLabelQuotes(text), node!.label) !== node!.label)
     updateNodeText(id, text);
   async function applyDestinationChange() {
     const currentGraph = getEditorGraph();

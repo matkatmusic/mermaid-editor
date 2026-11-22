@@ -37,6 +37,7 @@ var nodeKindChoiceBox = document.getElementById("nodeKindChoice");
 var nodeParentLabel = document.getElementById("nodeParentLabel");
 var nodeNameInput = document.getElementById("nodeNameInput");
 var nodeNameCheck = document.getElementById("nodeNameCheck");
+var inspectorNotice = document.getElementById("inspectorNotice");
 var nodeNotesRow = document.getElementById("nodeNotesRow");
 var nodeNotesInput = document.getElementById("nodeNotesInput");
 var nodeClassRow = document.getElementById("nodeClassRow");
@@ -230,12 +231,17 @@ function encodeLabelQuotes(text) {
 function decodeLabelQuotes(label) {
   return label.replace(/#quot;/g, '"');
 }
-function encodeLabelLineBreaks(text) {
-  return text.replace(/\n/g, "<br/>");
+function encodeLabelLineBreaks(text, previousLabel = "") {
+  const usesBackslashN = previousLabel.includes("\\n") && !/<br\s*\/?>/i.test(previousLabel);
+  return text.replace(/\n/g, usesBackslashN ? "\\n" : "<br/>");
 }
 function decodeLabelLineBreaks(label) {
-  return label.replace(/<br\/>/g, `
+  return label.replace(/<br\s*\/?>/gi, `
+`).replace(/\\n/g, `
 `);
+}
+function getOneLineLabel(label) {
+  return decodeLabelQuotes(label).replace(/<br\s*\/?>/gi, " ").replace(/\\n/g, " ");
 }
 function parseEditorToken(token) {
   const match = token.match(/^([A-Za-z0-9_]+)([\s\S]*)$/);
@@ -1252,13 +1258,16 @@ function encodeHtml(text) {
 function getLabelOf(id, graph) {
   return decodeLabelQuotes(graph.nodes.get(id)?.label ?? id);
 }
+function getLabelHtml(id, graph) {
+  return encodeHtml(getLabelOf(id, graph)).replace(/\\n/g, "<br>").replace(/`([^`]+)`/g, "<code>$1</code>");
+}
 function buildChoiceButtonsHtml(choices, row, graph) {
   const isPast = row.status === "past";
   const declinedCount = choices.length - 1;
   const declinedPct = 30 / declinedCount;
   const buttons = [];
   for (const choiceId of choices) {
-    const label = encodeHtml(getLabelOf(choiceId, graph));
+    const label = getLabelHtml(choiceId, graph);
     const isActive = row.status === "active";
     if (isActive) {
       buttons.push(`<button type="button" class="phone-choice" data-node-id="${choiceId}" data-choose="${choiceId}">${label}</button>`);
@@ -1287,12 +1296,12 @@ function buildRowHtml(row, graph, edges, isMasked) {
   if (row.status === "block") {
     const blockClass = isMasked ? "phone-block phone-block-past" : "phone-block";
     const { boxStyle, labelStyle } = getPhoneNodeAppearance(node);
-    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${encodeHtml(getLabelOf(row.id, graph))}</span></div>`;
+    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
   }
   const choices = choicesOf(row.id, edges);
   const activeAttr = row.status === "active" ? " data-active-question" : "";
   const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node);
-  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${encodeHtml(getLabelOf(row.id, graph))}</span></div>`;
+  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
   const wrapClass = isMasked ? "phone-decision phone-decision-past" : "phone-decision";
   const isAutoPicked = row.status === "past" && choices.length === 1;
   const buttonsHtml = isAutoPicked ? "" : buildChoiceButtonsHtml(choices, row, graph);
@@ -1416,6 +1425,33 @@ function syncGutterScroll() {
 codeBox.addEventListener("scroll", syncGutterScroll);
 new ResizeObserver(renderSourceLines).observe(codeBox);
 
+// label-code.ts
+function applyCodeSpans(diagram) {
+  for (const label of diagram.querySelectorAll(".nodeLabel")) {
+    const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    for (let current = walker.nextNode();current; current = walker.nextNode())
+      textNodes.push(current);
+    for (const textNode of textNodes) {
+      const parts = textNode.data.split(/`([^`]+)`/);
+      const hasCodeSpan = parts.length > 1;
+      if (!hasCodeSpan)
+        continue;
+      const pieces = [];
+      for (let i = 0;i < parts.length; i++) {
+        const isCodeText = i % 2 === 1;
+        if (isCodeText) {
+          const code = document.createElement("code");
+          code.textContent = parts[i];
+          pieces.push(code);
+        } else if (parts[i] !== "")
+          pieces.push(parts[i]);
+      }
+      textNode.replaceWith(...pieces);
+    }
+  }
+}
+
 // render.ts
 async function render() {
   renderSourceLines();
@@ -1470,6 +1506,7 @@ async function render() {
         state.diagramScale = 1;
     }
     diagramBox.innerHTML = regularSvg;
+    applyCodeSpans(diagramBox);
     renderPhone(phoneEdges, graph);
     applyNodeTypeColors(graph);
     applyNoteDots(graph);
@@ -1741,6 +1778,28 @@ function checkTypedNodeName() {
     return;
   showNameCheck(checkNodeName(getEditorGraph(), node, nodeNameInput.value));
 }
+function isNodeNameBoxInvalid() {
+  if (nodeInspector.hidden)
+    return false;
+  const graph = getEditorGraph();
+  const node = graph.nodes.get(state.selectedEditorNodeId ?? "");
+  if (!node)
+    return false;
+  return "error" in checkNodeName(graph, node, nodeNameInput.value);
+}
+var hideNoticeTimer;
+function refuseMoveWhileNodeNameIsInvalid() {
+  if (!isNodeNameBoxInvalid())
+    return false;
+  inspectorNotice.textContent = "Fix the bad Node Name first.";
+  inspectorNotice.hidden = false;
+  clearTimeout(hideNoticeTimer);
+  hideNoticeTimer = setTimeout(hideInspectorNotice, 4000);
+  return true;
+}
+function hideInspectorNotice() {
+  inspectorNotice.hidden = true;
+}
 function commitNodeName(oldId = state.selectedEditorNodeId, name = nodeNameInput.value) {
   if (!oldId)
     return;
@@ -1973,7 +2032,7 @@ function renderNodeInspector() {
         continue;
       if (isHiddenChoice)
         continue;
-      destinationSelect.add(new Option(`${candidate.label} (${candidate.id})`, candidate.id));
+      destinationSelect.add(new Option(`${getOneLineLabel(candidate.label)} (${candidate.id})`, candidate.id));
     }
     destinationSelect.value = destination ?? "";
     nodeInspectorDismissBtn.textContent = destination ? "Cancel" : "Close";
@@ -3269,6 +3328,8 @@ function selectNeighborNodeOnArrowKey(event) {
   const selectedId = state.selectedEditorNodeId;
   if (!selectedId)
     return;
+  if (refuseMoveWhileNodeNameIsInvalid())
+    return;
   const { graph, problems } = parseEditorGraph(codeBox.value);
   if (problems.length)
     throw new Error(problems.join("; "));
@@ -3310,7 +3371,7 @@ function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotesInput.v
 `).length : 0;
     const lines = graph.lines.slice();
     const indent = lines[node.lineIndex].match(/^\s*/)[0];
-    const newNoteLines = text ? [`${indent}${NOTE_PREFIX} ${encodeLabelLineBreaks(text)}`] : [];
+    const newNoteLines = text ? [`${indent}${NOTE_PREFIX} ${encodeLabelLineBreaks(text, node.note)}`] : [];
     lines.splice(node.lineIndex - oldCount, oldCount, ...newNoteLines);
     await applyEditorSource(lines.join(`
 `));
@@ -3331,7 +3392,7 @@ function updateNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.va
     const node = graph.nodes.get(id);
     if (!node)
       return;
-    const sourceText = encodeLabelLineBreaks(encodeLabelQuotes(text));
+    const sourceText = encodeLabelLineBreaks(encodeLabelQuotes(text), node.label);
     if (node.label !== sourceText) {
       const newToken = node.kind === "question" ? `${id}{"${sourceText}"}` : `${id}["${sourceText}"]`;
       const lines = graph.lines.slice();
@@ -3368,7 +3429,7 @@ function applyDestination(destination) {
   if (isUnchanged)
     return;
   const text = nodeTextInput.value.trim();
-  if (encodeLabelLineBreaks(encodeLabelQuotes(text)) !== node.label)
+  if (encodeLabelLineBreaks(encodeLabelQuotes(text), node.label) !== node.label)
     updateNodeText(id, text);
   async function applyDestinationChange() {
     const currentGraph = getEditorGraph();
@@ -3393,6 +3454,8 @@ function applyDestinationSelection() {
 function openNodeTextEditor(event) {
   const nodeEl = event.target.closest("g.node");
   if (!nodeEl)
+    return;
+  if (refuseMoveWhileNodeNameIsInvalid())
     return;
   selectEditorNode(getNodeId(nodeEl));
   nodeTextInput.focus();
@@ -3461,7 +3524,7 @@ function walkBackFromSelectedNode() {
     button.type = "button";
     button.className = "phone-choice";
     button.dataset.nodeId = id;
-    button.textContent = graph.nodes.get(id).label;
+    button.textContent = getOneLineLabel(graph.nodes.get(id).label);
     return button;
   });
   walkBackChoices.replaceChildren(...choiceButtons);
@@ -3530,6 +3593,8 @@ function renameNodeOnCommitKey(event) {
 nodeNameInput.addEventListener("keydown", renameNodeOnCommitKey);
 nodeNameInput.addEventListener("input", checkTypedNodeName);
 function renameNodeOnChange() {
+  if (isNodeNameBoxInvalid())
+    return;
   const id = state.selectedEditorNodeId;
   const text = nodeNameInput.value;
   if (!isPointerPressed) {
@@ -3914,6 +3979,8 @@ function selectNodeSourceLine(id) {
   }
 }
 var selectClickedNode = (event) => {
+  if (refuseMoveWhileNodeNameIsInvalid())
+    return;
   const nodeEl = event.target.closest("g.node");
   const id = nodeEl ? getNodeId(nodeEl) : null;
   if (event.shiftKey) {

@@ -1,4 +1,4 @@
-import { codeBox, nodeNameCheck, nodeNameInput } from './dom.ts';
+import { codeBox, inspectorNotice, nodeInspector, nodeNameCheck, nodeNameInput } from './dom.ts';
 import { NOTE_PREFIX } from './editor-types.ts';
 import type { EditorGraph, EditorNode, EditorNodeKind } from './editor-types.ts';
 import { phonePath, state } from './state.ts';
@@ -136,6 +136,33 @@ export function checkTypedNodeName() {
   if (!node)
     return;
   showNameCheck(checkNodeName(getEditorGraph(), node, nodeNameInput.value));
+}
+
+export function isNodeNameBoxInvalid() {
+  if (nodeInspector.hidden)
+    return false;
+  const graph = getEditorGraph();
+  const node = graph.nodes.get(state.selectedEditorNodeId ?? '');
+  if (!node)
+    return false;
+  return 'error' in checkNodeName(graph, node, nodeNameInput.value);
+}
+
+let hideNoticeTimer: ReturnType<typeof setTimeout> | undefined;
+
+// A click, Cmd-click or arrow key may not move the selection away from a bad Node Name; the pop-up says why.
+export function refuseMoveWhileNodeNameIsInvalid() {
+  if (!isNodeNameBoxInvalid())
+    return false;
+  inspectorNotice.textContent = 'Fix the bad Node Name first.';
+  inspectorNotice.hidden = false;
+  clearTimeout(hideNoticeTimer);
+  hideNoticeTimer = setTimeout(hideInspectorNotice, 4000);
+  return true;
+}
+
+function hideInspectorNotice() {
+  inspectorNotice.hidden = true;
 }
 
 // Blur, Enter or Tab: a valid name renames the node; an invalid name puts the old name back and keeps the error.

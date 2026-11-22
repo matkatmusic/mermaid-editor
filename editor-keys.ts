@@ -6,6 +6,7 @@ import { applyEditorSource, executeEditorAction, selectEditorNode } from './edit
 import { parseEditorGraph } from './editor-graph-parse.ts';
 import { applyEditorRedo, applyEditorUndo } from './editor-history.ts';
 import { getSelectedNodeIds } from './editor-multiselect.ts';
+import { refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
 import { buildBlockRemovedSource, buildChoiceRemovedSource } from './editor-remove.ts';
 import { buildQuestionRemovedSource } from './editor-remove-question.ts';
 
@@ -122,6 +123,8 @@ function selectNeighborNodeOnArrowKey(event: KeyboardEvent) {
     return;
   const selectedId = state.selectedEditorNodeId;
   if (!selectedId)
+    return;
+  if (refuseMoveWhileNodeNameIsInvalid())
     return;
   const { graph, problems } = parseEditorGraph(codeBox.value);
   if (problems.length)
