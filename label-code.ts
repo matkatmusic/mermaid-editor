@@ -1,7 +1,11 @@
 // Mermaid sizes each node before the page can change its text, so the code tag goes into the source that Mermaid gets.
 // Only the render path uses this text; the file and the source editor keep the backticks.
 export function buildSourceWithCodeTags(source: string) {
-  return source.replace(/"[^"\n]*"/g, (quoted) => quoted.replace(/`([^`]+)`/g, (_span, codeText: string) => '<code>' + codeText.replace(/&/g, '#amp;').replace(/</g, '#lt;').replace(/>/g, '#gt;') + '</code>'));
+  return source.replace(/"[^"\n]*"/g, (quoted) => {
+    const withBackticks = quoted.replace(/#96;/g, '`');
+    const withCodeTags = withBackticks.replace(/`([^`]+)`/g, (_span, codeText: string) => '<code>' + codeText.replace(/&/g, '#amp;').replace(/</g, '#lt;').replace(/>/g, '#gt;') + '</code>');
+    return withCodeTags.replace(/`/g, '#96;');
+  });
 }
 
 // Retired by task 76: this ran after Mermaid had sized the node, so the wider fixed-width text overflowed the box.

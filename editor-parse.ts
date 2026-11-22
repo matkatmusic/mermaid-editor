@@ -5,12 +5,13 @@ export function trimEditorQuotes(text: string) {
 }
 
 // A typed " would end the quoted label in the source, so the source holds Mermaid's entity instead.
+// A label that starts with a backtick is a Mermaid markdown string and fails to parse, so every typed backtick is stored as #96;.
 export function encodeLabelQuotes(text: string) {
-  return text.replace(/"/g, '#quot;');
+  return text.replace(/"/g, '#quot;').replace(/`/g, '#96;');
 }
 
 export function decodeLabelQuotes(label: string) {
-  return label.replace(/#quot;/g, '"');
+  return label.replace(/#quot;/g, '"').replace(/#96;/g, '`');
 }
 
 // The source keeps a node on one line, so a typed line break is stored as <br/>.

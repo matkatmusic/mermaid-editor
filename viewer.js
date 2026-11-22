@@ -226,10 +226,10 @@ function trimEditorQuotes(text) {
   return text.replace(/^"(.*)"$/, "$1");
 }
 function encodeLabelQuotes(text) {
-  return text.replace(/"/g, "#quot;");
+  return text.replace(/"/g, "#quot;").replace(/`/g, "#96;");
 }
 function decodeLabelQuotes(label) {
-  return label.replace(/#quot;/g, '"');
+  return label.replace(/#quot;/g, '"').replace(/#96;/g, "`");
 }
 function encodeLabelLineBreaks(text, previousLabel = "") {
   const usesBackslashN = previousLabel.includes("\\n") && !/<br\s*\/?>/i.test(previousLabel);
@@ -1427,7 +1427,11 @@ new ResizeObserver(renderSourceLines).observe(codeBox);
 
 // label-code.ts
 function buildSourceWithCodeTags(source) {
-  return source.replace(/"[^"\n]*"/g, (quoted) => quoted.replace(/`([^`]+)`/g, (_span, codeText) => "<code>" + codeText.replace(/&/g, "#amp;").replace(/</g, "#lt;").replace(/>/g, "#gt;") + "</code>"));
+  return source.replace(/"[^"\n]*"/g, (quoted) => {
+    const withBackticks = quoted.replace(/#96;/g, "`");
+    const withCodeTags = withBackticks.replace(/`([^`]+)`/g, (_span, codeText) => "<code>" + codeText.replace(/&/g, "#amp;").replace(/</g, "#lt;").replace(/>/g, "#gt;") + "</code>");
+    return withCodeTags.replace(/`/g, "#96;");
+  });
 }
 
 // render.ts
