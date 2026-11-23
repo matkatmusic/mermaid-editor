@@ -4,6 +4,7 @@ import { codeBox, diagramBox, multiSelectBadge, nodeActions, selectedNodeBox } f
 import { state } from './state.ts';
 import { render } from './render.ts';
 import { saveDiagram } from './diagram-save.ts';
+// import { buildSourceWithHexagonDecisions } from './editor-parse.ts';
 import { renderNodeInspector } from './node-inspector.ts';
 import { renderSourceLines } from './source-lines.ts';
 import { refreshSearchMatches } from './node-search.ts';
@@ -27,6 +28,15 @@ export async function applyEditorSource(source: string, options?: { recordHistor
   // selectEditorNode(null);
   selectEditorNode(state.selectedEditorNodeId);
 }
+
+// Retired by task 87 change: both Q_X{"text"} (diamond) and Q_X{{"text"}} (hexagon) stay valid, so a load changes nothing.
+// export async function rewriteDecisionsAsHexagons() {
+//   const rewrittenSource = buildSourceWithHexagonDecisions(codeBox.value);
+//   const isAlreadyHexagons = rewrittenSource === codeBox.value;
+//   if (isAlreadyHexagons)
+//     return;
+//   await applyEditorSource(rewrittenSource);
+// }
 
 function clearFailedAction() {}
 

@@ -67,7 +67,7 @@ test('test_insert_decision_before_adds_one_leading_choice_and_splices_incoming_e
   await clickInspectorAction('insert-decision-before');
   const source = await executeExpression('codeBox.value');
   // Step: the new Decision has exactly one outgoing edge, to its new choice.
-  assert.ok(source.includes('Q_NEW_1{"New Decision"}'));
+  assert.ok(source.includes('Q_NEW_1{{"New Decision"}}'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_NEW["New choice"]'));
   assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_NEW'));
   const decisionOutgoing = source.match(/Q_NEW_1 -->/g) || [];
@@ -99,7 +99,7 @@ test('test_insert_decision_before_a_root_node_becomes_the_new_root', async () =>
   await dispatchNodeClick('B_Start');
   await clickInspectorAction('insert-decision-before');
   const source = await executeExpression('codeBox.value');
-  assert.ok(source.includes('Q_NEW_1{"New Decision"}'));
+  assert.ok(source.includes('Q_NEW_1{{"New Decision"}}'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_NEW["New choice"]'));
   assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_NEW'));
   const decisionOutgoing = source.match(/Q_NEW_1 -->/g) || [];

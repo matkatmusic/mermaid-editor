@@ -8,6 +8,8 @@ export interface EditorNode {
   label: string;
   note: string;
   lineIndex: number;
+  // A decision written Q_X{{"text"}} shows as a hexagon; Q_X{"text"} shows as a diamond. False for every other kind.
+  isHexagon: boolean;
 }
 
 export const NOTE_PREFIX = '%% ==note==:';

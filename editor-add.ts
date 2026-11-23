@@ -24,7 +24,7 @@ export function addQuestionAfter() {
   const noId = buildChoiceId(qId, 'N');
   const newLines = [
     `  ${selected} --> ${qId}`,
-    `  ${qId}{"New question"}`,
+    `  ${qId}{{"New question"}}`,
     `  ${yesId}["Yes"]`,
     `  ${noId}["No"]`,
     `  ${qId} --> ${yesId}`,

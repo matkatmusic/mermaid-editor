@@ -56,7 +56,7 @@ export async function insertDecisionAfterNode(sourceId: string, graph: EditorGra
   const yesId = buildChoiceId(decisionId, 'Y');
   const noId = buildChoiceId(decisionId, 'N');
   const newLines = [
-    `  ${decisionId}{"New Decision"}`,
+    `  ${decisionId}{{"New Decision"}}`,
     `  ${yesId}["Yes"]`,
     `  ${noId}["No"]`,
     `  ${sourceId} --> ${decisionId}`,

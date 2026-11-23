@@ -2,7 +2,7 @@ import { NOTE_PREFIX } from './editor-types.ts';
 import type { EditorEdge, EditorGraph, EditorNode, EditorNodeKind } from './editor-types.ts';
 import { getDeclarationRequirement, parseEditorEdgeLine, parseEditorToken, validateDeclaration } from './editor-parse.ts';
 
-type DeclarationLine ={ shape: 'brace' | 'rect' | 'other'; label: string; lineIndex: number };
+type DeclarationLine ={ shape: 'brace' | 'hexagon' | 'rect' | 'other'; label: string; lineIndex: number };
 
 function storeDeclaration(declLines: Map<string, DeclarationLine>, token: ReturnType<typeof parseEditorToken>, lineIndex: number) {
   const isDeclaration = !!token.shape;
@@ -46,7 +46,7 @@ export function parseEditorGraph(source: string): { graph: EditorGraph; problems
         validateDeclaration(decl.id, decl.shape, lineIndex + 1, problems);
       }
       else {
-        const opensQuotedLabel = line.match(/^([A-Za-z0-9_]+)(?:\[|\{|\(\[)"/);
+        const opensQuotedLabel = line.match(/^([A-Za-z0-9_]+)(?:\[|\{\{?|\(\[)"/);
         if (opensQuotedLabel) {
           multiLineIds.add(opensQuotedLabel[1]);
           problems.push(`Line ${lineIndex + 1}: the definition of "${opensQuotedLabel[1]}" must start and end on one line. Its text has a line break.`);
@@ -86,7 +86,7 @@ export function parseEditorGraph(source: string): { graph: EditorGraph; problems
     const noteLines: string[] = [];
     for (let i = decl.lineIndex - 1; i >= 0 && lines[i].trim().startsWith(NOTE_PREFIX); i--)
       noteLines.unshift(lines[i].trim().slice(NOTE_PREFIX.length).trim());
-    nodes.set(id, { id, kind, label: decl.label, note: noteLines.join('\n'), lineIndex: decl.lineIndex });
+    nodes.set(id, { id, kind, label: decl.label, note: noteLines.join('\n'), lineIndex: decl.lineIndex, isHexagon: decl.shape === 'hexagon' });
   }
   return { graph: { lines, nodes, edges }, problems: uniqueProblems };
 }

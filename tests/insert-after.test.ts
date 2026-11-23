@@ -81,7 +81,7 @@ test('test_insert_decision_after_splices_blocks_and_choices_with_one_terminal_br
   let source = await executeExpression('codeBox.value');
   assert.ok(source.includes('B_A --> B_B'));
   assert.ok(source.includes('B_B --> Q_NEW_1'));
-  assert.ok(source.includes('Q_NEW_1{"New Decision"}'));
+  assert.ok(source.includes('Q_NEW_1{{"New Decision"}}'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_Y["Yes"]'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_N["No"]'));
   assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_Y'));

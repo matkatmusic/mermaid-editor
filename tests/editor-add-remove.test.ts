@@ -14,7 +14,7 @@ test("test_add_question_after_terminal_block_creates_two_choices", async () => {
   const source = await executeExpression("codeBox.value");
   // Step: the new question is spliced in with two default choices.
   assert.ok(source.includes("B_HaveConvo --> Q_NEW_1"));
-  assert.ok(source.includes('Q_NEW_1{"New question"}'));
+  assert.ok(source.includes('Q_NEW_1{{"New question"}}'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_Y["Yes"]'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_N["No"]'));
   assert.ok(source.includes("Q_NEW_1 --> Q_CHOICE_NEW_1_Y"));

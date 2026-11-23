@@ -12,7 +12,7 @@ import { clearInspectorFocus, updateNodeInspectorPosition } from './node-inspect
 export function replaceDeclarationInLine(line: string, id: string, newToken: string) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // A quoted label may hold "]" or "}", so a quoted shape is tried before the plain one.
-  const re = new RegExp(`${escapedId}(\\{"[^"]*"\\}|\\["[^"]*"\\]|\\{[^}]*\\}|\\[[^\\]]*\\]|\\(\\[[^\\]]*\\]\\))`);
+  const re = new RegExp(`${escapedId}(\\{\\{"[^"]*"\\}\\}|\\{"[^"]*"\\}|\\["[^"]*"\\]|\\{\\{[^}]*\\}\\}|\\{[^}]*\\}|\\[[^\\]]*\\]|\\(\\[[^\\]]*\\]\\))`);
   return line.replace(re, newToken);
 }
 

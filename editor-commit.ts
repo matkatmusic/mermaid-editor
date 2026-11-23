@@ -44,7 +44,8 @@ export function updateNodeText(id = state.selectedEditorNodeId, text = nodeTextI
       return;
     const sourceText = encodeLabelLineBreaks(encodeLabelQuotes(text), node.label);
     if (node.label !== sourceText) {
-      const newToken = node.kind === 'question' ? `${id}{"${sourceText}"}` : `${id}["${sourceText}"]`;
+      const decisionToken = node.isHexagon ? `${id}{{"${sourceText}"}}` : `${id}{"${sourceText}"}`;
+      const newToken = node.kind === 'question' ? decisionToken : `${id}["${sourceText}"]`;
       const lines = graph.lines.slice();
       lines[node.lineIndex] = replaceDeclarationInLine(lines[node.lineIndex], id!, newToken);
       await applyEditorSource(lines.join('\n'));

@@ -64,7 +64,7 @@ test("test_add_decision_block_from_the_menu_adds_a_question_with_yes_and_no_choi
   await waitMilliseconds(800);
   // Step: the source has the question, its two choices, and only the two edges out of the question.
   const source = await executeExpression("codeBox.value");
-  assert.ok(source.includes('Q_NEW_1{"New Decision"}'));
+  assert.ok(source.includes('Q_NEW_1{{"New Decision"}}'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_Y["Yes"]'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_N["No"]'));
   assert.ok(source.includes("Q_NEW_1 --> Q_CHOICE_NEW_1_Y"));

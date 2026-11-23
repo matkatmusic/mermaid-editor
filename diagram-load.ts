@@ -52,4 +52,5 @@ export async function loadDiagram(name: string) {
     applyMainViewport(metadata, graph);
   loadList();
   createDiagramWatcher(name);
+  // await rewriteDecisionsAsHexagons();
 }

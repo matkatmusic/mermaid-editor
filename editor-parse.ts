@@ -34,9 +34,14 @@ export function getOneLineLabel(label: string) {
 export function parseEditorToken(token: string) {
   const match = token.match(/^([A-Za-z0-9_]+)([\s\S]*)$/);
   if (!match)
-    return { id: token, shape: null as null | 'brace' | 'rect' | 'other', label: '' };
+    return { id: token, shape: null as null | 'brace' | 'hexagon' | 'rect' | 'other', label: '' };
   const id = match[1];
   const rest = match[2].trim();
+  const startsHexagon = rest.startsWith('{{');
+  const endsHexagon = rest.endsWith('}}');
+  const isHexagon = startsHexagon && endsHexagon;
+  if (isHexagon)
+    return { id, shape: 'hexagon' as const, label: trimEditorQuotes(rest.slice(2, -2)) };
   const startsBrace = rest.startsWith('{');
   const endsBrace = rest.endsWith('}');
   const isBrace = startsBrace && endsBrace;
@@ -52,7 +57,7 @@ export function parseEditorToken(token: string) {
   const isBracket = startsBracket && endsBracket;
   if (isBracket)
     return { id, shape: 'rect' as const, label: trimEditorQuotes(rest.slice(1, -1)) };
-  return { id, shape: null as null | 'brace' | 'rect' | 'other', label: '' };
+  return { id, shape: null as null | 'brace' | 'hexagon' | 'rect' | 'other', label: '' };
 }
 
 export function getDeclarationRequirement(id: string) {
@@ -61,14 +66,14 @@ export function getDeclarationRequirement(id: string) {
     return 'start with "Q_CHOICE" and use bracket shape []';
   const isQuestion = id.startsWith('Q_');
   if (isQuestion)
-    return 'start with "Q_" and use brace shape {}';
+    return 'start with "Q_" and use diamond shape {} or hexagon shape {{}}';
   const isBlock = id.startsWith('B_');
   if (isBlock)
     return 'start with "B_" and use bracket shape []';
-  return 'use "Q_" with brace shape {} for a decision, "Q_CHOICE" with bracket shape [] for a choice, or "B_" with bracket shape [] for a static block';
+  return 'use "Q_" with diamond shape {} or hexagon shape {{}} for a decision, "Q_CHOICE" with bracket shape [] for a choice, or "B_" with bracket shape [] for a static block';
 }
 
-export function validateDeclaration(id: string, shape: 'brace' | 'rect' | 'other', lineNumber: number, problems: string[]) {
+export function validateDeclaration(id: string, shape: 'brace' | 'hexagon' | 'rect' | 'other', lineNumber: number, problems: string[]) {
   const subject = `Line ${lineNumber}: id "${id}"`;
   if (shape === 'other') {
     problems.push(`${subject} uses unsupported rounded/stadium shape; it must ${getDeclarationRequirement(id)}.`);
@@ -82,8 +87,9 @@ export function validateDeclaration(id: string, shape: 'brace' | 'rect' | 'other
   }
   const isQuestion = id.startsWith('Q_');
   if (isQuestion) {
-    if (shape !== 'brace')
-      problems.push(`${subject} is a decision and must use brace shape {} (for example, ${id}{"Decision"}).`);
+    const isDecisionShape = shape === 'brace' || shape === 'hexagon';
+    if (!isDecisionShape)
+      problems.push(`${subject} is a decision and must use diamond shape {} or hexagon shape {{}} (for example, ${id}{{"Decision"}}).`);
     return;
   }
   const isBlock = id.startsWith('B_');
@@ -125,9 +131,14 @@ export function parseEditorEdgeLine(line: string) {
   return segments;
 }
 
+// Retired by task 87 change: both decision shapes stay valid, so nothing rewrites { } to {{ }}.
+// export function buildSourceWithHexagonDecisions(source: string) {
+//   return source.split('\n').map((line) => line.replace(/^(\s*Q_[A-Za-z0-9_]*)\{(?!\{)(.*)\}(\s*)$/, '$1{{$2}}$3')).join('\n');
+// }
+
 export function getDeclarationSuffix(node: EditorNode) {
   if (node.kind === 'question')
-    return `{"${node.label}"}`;
+    return node.isHexagon ? `{{"${node.label}"}}` : `{"${node.label}"}`;
   if (node.kind === 'choice')
     return `["${node.label}"]`;
   return `["${node.label}"]`;

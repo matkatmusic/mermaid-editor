@@ -21,12 +21,12 @@ test("test_parse_editor_graph_reports_no_problems_for_a_compliant_source", () =>
 
 test("test_parse_editor_graph_reports_a_wrong_prefix", () => {
   const { problems } = parseEditorGraph('flowchart TD\n  X_Bad["Bad"]');
-  assert.deepEqual(problems, ['Line 2: id "X_Bad" has a non-compliant prefix; it must use "Q_" with brace shape {} for a decision, "Q_CHOICE" with bracket shape [] for a choice, or "B_" with bracket shape [] for a static block.']);
+  assert.deepEqual(problems, ['Line 2: id "X_Bad" has a non-compliant prefix; it must use "Q_" with diamond shape {} or hexagon shape {{}} for a decision, "Q_CHOICE" with bracket shape [] for a choice, or "B_" with bracket shape [] for a static block.']);
 });
 
 test("test_parse_editor_graph_reports_a_wrong_shape", () => {
   const { problems } = parseEditorGraph('flowchart TD\n  Q_Q1["Ready?"]');
-  assert.deepEqual(problems, ['Line 2: id "Q_Q1" is a decision and must use brace shape {} (for example, Q_Q1{"Decision"}).']);
+  assert.deepEqual(problems, ['Line 2: id "Q_Q1" is a decision and must use diamond shape {} or hexagon shape {{}} (for example, Q_Q1{{"Decision"}}).']);
 });
 
 test("test_parse_editor_graph_reports_an_inline_declaration_on_an_edge", () => {

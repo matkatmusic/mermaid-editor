@@ -3,6 +3,7 @@ import { state } from './state.ts';
 import { applyTypeMetadata, splitEditorMetadata } from './editor-metadata.ts';
 import { render } from './render.ts';
 import { loadList, resetEditorHistory, setStatus } from './diagram-io.ts';
+// import { rewriteDecisionsAsHexagons } from './editor-actions.ts';
 
 let lastSavedDiagramText: string | null = null;
 let declinedDiskText: string | null = null;
@@ -57,6 +58,7 @@ export function createDiagramWatcher(name: string, watchUrl = '/api/watch/' + en
     }
     lastSavedDiagramText = text;
     render();
+    // await rewriteDecisionsAsHexagons();
   };
   source.onmessage = refresh;
   source.onopen = refresh;

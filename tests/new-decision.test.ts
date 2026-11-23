@@ -17,7 +17,7 @@ test('test_new_decision_button_and_destination_option_have_identical_source_and_
   const buttonSource = await executeExpression('codeBox.value');
   assert.ok(buttonSource.includes('B_A --> B_B'));
   assert.ok(buttonSource.includes('B_B --> Q_NEW_1'));
-  assert.ok(buttonSource.includes('Q_NEW_1{"New Decision"}'));
+  assert.ok(buttonSource.includes('Q_NEW_1{{"New Decision"}}'));
   assert.ok(buttonSource.includes('Q_CHOICE_NEW_1_Y["Yes"]'));
   assert.ok(buttonSource.includes('Q_CHOICE_NEW_1_N["No"]'));
   assert.ok(buttonSource.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_Y'));
@@ -48,7 +48,7 @@ test('test_new_decision_text_enter_commits_the_new_decision', async () => {
   await executeExpression(`(() => { const input = document.getElementById('nodeTextInput'); input.value = 'Decide next'; input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`);
   await executeExpression('window.editorActionPromise');
   const source = await executeExpression('codeBox.value');
-  assert.ok(source.includes('Q_NEW_1{"Decide next"}'));
+  assert.ok(source.includes('Q_NEW_1{{"Decide next"}}'));
   assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_Y'));
   assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_N'));
   assert.equal(await executeExpression('editorHistory.length'), historyBeforeText + 1);

@@ -66,7 +66,7 @@ export function insertDecisionBefore() {
   const decisionId = getNextEditorId('Q_NEW', graph);
   const newChoiceId = buildChoiceId(decisionId, 'NEW');
   const newLines: string[] = [
-    `  ${decisionId}{"New Decision"}`,
+    `  ${decisionId}{{"New Decision"}}`,
     `  ${newChoiceId}["New choice"]`,
     `  ${decisionId} --> ${newChoiceId}`,
   ];

@@ -64,4 +64,5 @@ export async function showOpenedFile(path: string, text: string) {
   if (graph.nodes.has(metadata?.lastSelectedNodeId ?? ''))
     selectEditorNode(metadata!.lastSelectedNodeId);
   applyMainViewport(metadata, graph);
+  // await rewriteDecisionsAsHexagons();
 }
