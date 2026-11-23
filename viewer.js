@@ -1187,6 +1187,7 @@ function applyMainZoom(preserveViewportCenter = true) {
   const oldWidth = Number.parseFloat(svg.style.width);
   const oldHeight = Number.parseFloat(svg.style.height);
   const centerX = outputBox.scrollLeft + outputBox.clientWidth / 2;
+  const svgOffsetX = outputBox.scrollLeft + svg.getBoundingClientRect().left - outputBox.getBoundingClientRect().left;
   const centerY = outputBox.scrollTop + outputBox.clientHeight / 2;
   const zoom = state.mainZoomPercent / 100;
   const newWidth = svg.viewBox.baseVal.width * scale * zoom;
@@ -1198,7 +1199,7 @@ function applyMainZoom(preserveViewportCenter = true) {
   if (preserveViewportCenter) {
     if (hadWidth) {
       if (hadHeight) {
-        outputBox.scrollLeft = centerX * newWidth / oldWidth - outputBox.clientWidth / 2;
+        outputBox.scrollLeft = svgOffsetX + (centerX - svgOffsetX) * newWidth / oldWidth - outputBox.clientWidth / 2;
         outputBox.scrollTop = centerY * newHeight / oldHeight - outputBox.clientHeight / 2;
       }
     }
@@ -2045,15 +2046,36 @@ function buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines) {
     if (removedLineIndexes.has(node.lineIndex))
       removedNodeIds.add(node.id);
   }
+  const deletedNodeIds = new Set;
+  for (const id of removedNodeIds) {
+    const idPattern = new RegExp(`(?<!\\w)${id}(?!\\w)`);
+    const isDeclaredAgain = newLines.some((line) => idPattern.test(line));
+    const isUsedByKeptEdge = graph.edges.some((edge) => !removedWithNotes.has(edge.lineIndex) && (edge.from === id || edge.to === id));
+    if (!isDeclaredAgain && !isUsedByKeptEdge)
+      deletedNodeIds.add(id);
+  }
   const kept = [];
   for (let lineIndex = 0;lineIndex < graph.lines.length; lineIndex++) {
     const isRemoved = removedWithNotes.has(lineIndex);
     if (isRemoved)
       continue;
     const size = parseSizeLine(graph.lines[lineIndex]);
-    const isSizeOfRemovedNode = !!size && removedNodeIds.has(size.id);
-    if (!isSizeOfRemovedNode)
+    const isSizeOfRemovedNode = !!size && deletedNodeIds.has(size.id);
+    if (isSizeOfRemovedNode)
+      continue;
+    const classMatch = graph.lines[lineIndex].match(CLASS_LINE_RE);
+    if (!classMatch) {
       kept.push(graph.lines[lineIndex]);
+      continue;
+    }
+    const namedIds = classMatch[2].split(",");
+    const remainingIds = namedIds.filter((id) => !deletedNodeIds.has(id));
+    if (remainingIds.length === namedIds.length) {
+      kept.push(graph.lines[lineIndex]);
+      continue;
+    }
+    if (remainingIds.length > 0)
+      kept.push(`${classMatch[1]}class ${remainingIds.join(",")} ${classMatch[3]}`);
   }
   let classBlockStart = -1;
   for (let i = 0;i < kept.length; i++) {
@@ -2480,10 +2502,10 @@ function applyMainViewport(metadata, graph) {
     return;
   const outputRect = outputBox.getBoundingClientRect();
   const nodeRect = node.getBoundingClientRect();
-  const nodeLeft = outputBox.scrollLeft + nodeRect.left - outputRect.left;
+  const nodeCenterX = outputBox.scrollLeft + nodeRect.left + nodeRect.width / 2 - outputRect.left;
   const nodeTop = outputBox.scrollTop + nodeRect.top - outputRect.top;
   if (!hasSavedLeft)
-    outputBox.scrollLeft = Math.max(0, nodeLeft - 12);
+    outputBox.scrollLeft = Math.max(0, nodeCenterX - outputBox.clientWidth / 2);
   if (!hasSavedTop)
     outputBox.scrollTop = Math.max(0, nodeTop - 12);
 }
@@ -4325,7 +4347,7 @@ var DEFAULT_CLASS_LINES = [
   "  classDef Question fill:#79d4fb,stroke:#000000",
   "  classDef Answer fill:#5df9b5,stroke:#000000"
 ];
-function resetEditorToNewDiagram() {
+async function resetEditorToNewDiagram() {
   if (state.watcher) {
     state.watcher.close();
     state.watcher = null;
@@ -4344,7 +4366,8 @@ function resetEditorToNewDiagram() {
   codeBox.value = ["flowchart TD", "  B_NEW[New idea]", ...DEFAULT_CLASS_LINES].join(`
 `);
   resetEditorHistory(codeBox.value);
-  render();
+  await render();
+  applyMainViewport(null, getEditorGraph());
   loadList();
   setDrawerOpen(true);
 }
