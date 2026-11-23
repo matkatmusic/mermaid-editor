@@ -16,14 +16,14 @@ async function selectBlockAndTypeBadName() {
     await clickNodeWithMouse("B_A");
     await waitMilliseconds(300);
     await executeExpression("(() => { const box = document.getElementById('nodeNameInput'); box.focus(); box.select(); })()");
-    await send("Input.insertText", { text: "bad name" });
+    await send("Input.insertText", { text: "bad-name" });
 }
 
 async function assertSelectionStayedWithErrorAndNotice() {
     assert.equal(await executeExpression("selectedEditorNodeId"), "B_A");
     assert.deepEqual(await getHighlightedNodeIds(), ["B_A"]);
     assert.equal(await executeExpression("multiSelectedNodeIds.length"), 0);
-    assert.equal(await executeExpression("document.getElementById('nodeNameInput').value"), "bad name");
+    assert.equal(await executeExpression("document.getElementById('nodeNameInput').value"), "BAD-NAME");
     assert.equal(await executeExpression("document.getElementById('nodeNameCheck').classList.contains('error')"), true);
     assert.ok((await executeExpression("document.getElementById('nodeNameCheck').textContent")).includes("cannot contain"));
     const notice = JSON.parse(await executeExpression(`JSON.stringify((() => {

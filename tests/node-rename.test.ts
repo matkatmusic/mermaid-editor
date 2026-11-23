@@ -111,8 +111,8 @@ test("test_checker_updates_on_every_key_stroke", async () => {
   await openSourceAndSelect(MOOD_SOURCE, "Q_MOOD");
   await typeNameKeyByKey("FEEL");
   assert.equal(await readCheck(), "result: Q_FEEL");
-  await typeNameKeyByKey("A-B C");
-  assert.equal(await readCheck(), "error: node names cannot contain -, space");
+  await typeNameKeyByKey("A-B.C");
+  assert.equal(await readCheck(), "error: node names cannot contain -, .");
   await typeNameKeyByKey("");
   assert.equal(await readCheck(), "error: node name cannot be empty");
   await typeNameKeyByKey("MOODY");

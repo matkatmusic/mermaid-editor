@@ -166,6 +166,13 @@ nodeNameInput.addEventListener('input', checkTypedNodeName);
 function renameNodeOnChange() {
   // A bad name stays in the box, so a click on another node can be refused and the user can fix the name.
   if (isNodeNameBoxInvalid())
+// The coding standard for node names is capitals and underscores, so the box forces it while the user types.
+function forceNodeNameFormat() {
+  const { selectionStart, selectionEnd } = nodeNameInput;
+  nodeNameInput.value = nodeNameInput.value.toUpperCase().replace(/ /g, '_');
+  nodeNameInput.setSelectionRange(selectionStart, selectionEnd);
+}
+nodeNameInput.addEventListener('input', forceNodeNameFormat);
     return;
   const id = state.selectedEditorNodeId;
   const text = nodeNameInput.value;
