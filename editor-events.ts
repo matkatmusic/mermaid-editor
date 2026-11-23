@@ -139,3 +139,18 @@ const selectPhoneChoice = async (event: MouseEvent) => {
   }
 };
 phoneDiagramBox.addEventListener('click', selectPhoneChoice);
+
+const scrollMainViewToPhoneRow = (event: MouseEvent) => {
+  const row = (event.target as HTMLElement).closest<HTMLElement>('.phone-block, .phone-question');
+  if (!row)
+    return;
+  const node = diagramBox.querySelector('[id*="flowchart-' + row.dataset.nodeId + '-"]')!;
+  const outputRect = outputBox.getBoundingClientRect();
+  const nodeRect = node.getBoundingClientRect();
+  outputBox.scrollBy({
+    left: nodeRect.left + nodeRect.width / 2 - outputRect.left - outputBox.clientWidth / 2,
+    top: nodeRect.top + nodeRect.height / 2 - outputRect.top - outputBox.clientHeight / 2,
+    behavior: 'smooth',
+  });
+};
+phoneDiagramBox.addEventListener('click', scrollMainViewToPhoneRow);
