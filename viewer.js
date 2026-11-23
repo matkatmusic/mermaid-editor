@@ -129,7 +129,6 @@ var state = {
   advanceAfterDecisionText: null,
   focusDestinationAfterTextId: null,
   pendingRemoval: null,
-  connectFromNodeId: null,
   editorHistory: [codeBox.value],
   editorHistoryIndex: 0,
   editorActionPromise: undefined
@@ -1645,6 +1644,21 @@ function buildSourceWithCodeTags(source) {
 }
 
 // render.ts
+var outputPointerHeld = null;
+function holdNewDrawingUntilPointerIsUp() {
+  outputPointerHeld = new Promise((resolve) => {
+    function endHold() {
+      outputPointerHeld = null;
+      resolve();
+    }
+    function endHoldAfterClick() {
+      setTimeout(endHold, 0);
+    }
+    document.addEventListener("pointerup", endHoldAfterClick, { once: true, capture: true });
+    document.addEventListener("pointercancel", endHoldAfterClick, { once: true, capture: true });
+  });
+}
+outputBox.addEventListener("pointerdown", holdNewDrawingUntilPointerIsUp, true);
 async function render() {
   renderSourceLines();
   errorBox.textContent = "";
@@ -1689,6 +1703,7 @@ async function render() {
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const myRenderId = state.renderId;
     const { svg: regularSvg } = await mermaid.render("diagram-" + state.renderId++, mainSource);
+    await outputPointerHeld;
     if (state.renderId !== myRenderId + 1)
       return;
     const hasNodes = graph.nodes.size > 0;
@@ -3440,15 +3455,13 @@ async function saveEditorViewState() {
 
 // editor-connect.ts
 function connectNodesWithShiftClick(clickedId) {
-  const fromId = state.connectFromNodeId;
+  const fromId = state.selectedEditorNodeId;
   if (!fromId) {
-    state.connectFromNodeId = clickedId;
     selectEditorNode(clickedId);
     return;
   }
   if (fromId === clickedId)
     return;
-  state.connectFromNodeId = null;
   const graph = getEditorGraph();
   const newLines = [`  ${fromId} --> ${clickedId}`];
   setEditorActionPromise(applyEditorSource(buildSourceWithLinesReplaced(graph, new Set, newLines)));
@@ -4274,7 +4287,6 @@ var selectClickedNode = (event) => {
       return;
     }
   }
-  state.connectFromNodeId = null;
   if (id)
     selectNodeSourceLine(id);
   selectEditorNode(id);
@@ -4285,6 +4297,10 @@ var selectClickedNode = (event) => {
   }
 };
 outputBox.addEventListener("click", selectClickedNode);
+outputBox.addEventListener("mousedown", (event) => {
+  if (event.shiftKey)
+    event.preventDefault();
+});
 var selectPhoneChoice = async (event) => {
   const target = event.target.closest("button[data-choose], button[data-revert], button[data-undo], button[data-reset-decisions], button[data-write-path]");
   if (!target)
