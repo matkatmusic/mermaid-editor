@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "./browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, send, waitMilliseconds } from "./cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "./editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -131,6 +131,66 @@ test("test_the_extra_arrow_head_has_the_same_fill_as_the_normal_arrow_head", asy
     const head = findHead(report, "L_B_N13_B_N0_0");
     assert.ok(head, JSON.stringify(report.heads));
     assert.equal(head.fill, report.normalMarkerFill);
+});
+
+async function loadChainWithBackEdge(blockCount: number, backEdgeTargetIndex: number) {
+    const ids = Array.from({ length: blockCount }, (_, index) => `B_N${index}`);
+    const source = ["flowchart TD", ...ids.map((id) => `  ${id}["Block ${id}"]`), `  ${ids.join(" --> ")}`, `  ${ids[ids.length - 1]} --> ${ids[backEdgeTargetIndex]}`].join("\n");
+    await resetEditorFixture();
+    await setEditorSource(source);
+    await waitMilliseconds(800);
+}
+
+// Presses and releases the left mouse button at the middle of the extra arrow head of one line.
+async function clickArrowHeadWithMouse(edgeDataId: string) {
+    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+        const rect = document.querySelector('#diagram .offscreen-arrow-head[data-edge-id="${edgeDataId}"]').getBoundingClientRect();
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })())`));
+    await send("Input.dispatchMouseEvent", { type: "mousePressed", x: center.x, y: center.y, button: "left", clickCount: 1 });
+    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: center.x, y: center.y, button: "left", clickCount: 1 });
+}
+
+// Vertical distance in pixels from the middle of one block to the middle of the visible diagram area.
+async function measureBlockDistanceFromCenter(blockId: string): Promise<number> {
+    return executeExpression(`(() => {
+        const output = document.getElementById('output');
+        const outputRect = output.getBoundingClientRect();
+        const visibleMiddle = outputRect.top + output.clientTop + output.clientHeight / 2;
+        const rect = document.querySelector('#diagram [id*="flowchart-${blockId}-"]').getBoundingClientRect();
+        return Math.abs(rect.top + rect.height / 2 - visibleMiddle);
+    })()`);
+}
+
+const CENTERED_WITHIN_PX = 20;
+
+test("test_clicking_an_arrow_head_of_a_line_that_goes_up_centers_the_end_block_and_selects_nothing", async () => {
+    // Step: 24 blocks; the last block links back to B_N8, which is far above the visible area when scrolled to the bottom.
+    await loadChainWithBackEdge(24, 8);
+    await setOutputScrollTop("max");
+    assert.ok(findHead(await measureHeads(), "L_B_N23_B_N8_0"));
+    // Step: click the extra arrow head with the real mouse.
+    await clickArrowHeadWithMouse("L_B_N23_B_N8_0");
+    await waitMilliseconds(1500);
+    // Step: the end block B_N8 is in the middle of the visible area and no block is selected.
+    assert.ok(await measureBlockDistanceFromCenter("B_N8") <= CENTERED_WITHIN_PX);
+    assert.equal(await executeExpression("document.querySelectorAll('#diagram .editor-selected').length"), 0);
+});
+
+test("test_clicking_an_arrow_head_of_a_line_that_goes_down_centers_the_end_block", async () => {
+    // Step: scroll so the line B_N3 --> B_N4 runs off the bottom edge.
+    await loadChainWithBackEdge(24, 8);
+    await scrollEdgeMiddleToBottomEdge("L_B_N3_B_N4_0");
+    assert.ok(findHead(await measureHeads(), "L_B_N3_B_N4_0"));
+    // Step: click its extra arrow head with the real mouse.
+    // The horizontal overlay scrollbar covers the bottom 16 px of the output box and takes the mouse click, so it is hidden for this click.
+    await executeExpression("document.getElementById('output').style.overflowX = 'hidden'");
+    const distanceBeforeClick = await measureBlockDistanceFromCenter("B_N4");
+    await clickArrowHeadWithMouse("L_B_N3_B_N4_0");
+    await waitMilliseconds(1500);
+    // Step: the end block B_N4 is in the middle of the visible area.
+    const distance = await measureBlockDistanceFromCenter("B_N4");
+    assert.ok(distance <= CENTERED_WITHIN_PX, `B_N4 is ${distance}px from the middle, was ${distanceBeforeClick}px before the click`);
 });
 
 test("test_after_a_zoom_out_the_extra_arrow_head_tip_is_inside_the_visible_area", async () => {

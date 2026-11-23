@@ -1,4 +1,6 @@
-import { diagramBox, outputBox } from './dom.ts';
+import { codeBox, diagramBox, outputBox } from './dom.ts';
+import { parseEdges } from './diagram-source.ts';
+import { getEdgeEnds } from './render-helpers.ts';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 // The extra arrow tip sits this many pixels inside the visible area, so the whole head shows.
@@ -91,7 +93,7 @@ function buildArrowHead(path: SVGPathElement, length: number, marker: SVGMarkerE
     head.style.fill = markerPathStyle.fill;
     head.style.stroke = markerPathStyle.stroke;
     head.setAttribute('transform', `translate(${point.x} ${point.y}) rotate(${angleDegrees}) scale(${scale}) translate(${-marker.refX.baseVal.value} ${-marker.refY.baseVal.value})`);
-    head.setAttribute('pointer-events', 'none');
+    // head.setAttribute('pointer-events', 'none');
     head.setAttribute('data-edge-id', path.getAttribute('data-id')!);
     return head;
 }
@@ -122,5 +124,16 @@ export function updateOffscreenArrowHeads() {
     }
 }
 
+// The capture phase stops the click before editor-events.ts selects or links a block.
+function scrollToEndBlockOfClickedArrowHead(event: MouseEvent) {
+    const head = (event.target as Element).closest('.offscreen-arrow-head');
+    if (!head)
+        return;
+    event.stopPropagation();
+    const path = diagramBox.querySelector(`path.flowchart-link[data-id="${head.getAttribute('data-edge-id')}"]`)!;
+    const [, endBlockId] = getEdgeEnds(path, parseEdges(codeBox.value));
+    diagramBox.querySelector(`[id*="flowchart-${endBlockId}-"]`)!.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+}
+outputBox.addEventListener('click', scrollToEndBlockOfClickedArrowHead, true);
 outputBox.addEventListener('scroll', updateOffscreenArrowHeads);
 window.addEventListener('resize', updateOffscreenArrowHeads);
