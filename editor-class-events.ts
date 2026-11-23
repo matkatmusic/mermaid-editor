@@ -60,11 +60,16 @@ function createClassFromEditor() {
   classEditorError.textContent = '';
   const assignToNodeId = classEditorAssignNodeId;
   setEditorActionPromise((async () => {
-    await createClass(name, classEditorFill.value, classEditorStroke.value);
-    if (assignToNodeId)
-      await setNodeClass(assignToNodeId, name);
-    if (classesDialog.open)
-      renderClassesDialog();
+    try {
+      await createClass(name, classEditorFill.value, classEditorStroke.value);
+      if (assignToNodeId)
+        await setNodeClass(assignToNodeId, name);
+    }
+    finally {
+      // A save failure (a new document has no file) still leaves the new class in the source, so the popup must show it.
+      if (classesDialog.open)
+        renderClassesDialog();
+    }
   })());
   classEditorDialog.close();
 }

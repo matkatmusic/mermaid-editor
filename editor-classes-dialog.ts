@@ -32,7 +32,7 @@ function updateClassFromRow(event: Event) {
   if (isColorInput) {
     const fill = row.querySelector<HTMLInputElement>('.classes-fill')!.value;
     const stroke = row.querySelector<HTMLInputElement>('.classes-stroke')!.value;
-    setEditorActionPromise(setClassColors(name, fill, stroke).then(renderClassesDialog));
+    setEditorActionPromise(setClassColors(name, fill, stroke).finally(renderClassesDialog));
   }
   else if (isNameInput) {
     const newName = target.value.trim();
@@ -54,7 +54,7 @@ function updateClassFromRow(event: Event) {
       target.value = name;
       return;
     }
-    setEditorActionPromise(renameClass(name, newName).then(renderClassesDialog));
+    setEditorActionPromise(renameClass(name, newName).finally(renderClassesDialog));
   }
 }
 
@@ -63,7 +63,7 @@ function removeClassFromRow(event: MouseEvent) {
   if (!button)
     return;
   const name = button.closest<HTMLElement>('.classes-row')!.dataset.className!;
-  setEditorActionPromise(removeClass(name).then(renderClassesDialog));
+  setEditorActionPromise(removeClass(name).finally(renderClassesDialog));
 }
 
 classesMenuBtn.addEventListener('click', openClassesDialog);
