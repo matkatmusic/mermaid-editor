@@ -70,9 +70,10 @@ export async function render() {
     if (state.renderId !== myRenderId + 1)
       return;
     // Resolve scale before the DOM write; awaiting after innerHTML flashes one frame of unsized, overlapping nodes.
-    const hasEdges = edges.length > 0;
+    // A diagram with nodes but no edges (a new document) still needs the scale and the pixel size below: the svg's own width of 100% is 0 inside the padded #diagram.
+    const hasNodes = graph.nodes.size > 0;
     const scaleIsUnset = state.diagramScale === null;
-    if (hasEdges) {
+    if (hasNodes) {
       // A fixed scale keeps main-view text the same size; baseScale tied it to the window height at load.
       if (scaleIsUnset)
         state.diagramScale = 1;
@@ -86,7 +87,7 @@ export async function render() {
     applyNoteDots(graph);
     renderEditorSelection();
     applyPathHighlight();
-    if (edges.length > 0) {
+    if (hasNodes) {
       const scale = state.diagramScale!;
       const mainZoom = state.mainZoomPercent / 100;
       const regularSvgEl = diagramBox.querySelector('svg')!;
@@ -97,8 +98,8 @@ export async function render() {
     outputBox.scrollLeft = regularViewport.left;
     outputBox.scrollTop = regularViewport.top;
     updateNodeInspectorPosition();
-    errorLog.textContent = '';
     updateOffscreenArrowHeads();
+    errorLog.textContent = '';
     errorLog.classList.remove('open');
   }
   catch (err) {
