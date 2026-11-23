@@ -1,7 +1,8 @@
 import { MAIN_ZOOM_STEP, chosenAnswers, phonePath, state } from './state.ts';
 import { applyTypeMetadata } from './editor-metadata.ts';
 import { codeBox, drawer, drawerToggle, nextDecisionBtn, openFileBtn, outputBox, phoneDiagramBox, previousDecisionBtn, searchClearBtn, searchInput, searchNextBtn, searchPreviousBtn, selectBox, statusBox, zoomInBtn, zoomOutBtn, zoomResetBtn } from './dom.ts';
-import { loadList, resetEditorHistory, setDrawerOpen } from './diagram-io.ts';
+import { applyMainViewport, loadList, resetEditorHistory, setDrawerOpen } from './diagram-io.ts';
+import { getEditorGraph } from './editor-graph.ts';
 import { loadDiagram } from './diagram-load.ts';
 import { saveDiagram } from './diagram-save.ts';
 import { openFileFromDialog } from './open-file.ts';
@@ -23,7 +24,7 @@ const DEFAULT_CLASS_LINES = [
   '  classDef Answer fill:#5df9b5,stroke:#000000',
 ];
 
-function resetEditorToNewDiagram() {
+async function resetEditorToNewDiagram() {
   if (state.watcher) {
     state.watcher.close();
     state.watcher = null;
@@ -42,7 +43,8 @@ function resetEditorToNewDiagram() {
   // codeBox.value = 'flowchart TD\n  B_NEW[New idea]';
   codeBox.value = ['flowchart TD', '  B_NEW[New idea]', ...DEFAULT_CLASS_LINES].join('\n');
   resetEditorHistory(codeBox.value);
-  render();
+  await render();
+  applyMainViewport(null, getEditorGraph());
   loadList();
   setDrawerOpen(true);
 }

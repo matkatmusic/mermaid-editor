@@ -41,6 +41,7 @@ export function applyMainZoom(preserveViewportCenter = true) {
   const oldWidth = Number.parseFloat(svg.style.width);
   const oldHeight = Number.parseFloat(svg.style.height);
   const centerX = outputBox.scrollLeft + outputBox.clientWidth / 2;
+  const svgOffsetX = outputBox.scrollLeft + svg.getBoundingClientRect().left - outputBox.getBoundingClientRect().left;
   const centerY = outputBox.scrollTop + outputBox.clientHeight / 2;
   const zoom = state.mainZoomPercent / 100;
   const newWidth = svg.viewBox.baseVal.width * scale * zoom;
@@ -52,7 +53,8 @@ export function applyMainZoom(preserveViewportCenter = true) {
   if (preserveViewportCenter) {
     if (hadWidth) {
       if (hadHeight) {
-        outputBox.scrollLeft = centerX * newWidth / oldWidth - outputBox.clientWidth / 2;
+        // outputBox.scrollLeft = centerX * newWidth / oldWidth - outputBox.clientWidth / 2;
+        outputBox.scrollLeft = svgOffsetX + (centerX - svgOffsetX) * newWidth / oldWidth - outputBox.clientWidth / 2;
         outputBox.scrollTop = centerY * newHeight / oldHeight - outputBox.clientHeight / 2;
       }
     }

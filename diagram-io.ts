@@ -58,10 +58,12 @@ export function applyMainViewport(metadata: EditorMetadata | null, graph: Editor
     return;
   const outputRect = outputBox.getBoundingClientRect();
   const nodeRect = node.getBoundingClientRect();
-  const nodeLeft = outputBox.scrollLeft + nodeRect.left - outputRect.left;
+  // const nodeLeft = outputBox.scrollLeft + nodeRect.left - outputRect.left;
+  const nodeCenterX = outputBox.scrollLeft + nodeRect.left + nodeRect.width / 2 - outputRect.left;
   const nodeTop = outputBox.scrollTop + nodeRect.top - outputRect.top;
   if (!hasSavedLeft)
-    outputBox.scrollLeft = Math.max(0, nodeLeft - 12);
+    // outputBox.scrollLeft = Math.max(0, nodeLeft - 12);
+    outputBox.scrollLeft = Math.max(0, nodeCenterX - outputBox.clientWidth / 2);
   if (!hasSavedTop)
     outputBox.scrollTop = Math.max(0, nodeTop - 12);
 }

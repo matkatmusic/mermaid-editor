@@ -38,7 +38,8 @@
   #drawer.closed #drawerToggle { border-left: none; }
   #output { flex: 1; min-width: 0; height: 100%; overflow: auto; padding: 12px; box-sizing: border-box; container-type: size; }
   /* Half a pane of empty space on every side, so a node at the diagram's edge can still scroll to the exact center. */
-  #diagram { padding: 50cqh 50cqw; }
+  /* max-content: a full-width #diagram spends its whole width on the two paddings, so a narrow diagram has no room to scroll sideways. */
+  #diagram { padding: 50cqh 50cqw; width: max-content; }
   #phoneOutput { position: relative; aspect-ratio: 9 / 19.5; width: auto; height: 100%; max-width: 100%; max-height: 100%; border: 8px solid var(--border-strong); border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); }
   #phoneDiagramWrap { position: relative; flex: 1; min-height: 0; }
   #phoneDiagram { height: 100%; display: flex; flex-direction: column; }
