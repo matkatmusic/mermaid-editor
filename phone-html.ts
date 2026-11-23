@@ -130,6 +130,9 @@ export function renderPhone(edges: Edge[], graph: EditorGraph) {
   const historyBox = phoneDiagramBox.querySelector<HTMLElement>('#phoneHistory');
   if (historyBox)
     historyBox.scrollTop = historyBox.scrollHeight;
+  const footerBox = phoneDiagramBox.querySelector<HTMLElement>('#phoneFooter');
+  if (footerBox)
+    footerBox.scrollTop = footerBox.scrollHeight;
   const hasClickedNode = state.phoneClickedNodeId !== null;
   if (hasClickedNode) {
     const isClickRecent = Date.now() - state.phoneClickedAtMs < PHONE_CLICKED_BORDER_MS;
