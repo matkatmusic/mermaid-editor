@@ -15,6 +15,7 @@ import { renderPhone } from './phone-html.ts';
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { renderSourceLines } from './source-lines.ts';
 import { buildSourceWithCodeTags } from './label-code.ts';
+import { buildSourceWithSizeWrappers } from './node-size.ts';
 import { updateOffscreenArrowHeads } from './offscreen-arrow-heads.ts';
 
 export async function render() {
@@ -61,7 +62,7 @@ export async function render() {
       }
     }
     state.currentBottomQ = bottomQ;
-    const mainSource = buildSourceWithCodeTags(moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value));
+    const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value)));
     const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const myRenderId = state.renderId;

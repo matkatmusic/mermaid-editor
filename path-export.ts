@@ -6,6 +6,7 @@ import { buildHistoryRows } from './phone-render.ts';
 import { state } from './state.ts';
 import { writeToOpenedFileFolder, writeToServerDiagrams } from './path-write.ts';
 import { buildClassStyleIndex } from './class-style-index.ts';
+import { buildSizeLine } from './node-size.ts';
 import type { EditorGraph } from './editor-types.ts';
 
 // Node ids the phone history shows, in order; choices that were not taken are left out.
@@ -79,6 +80,11 @@ export function buildChosenPathSource(ids: string[]): string {
   for (let i = 0; i + 1 < ids.length; i++)
     lines.push(`  ${ids[i]} --> ${ids[i + 1]}`);
   lines.push(...buildClassLines(declaredIds));
+  for (const id of declaredIds) {
+    const size = graph.nodes.get(id)!.size;
+    if (size)
+      lines.push(buildSizeLine(id, size.width, size.height));
+  }
   return lines.join('\n') + '\n';
 }
 

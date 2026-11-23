@@ -11,6 +11,7 @@ import { loadDiagram } from './diagram-load.ts';
 import { render } from './render.ts';
 import { showOpenedFile } from './open-file.ts';
 import { listAllPathIds } from './path-export-all.ts';
+import { setNodeSize } from './editor-node-size.ts';
 import './editor-events.ts';
 import './main-events.ts';
 import './viewport-menu.ts';
@@ -30,4 +31,4 @@ async function loadLastOpened() {
 }
 loadLastOpened();
 
-Object.assign(window, { render, loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds });
+Object.assign(window, { render, loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds, setNodeSize });

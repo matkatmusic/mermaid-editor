@@ -1,6 +1,7 @@
 import { NOTE_PREFIX } from './editor-types.ts';
 import type { EditorEdge, EditorGraph } from './editor-types.ts';
 import { getDeclarationSuffix } from './editor-parse.ts';
+import { parseSizeLine } from './node-size.ts';
 
 // New nodes go before the class block; mermaid drops classes stated before a node's declaration.
 export function buildSourceWithLinesReplaced(graph: EditorGraph, removedLineIndexes: Set<number>, newLines: string[]) {
@@ -9,10 +10,19 @@ export function buildSourceWithLinesReplaced(graph: EditorGraph, removedLineInde
     for (let i = removedIndex - 1; i >= 0 && graph.lines[i].trim().startsWith(NOTE_PREFIX); i--)
       removedWithNotes.add(i);
   }
+  const removedNodeIds = new Set<string>();
+  for (const node of graph.nodes.values()) {
+    if (removedLineIndexes.has(node.lineIndex))
+      removedNodeIds.add(node.id);
+  }
   const kept: string[] = [];
   for (let lineIndex = 0; lineIndex < graph.lines.length; lineIndex++) {
     const isRemoved = removedWithNotes.has(lineIndex);
-    if (!isRemoved)
+    if (isRemoved)
+      continue;
+    const size = parseSizeLine(graph.lines[lineIndex]);
+    const isSizeOfRemovedNode = !!size && removedNodeIds.has(size.id);
+    if (!isSizeOfRemovedNode)
       kept.push(graph.lines[lineIndex]);
   }
   let classBlockStart = -1;

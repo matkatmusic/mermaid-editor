@@ -10,9 +10,12 @@ export interface EditorNode {
   lineIndex: number;
   // A decision written Q_X{{"text"}} shows as a hexagon; Q_X{"text"} shows as a diamond. False for every other kind.
   isHexagon: boolean;
+  // Node box size in px at 100% zoom, from the node's `%% ==size==:` line; undefined when the node has none.
+  size?: { width: number; height: number };
 }
 
 export const NOTE_PREFIX = '%% ==note==:';
+export const SIZE_PREFIX = '%% ==size==:';
 
 export interface EditorEdge {
   from: string;

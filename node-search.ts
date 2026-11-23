@@ -5,6 +5,7 @@ import { selectEditorNode } from './editor-actions.ts';
 import { render } from './render.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { measureSourceLines } from './source-lines.ts';
+import { parseSizeLine } from './node-size.ts';
 
 type SearchMatch = { start: number; end: number };
 
@@ -51,6 +52,12 @@ function findNodeIdAtMatch(graph: EditorGraph, match: SearchMatch) {
   const lineEnd = newlineAfter === -1 ? source.length : newlineAfter;
   const line = source.slice(lineStart, lineEnd);
   const matchOffset = match.start - lineStart;
+  const sizeLine = parseSizeLine(line);
+  if (sizeLine) {
+    const isNode = graph.nodes.has(sizeLine.id);
+    if (isNode)
+      return sizeLine.id;
+  }
   const parts: { id: string; start: number; end: number }[] = [];
   let partStart = 0;
   const arrows = [...line.matchAll(/-->|---|==>|-\.->/g)];
