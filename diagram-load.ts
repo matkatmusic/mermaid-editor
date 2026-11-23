@@ -22,6 +22,7 @@ export async function loadDiagram(name: string) {
   applyTypeMetadata(metadata);
   state.currentName = name;
   // sessionStorage.setItem('loadedDiagram', name);
+  sessionStorage.setItem('tabOpenedFile', JSON.stringify({ name }));
   state.openedFileHandle = null;
   statusBox.textContent = state.loadedPath ?? '';
   phonePath.length = 0;

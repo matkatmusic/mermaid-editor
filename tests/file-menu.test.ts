@@ -95,7 +95,7 @@ test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', asyn
     const originalSave = window.showSaveFilePicker;
     let saveDialogs = 0;
     window.fetch = async (url, opts) => {
-      if (url !== '/api/open-file')
+      if (!String(url).startsWith('/api/open-file'))
         return originalFetch(url, opts);
       if (opts && opts.method === 'PUT') {
         writes.push('opened.mmd:' + opts.body);

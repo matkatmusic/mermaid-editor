@@ -95,7 +95,7 @@ export async function saveDiagram() {
     pendingSaveCount++;
     saveVersion++;
     try {
-      const openFileResponse = await fetch('/api/open-file', { method: 'PUT', body: codeBox.value });
+      const openFileResponse = await fetch('/api/open-file?path=' + encodeURIComponent(state.loadedPath!), { method: 'PUT', body: codeBox.value });
       if (!openFileResponse.ok)
         throw new Error(await openFileResponse.text());
     }

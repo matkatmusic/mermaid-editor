@@ -24,11 +24,14 @@ const DEFAULT_CLASS_LINES = [
 ];
 
 function resetEditorToNewDiagram() {
-  if (state.watcher)
+  if (state.watcher) {
     state.watcher.close();
+    state.watcher = null;
+  }
   state.currentName = null;
   state.openedFileHandle = null;
   state.loadedPath = null;
+  sessionStorage.removeItem('tabOpenedFile');
   statusBox.textContent = '';
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;

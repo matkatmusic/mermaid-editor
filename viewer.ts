@@ -21,6 +21,15 @@ import './viewport-menu.ts';
 applyMainZoom(false);
 // loadDiagram(sessionStorage.getItem('loadedDiagram') ?? 'accountability.mmd');
 async function loadLastOpened() {
+  // A reloaded tab keeps the file it had; only a tab with no history asks the server for the last opened file.
+  const tabOpenedFile = JSON.parse(sessionStorage.getItem('tabOpenedFile') ?? 'null');
+  if (tabOpenedFile?.name)
+    return loadDiagram(tabOpenedFile.name);
+  if (tabOpenedFile?.path) {
+    const tabFileResponse = await fetch('/api/opened-file?path=' + encodeURIComponent(tabOpenedFile.path));
+    if (tabFileResponse.ok)
+      return showOpenedFile(tabOpenedFile.path, await tabFileResponse.text());
+  }
   const response = await fetch('/api/last-opened');
   if (response.status === 204)
     return loadDiagram('accountability.mmd');

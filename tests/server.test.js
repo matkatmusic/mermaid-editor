@@ -66,13 +66,45 @@ test("opened-file routes serve the text and fire a change event for the opened p
   const startupLine = new TextDecoder().decode((await serverProcess.stdout.getReader().read()).value);
   const baseUrl = startupLine.match(/http:\/\/\S+/)[0];
   await fetch(`${baseUrl}/api/last-opened`);
-  expect(await (await fetch(`${baseUrl}/api/opened-file`)).text()).toBe("one");
-  const watchResponse = await fetch(`${baseUrl}/api/watch-opened`);
+  expect(await (await fetch(`${baseUrl}/api/opened-file?path=${encodeURIComponent(openedPath)}`)).text()).toBe("one");
+  const watchResponse = await fetch(`${baseUrl}/api/watch-opened?path=${encodeURIComponent(openedPath)}`);
   const reader = watchResponse.body.getReader();
   await reader.read();
   writeFileSync(openedPath, "two");
   const message = await Promise.race([reader.read(), Bun.sleep(2000).then(() => "timeout")]);
   expect(message).not.toBe("timeout");
   expect(new TextDecoder().decode(message.value)).toContain("data: changed");
+  serverProcess.kill();
+});
+
+test("a save names its own file, and the server refuses a path it did not learn", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "named-save-"));
+  const firstPath = join(tempDir, "first.mmd");
+  const secondPath = join(tempDir, "second.mmd");
+  const unknownPath = join(tempDir, "unknown.mmd");
+  writeFileSync(firstPath, "first");
+  writeFileSync(secondPath, "second");
+  writeFileSync(unknownPath, "unknown");
+  const lastOpenedFile = join(tempDir, ".last-opened.json");
+  const serverProcess = Bun.spawn(["bun", "server.js", "--port", "0"], {
+    stdout: "pipe",
+    env: { ...process.env, DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: lastOpenedFile },
+  });
+  const startupLine = new TextDecoder().decode((await serverProcess.stdout.getReader().read()).value);
+  const baseUrl = startupLine.match(/http:\/\/\S+/)[0];
+  // The server learns two paths, one after the other, like two tabs that each used Open File.
+  writeFileSync(lastOpenedFile, JSON.stringify({ path: firstPath }));
+  await fetch(`${baseUrl}/api/last-opened`);
+  writeFileSync(lastOpenedFile, JSON.stringify({ path: secondPath }));
+  await fetch(`${baseUrl}/api/last-opened`);
+  // Each save lands only in the file it names, even though the second path was learned last.
+  expect((await fetch(`${baseUrl}/api/open-file?path=${encodeURIComponent(firstPath)}`, { method: "PUT", body: "first saved" })).status).toBe(200);
+  expect(await Bun.file(firstPath).text()).toBe("first saved");
+  expect(await Bun.file(secondPath).text()).toBe("second");
+  // A save with no path, or with a path the server never learned, fails and writes nothing.
+  expect((await fetch(`${baseUrl}/api/open-file`, { method: "PUT", body: "no path" })).status).toBe(400);
+  expect((await fetch(`${baseUrl}/api/open-file?path=${encodeURIComponent(unknownPath)}`, { method: "PUT", body: "not allowed" })).status).toBe(400);
+  expect(await Bun.file(unknownPath).text()).toBe("unknown");
+  expect(await Bun.file(secondPath).text()).toBe("second");
   serverProcess.kill();
 });

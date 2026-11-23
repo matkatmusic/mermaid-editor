@@ -33,8 +33,10 @@ export async function openFileFromDialog() {
 }
 
 export async function showOpenedFile(path: string, text: string) {
-  if (state.watcher)
+  if (state.watcher) {
     state.watcher.close();
+    state.watcher = null;
+  }
   state.currentName = null;
   // state.openedFileHandle = fileHandle;
   state.openedFileHandle = null;
@@ -59,7 +61,8 @@ export async function showOpenedFile(path: string, text: string) {
   loadList();
   setDrawerOpen(true);
   setLastSavedDiagramText(text);
-  createDiagramWatcher(path, '/api/watch-opened', '/api/opened-file');
+  sessionStorage.setItem('tabOpenedFile', JSON.stringify({ path }));
+  createDiagramWatcher(path, '/api/watch-opened?path=' + encodeURIComponent(path), '/api/opened-file?path=' + encodeURIComponent(path));
   const graph = getEditorGraph();
   if (graph.nodes.has(metadata?.lastSelectedNodeId ?? ''))
     selectEditorNode(metadata!.lastSelectedNodeId);

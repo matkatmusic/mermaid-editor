@@ -12,5 +12,5 @@ test("test_open_file_fetches_the_server_dialog_and_returns_on_cancel", () => {
 
 test("test_open_file_watches_the_opened_path_and_records_its_text_as_the_saved_baseline", () => {
   assert.ok(source.includes("setLastSavedDiagramText(text);"));
-  assert.ok(source.includes("createDiagramWatcher(path, '/api/watch-opened', '/api/opened-file');"));
+  assert.ok(source.includes("createDiagramWatcher(path, '/api/watch-opened?path=' + encodeURIComponent(path), '/api/opened-file?path=' + encodeURIComponent(path));"));
 });

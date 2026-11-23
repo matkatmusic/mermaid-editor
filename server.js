@@ -14,7 +14,16 @@ const PORT = portFlagIndex === -1 ? 0 : Number(process.argv[portFlagIndex + 1]);
 const hostnameFlagIndex = process.argv.indexOf("--hostname");
 const HOSTNAME = hostnameFlagIndex === -1 ? "0.0.0.0" : process.argv[hostnameFlagIndex + 1];
 
-let openedFilePath = null; // set only by the native Open File dialog; PUT /api/open-file writes here
+// let openedFilePath = null; // one path for every tab: a second tab's Open File redirected the first tab's saves
+// Paths the server itself got from the native Open File dialog or the last-opened file. A page may only name a path in this set.
+const allowedOpenedPaths = new Set();
+
+function getRequestedOpenedPath(url) {
+  const requestedPath = url.searchParams.get("path");
+  if (requestedPath === null) return null;
+  if (!allowedOpenedPaths.has(requestedPath)) return null;
+  return requestedPath;
+}
 
 const server = import.meta.main && Bun.serve({
   port: PORT,
@@ -98,7 +107,8 @@ const server = import.meta.main && Bun.serve({
         throw new Error(stderr);
       }
       const path = stdout.trim();
-      openedFilePath = path;
+      // openedFilePath = path;
+      allowedOpenedPaths.add(path);
       await Bun.write(LAST_OPENED_FILE, JSON.stringify({ path }));
       return Response.json({ path, text: await Bun.file(path).text() });
     }
@@ -108,16 +118,19 @@ const server = import.meta.main && Bun.serve({
       if (!(await lastOpened.exists())) return new Response(null, { status: 204 });
       const saved = await lastOpened.json();
       if (saved.name) return Response.json(saved);
-      openedFilePath = saved.path;
+      // openedFilePath = saved.path;
+      allowedOpenedPaths.add(saved.path);
       return Response.json({ path: saved.path, text: await Bun.file(saved.path).text() });
     }
 
     if (url.pathname === "/api/opened-file" && req.method === "GET") {
+      const openedFilePath = getRequestedOpenedPath(url);
       if (openedFilePath === null) return new Response("No file opened", { status: 400 });
       return new Response(Bun.file(openedFilePath));
     }
 
     if (url.pathname === "/api/watch-opened" && req.method === "GET") {
+      const openedFilePath = getRequestedOpenedPath(url);
       if (openedFilePath === null) return new Response("No file opened", { status: 400 });
       const encoder = new TextEncoder();
       let watcher;
@@ -141,6 +154,7 @@ const server = import.meta.main && Bun.serve({
     }
 
     if (url.pathname === "/api/open-file" && req.method === "PUT") {
+      const openedFilePath = getRequestedOpenedPath(url);
       if (openedFilePath === null) return new Response("No file opened", { status: 400 });
       await Bun.write(openedFilePath, await req.text());
       return new Response("OK");
