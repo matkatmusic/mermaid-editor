@@ -15,6 +15,7 @@ import { renderPhone } from './phone-html.ts';
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { renderSourceLines } from './source-lines.ts';
 import { buildSourceWithCodeTags } from './label-code.ts';
+import { updateOffscreenArrowHeads } from './offscreen-arrow-heads.ts';
 
 export async function render() {
   renderSourceLines();
@@ -97,6 +98,7 @@ export async function render() {
     outputBox.scrollTop = regularViewport.top;
     updateNodeInspectorPosition();
     errorLog.textContent = '';
+    updateOffscreenArrowHeads();
     errorLog.classList.remove('open');
   }
   catch (err) {

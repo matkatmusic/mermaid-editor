@@ -4,6 +4,7 @@ import type { Edge } from './dom.ts';
 import { MAX_MAIN_ZOOM, MIN_MAIN_ZOOM, /* PHONE_INNER, */ phonePath, state } from './state.ts';
 import { sliceIds } from './graph-slice.ts';
 import { chunkSource } from './diagram-source.ts';
+import { updateOffscreenArrowHeads } from './offscreen-arrow-heads.ts';
 
 export function viewBoxOf(svgText: string) {
   const match = svgText.match(/viewBox="[^"]*?\s([\d.]+)\s([\d.]+)"/)!;
@@ -56,6 +57,7 @@ export function applyMainZoom(preserveViewportCenter = true) {
       }
     }
   }
+  updateOffscreenArrowHeads();
 }
 
 export function setMainZoomPercent(percent: number) {
