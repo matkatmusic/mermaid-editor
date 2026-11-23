@@ -10,6 +10,23 @@ import { createDecisionAfter, createStaticAfter } from './editor-insert-after.ts
 import { destinationSelect, diagramBox, nodeNotesInput, nodeTextInput, outputBox } from './dom.ts';
 import { NOTE_PREFIX } from './editor-types.ts';
 
+// Rewrites only this decision's declaration between Q_X{{"text"}} (hexagon) and Q_X{"text"} (diamond); the text, class lines and edges stay.
+export function updateDecisionShape(id: string | null, isHexagon: boolean) {
+  if (!id)
+    return;
+  async function applyDecisionShapeUpdate() {
+    const graph = getEditorGraph();
+    const node = graph.nodes.get(id!);
+    if (!node)
+      return;
+    const newToken = isHexagon ? `${id}{{"${node.label}"}}` : `${id}{"${node.label}"}`;
+    const lines = graph.lines.slice();
+    lines[node.lineIndex] = replaceDeclarationInLine(lines[node.lineIndex], id!, newToken);
+    await applyEditorSource(lines.join('\n'));
+  }
+  appendEditorAction(applyDecisionShapeUpdate);
+}
+
 export function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotesInput.value.trim()) {
   if (!id)
     return;

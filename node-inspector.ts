@@ -2,7 +2,7 @@ import { INSPECTOR_TITLES } from './editor-types.ts';
 import type { EditorGraph } from './editor-types.ts';
 import { getEditorGraph } from './editor-graph.ts';
 import { getNodeNamePart, getParentQuestionId, showNameCheck } from './editor-rename.ts';
-import { nodeKindChoiceBox, nodeKindQuestionBox, nodeKindStaticBox, nodeNameInput, nodeParentLabel, destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from './dom.ts';
+import { decisionShapeRow, decisionShapeSwitch, nodeKindChoiceBox, nodeKindQuestionBox, nodeKindStaticBox, nodeNameInput, nodeParentLabel, destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from './dom.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { findOutgoingDestination } from './source-edit.ts';
 import { decodeLabelLineBreaks, decodeLabelQuotes, getOneLineLabel } from './editor-parse.ts';
@@ -69,6 +69,7 @@ export function renderNodeInspector() {
   const node = graph.nodes.get(state.selectedEditorNodeId ?? '');
   nodeInspector.hidden = !node;
   if (!node) {
+    decisionShapeRow.hidden = true;
     nodeTextInput.value = '';
     nodeNotesInput.value = '';
     clearInspectorFocus();
@@ -80,6 +81,8 @@ export function renderNodeInspector() {
   nodeKindStaticBox.checked = node.kind === 'block';
   nodeKindQuestionBox.checked = node.kind === 'question';
   nodeKindChoiceBox.checked = node.kind === 'choice';
+  decisionShapeRow.hidden = node.kind !== 'question';
+  decisionShapeSwitch.checked = !node.isHexagon;
   const parentId = getParentQuestionId(graph, node.id);
   const parentText = parentId === undefined ? 'parent: none' : `- parent: ${parentId}`;
   nodeParentLabel.textContent = node.kind === 'choice' ? parentText : '';

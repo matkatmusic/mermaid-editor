@@ -1,5 +1,5 @@
 import { checkTypedNodeName, commitNodeName, isNodeNameBoxInvalid, refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
-import { destinationSelect, nodeInspectorActions, nodeNameInput, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from './dom.ts';
+import { decisionShapeSwitch, destinationSelect, nodeInspectorActions, nodeNameInput, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from './dom.ts';
 import { getNodeId } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { getEditorGraph } from './editor-graph.ts';
@@ -10,7 +10,7 @@ import { insertDecisionBefore, insertStaticBefore } from './editor-insert-before
 import { removeBlock, removeChoice, removeChoices } from './editor-remove.ts';
 import { applyQuestionRemoval, clearQuestionRemoval, moveRemovalPreview, removeQuestion } from './editor-remove-question.ts';
 import { applyEditorRedo, applyEditorUndo } from './editor-history.ts';
-import { applyDestination, applyDestinationSelection, updateNodeNote, updateNodeText } from './editor-commit.ts';
+import { applyDestination, applyDestinationSelection, updateDecisionShape, updateNodeNote, updateNodeText } from './editor-commit.ts';
 import { addChoiceOnDecision, insertDecisionAfterNode, insertStaticAfterNode } from './editor-insert-after.ts';
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { getOneLineLabel } from './editor-parse.ts';
@@ -153,6 +153,11 @@ function writeNodeTextOnChange() {
   document.addEventListener('pointerup', scheduleCommitAfterClick, { once: true });
 }
 nodeTextInput.addEventListener('change', writeNodeTextOnChange);
+// The switch is on the diamond side when checked.
+function changeDecisionShapeOnSwitch() {
+  updateDecisionShape(state.selectedEditorNodeId, !decisionShapeSwitch.checked);
+}
+decisionShapeSwitch.addEventListener('change', changeDecisionShapeOnSwitch);
 function renameNodeOnCommitKey(event: KeyboardEvent) {
   const isCommitKey = event.key === 'Enter' || event.key === 'Tab';
   if (!isCommitKey)
