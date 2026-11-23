@@ -6,6 +6,20 @@ import { openEditorDrawer } from "./editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 
+// What the New button writes: one block and the 8 default classes.
+const NEW_DOCUMENT_SOURCE = [
+  'flowchart TD',
+  '  B_NEW[New idea]',
+  '  classDef information fill:#ffffff,stroke:#000000',
+  '  classDef Decision fill:#ffff00,stroke:#000000',
+  '  classDef Yes-path fill:#00ff00,stroke:#000000',
+  '  classDef No-path fill:#ff0000,stroke:#000000',
+  '  classDef Checkpoint fill:#ff8000,stroke:#000000',
+  '  classDef Action fill:#fc00ff,stroke:#000000',
+  '  classDef Question fill:#79d4fb,stroke:#000000',
+  '  classDef Answer fill:#5df9b5,stroke:#000000',
+].join('\n');
+
 test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
   // Scenario: four file actions live in one dropdown menu; entries keep old ids and handlers.
   await executeExpression("loadDiagram('accountability.mmd')");
@@ -60,7 +74,7 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
   await executeExpression("document.getElementById('fileMenu').open = true");
   await executeExpression("document.getElementById('newBtn').click()");
   await waitMilliseconds(100);
-  assert.equal(await executeExpression("codeBox.value"), 'flowchart TD\n  B_NEW[New idea]');
+  assert.equal(await executeExpression("codeBox.value"), NEW_DOCUMENT_SOURCE);
   assert.equal(await executeExpression("document.getElementById('fileMenu').open"), false);
 
   // Step: restore the accountability diagram so later runs start clean.
@@ -109,7 +123,7 @@ test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', asyn
   assert.deepEqual(result.afterOpenSave, { writes: ['opened.mmd:flowchart TD\n  B_OPENED[Opened]'], saveDialogs: 0 });
   // Step: Save on a new diagram shows the Save-As dialog once; the second Save reuses the picked file.
   assert.equal(result.saveDialogs, 1);
-  assert.deepEqual(result.writes.slice(1), ['picked.mmd:flowchart TD\n  B_NEW[New idea]', 'picked.mmd:flowchart TD\n  B_NEW[New idea]']);
+  assert.deepEqual(result.writes.slice(1), [`picked.mmd:${NEW_DOCUMENT_SOURCE}`, `picked.mmd:${NEW_DOCUMENT_SOURCE}`]);
   await executeExpression("loadDiagram('accountability.mmd')");
   await waitForRender();
 });

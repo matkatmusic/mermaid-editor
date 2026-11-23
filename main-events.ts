@@ -11,6 +11,18 @@ import { clearSearch, executeSearch, moveSearchSelection } from './node-search.t
 import { setMainZoomPercent } from './zoom.ts';
 import { applyPathHighlight } from './render-helpers.ts';
 
+// The classes every new document starts with.
+const DEFAULT_CLASS_LINES = [
+  '  classDef information fill:#ffffff,stroke:#000000',
+  '  classDef Decision fill:#ffff00,stroke:#000000',
+  '  classDef Yes-path fill:#00ff00,stroke:#000000',
+  '  classDef No-path fill:#ff0000,stroke:#000000',
+  '  classDef Checkpoint fill:#ff8000,stroke:#000000',
+  '  classDef Action fill:#fc00ff,stroke:#000000',
+  '  classDef Question fill:#79d4fb,stroke:#000000',
+  '  classDef Answer fill:#5df9b5,stroke:#000000',
+];
+
 function resetEditorToNewDiagram() {
   if (state.watcher)
     state.watcher.close();
@@ -24,7 +36,8 @@ function resetEditorToNewDiagram() {
   state.diagramScale = null;
   state.currentDecisionId = null;
   applyTypeMetadata(null);
-  codeBox.value = 'flowchart TD\n  B_NEW[New idea]';
+  // codeBox.value = 'flowchart TD\n  B_NEW[New idea]';
+  codeBox.value = ['flowchart TD', '  B_NEW[New idea]', ...DEFAULT_CLASS_LINES].join('\n');
   resetEditorHistory(codeBox.value);
   render();
   loadList();

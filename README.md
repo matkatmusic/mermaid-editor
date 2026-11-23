@@ -76,7 +76,7 @@ bun /Users/matkatmusicllc/Programming/relationship-mermaid/mermaid-editor/check-
 
 ### Opening and saving files
 
-- **File menu:** click **File** at the top left. The menu holds **New**, **Save**, **Open file...**, **Reset**, **Classes...**, and **Diagrams**. The menu closes after you pick an item.
+- **File menu:** click **File** at the top left. The menu holds **New**, **Save**, **Open file...**, **Reset**, **Classes...**, and **Diagrams**. The menu closes after you pick an item. **New** starts a document with one block, `B_NEW`, and 8 classes: `information`, `Decision`, `Yes-path`, `No-path`, `Checkpoint`, `Action`, `Question` and `Answer`. The block has no class until you pick one.
 - **Diagrams:** open **Diagrams** in the File menu and pick a `.mmd` file from the diagrams folder.
 - **Cmd-S:** does the same as **Save**, also while you type in the source editor. The browser save-page box stays closed.
 - **New:** starts a blank diagram with one block, `B_NEW`. The source editor opens. The diagram has no file yet: click **Save** once before you use the node inspector.
