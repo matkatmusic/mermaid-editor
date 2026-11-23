@@ -18,6 +18,23 @@ import { buildSourceWithCodeTags } from './label-code.ts';
 import { buildSourceWithSizeWrappers } from './node-size.ts';
 import { updateOffscreenArrowHeads } from './offscreen-arrow-heads.ts';
 
+let outputPointerHeld: Promise<void> | null = null;
+function holdNewDrawingUntilPointerIsUp() {
+  outputPointerHeld = new Promise<void>((resolve) => {
+    function endHold() {
+      outputPointerHeld = null;
+      resolve();
+    }
+    // pointerup, mouseup, click and dblclick run in one task; the timeout lets them reach the old nodes first.
+    function endHoldAfterClick() {
+      setTimeout(endHold, 0);
+    }
+    document.addEventListener('pointerup', endHoldAfterClick, { once: true, capture: true });
+    document.addEventListener('pointercancel', endHoldAfterClick, { once: true, capture: true });
+  });
+}
+outputBox.addEventListener('pointerdown', holdNewDrawingUntilPointerIsUp, true);
+
 export async function render() {
   renderSourceLines();
   errorBox.textContent = '';
@@ -67,6 +84,8 @@ export async function render() {
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const myRenderId = state.renderId;
     const { svg: regularSvg } = await mermaid.render('diagram-' + (state.renderId++), mainSource);
+    // New nodes under a held mouse button swallow the click and the dblclick.
+    await outputPointerHeld;
     // A newer render() started while this one was awaiting Mermaid; drop this stale result.
     if (state.renderId !== myRenderId + 1)
       return;
