@@ -133,6 +133,17 @@
   #inspectorBottomRow { flex-wrap: wrap; }
   #inspectorBottomRow #nodeInspectorControls:not([hidden]) { display: contents; }
   #inspectorBottomRow #nodeClassRow { flex: 1 1 240px; min-width: 0; }
+  /* Retired by task 98 layout change: the align buttons moved into the kind row.
+  #nodeAlignRow { order: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13px; }
+  #nodeAlignRow[hidden] { display: none; }
+  */
+  #nodeAlignRow { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; }
+  #nodeAlignRow[hidden] { display: none; }
+  #nodeAlignRow > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .align-button-row { display: flex; gap: 4px; }
+  .align-button-row button { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-light); color: var(--text); cursor: pointer; }
+  .align-button-row button[aria-pressed="true"] { background: var(--select-stroke); border-color: var(--select-stroke); color: var(--bg); }
+  .align-button-row button:focus-visible { outline: 2px solid var(--select-stroke); outline-offset: 2px; }
   #inspectorBottomRow #destinationRow:not([hidden]) { flex: 1 1 240px; min-width: 0; }
   #classPickerList { top: auto; bottom: 100%; }
   .inspector-text-row { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
@@ -259,6 +270,19 @@
     <label id="decisionShapeRow" hidden><span aria-hidden="true">⬣</span><input id="decisionShapeSwitch" type="checkbox" role="switch" aria-label="Decision shape: hexagon on the left, diamond on the right"><span aria-hidden="true">🔶</span></label>
     <label><input id="nodeKindChoice" type="checkbox" disabled> Choice</label>
     <span id="nodeParentLabel"></span>
+    <div id="nodeAlignRow" hidden>
+      <span>Text align</span>
+      <div class="align-button-row" role="group" aria-label="Text justification">
+        <button type="button" data-justification="left" aria-label="Justify left" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 3.5h12M2 8h7M2 12.5h10"/></svg></button>
+        <button type="button" data-justification="center" aria-label="Justify center" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 3.5h12M4.5 8h7M3 12.5h10"/></svg></button>
+        <button type="button" data-justification="right" aria-label="Justify right" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 3.5h12M7 8h7M4 12.5h10"/></svg></button>
+      </div>
+      <div class="align-button-row" role="group" aria-label="Text alignment">
+        <button type="button" data-alignment="top" aria-label="Align top" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 2.5h12"/><rect x="5" y="5.5" width="6" height="8" rx="1"/></svg></button>
+        <button type="button" data-alignment="center" aria-label="Align center" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="5" y="4" width="6" height="8" rx="1"/><path d="M1.5 8h3M11.5 8h3"/></svg></button>
+        <button type="button" data-alignment="bottom" aria-label="Align bottom" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="5" y="2.5" width="6" height="8" rx="1"/><path d="M2 13.5h12"/></svg></button>
+      </div>
+    </div>
   </div>
   <label class="inspector-text-row"><span>Node Name:</span><input id="nodeNameInput" type="text" spellcheck="false" autocomplete="off"></label>
   <div id="nodeNameCheck" role="status"></div>
@@ -281,6 +305,21 @@
       <div id="classPickerList" hidden></div>
     </div>
   </div>
+  <!-- Retired by task 98 layout change: the align buttons moved into #nodeKindRow.
+  <div id="nodeAlignRow" hidden>
+    <span>Text align</span>
+    <div class="align-button-row" role="group" aria-label="Text justification">
+      <button type="button" data-justification="left" aria-label="Justify left" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 3.5h12M2 8h7M2 12.5h10"/></svg></button>
+      <button type="button" data-justification="center" aria-label="Justify center" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 3.5h12M4.5 8h7M3 12.5h10"/></svg></button>
+      <button type="button" data-justification="right" aria-label="Justify right" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 3.5h12M7 8h7M4 12.5h10"/></svg></button>
+    </div>
+    <div class="align-button-row" role="group" aria-label="Text alignment">
+      <button type="button" data-alignment="top" aria-label="Align top" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 2.5h12"/><rect x="5" y="5.5" width="6" height="8" rx="1"/></svg></button>
+      <button type="button" data-alignment="center" aria-label="Align center" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="5" y="4" width="6" height="8" rx="1"/><path d="M1.5 8h3M11.5 8h3"/></svg></button>
+      <button type="button" data-alignment="bottom" aria-label="Align bottom" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="5" y="2.5" width="6" height="8" rx="1"/><path d="M2 13.5h12"/></svg></button>
+    </div>
+  </div>
+  -->
   <div id="nodeInspectorControls" class="inspector-grid">
     <button id="nodeInspectorDismissBtn" class="span-2">Cancel</button>
     <label id="destinationRow" class="inspector-destination-row span-2"><span>Destination:</span><select id="destinationSelect"></select></label>

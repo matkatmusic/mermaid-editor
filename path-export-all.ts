@@ -1,4 +1,4 @@
-import { classesMenuBtn, codeBox, destinationRow, nodeActions, nodeClassRow, nodeInspectorActions, nodeInspectorRemovalPreview, nodeTextInput, openFileBtn, phoneDiagramBox, selectBox } from './dom.ts';
+import { classesMenuBtn, codeBox, destinationRow, nodeActions, nodeAlignRow, nodeClassRow, nodeInspectorActions, nodeInspectorRemovalPreview, nodeTextInput, openFileBtn, phoneDiagramBox, selectBox } from './dom.ts';
 import type { Edge } from './dom.ts';
 import { parseEdges } from './diagram-source.ts';
 import { setStatus } from './diagram-io.ts';
@@ -77,6 +77,7 @@ function disableDiagramEdits() {
   nodeActions.inert = true;
   nodeTextInput.inert = true;
   nodeClassRow.inert = true;
+  nodeAlignRow.inert = true;
   nodeInspectorActions.inert = true;
   destinationRow.inert = true;
   nodeInspectorRemovalPreview.inert = true;
@@ -95,6 +96,7 @@ function enableDiagramEdits() {
   nodeActions.inert = false;
   nodeTextInput.inert = false;
   nodeClassRow.inert = false;
+  nodeAlignRow.inert = false;
   nodeInspectorActions.inert = false;
   destinationRow.inert = false;
   nodeInspectorRemovalPreview.inert = false;

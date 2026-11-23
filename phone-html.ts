@@ -7,6 +7,7 @@ import { buildClassStyleIndex, findNodeStyle, type ClassStyleIndex } from './cla
 import { isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './phone-render.ts';
 import { buildRows } from './phone-rows.ts';
 import { decodeLabelQuotes } from './editor-parse.ts';
+import { getNodeAlign } from './node-align.ts';
 
 // How long after a click the phone keeps the animated border on the clicked node; matches the CSS animation length.
 const PHONE_CLICKED_BORDER_MS = 3000;
@@ -17,11 +18,12 @@ const UNCLASSED_PHONE_STYLE = 'background:repeating-linear-gradient(45deg, #f4b4
 let classIndex: ClassStyleIndex = { assignments: new Map(), defsByName: new Map() };
 
 // Color now comes from the node's mermaid class, not state.typeColors/state.nodeTypes.
-function getPhoneNodeAppearance(node: EditorNode) {
+function getPhoneNodeAppearance(node: EditorNode, graph: EditorGraph) {
   const classStyle = findNodeStyle(classIndex, node.id);
+  const textAlignStyle = `;text-align:${getNodeAlign(graph.lines, node.id).justification}`;
   if (!classStyle)
-    return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: '' };
-  return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}`, labelStyle: '' };
+    return { boxStyle: UNCLASSED_PHONE_STYLE + textAlignStyle, labelStyle: '' };
+  return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}${textAlignStyle}`, labelStyle: '' };
 }
 
 function encodeHtml(text: string) {
@@ -76,12 +78,12 @@ function buildRowHtml(row: Row, graph: EditorGraph, edges: Edge[], isMasked: boo
     return '';
   if (row.status === 'block') {
     const blockClass = isMasked ? 'phone-block phone-block-past' : 'phone-block';
-    const { boxStyle, labelStyle } = getPhoneNodeAppearance(node);
+    const { boxStyle, labelStyle } = getPhoneNodeAppearance(node, graph);
     return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
   }
   const choices = choicesOf(row.id, edges);
   const activeAttr = row.status === 'active' ? ' data-active-question' : '';
-  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node);
+  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node, graph);
   const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
   const wrapClass = isMasked ? 'phone-decision phone-decision-past' : 'phone-decision';
   const isAutoPicked = row.status === 'past' && choices.length === 1;

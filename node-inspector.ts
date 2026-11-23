@@ -2,11 +2,12 @@ import { INSPECTOR_TITLES } from './editor-types.ts';
 import type { EditorGraph } from './editor-types.ts';
 import { getEditorGraph } from './editor-graph.ts';
 import { getNodeNamePart, getParentQuestionId, showNameCheck } from './editor-rename.ts';
-import { decisionShapeRow, decisionShapeSwitch, nodeKindChoiceBox, nodeKindQuestionBox, nodeKindStaticBox, nodeNameInput, nodeParentLabel, destinationRow, destinationSelect, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from './dom.ts';
+import { decisionShapeRow, decisionShapeSwitch, nodeKindChoiceBox, nodeKindQuestionBox, nodeKindStaticBox, nodeNameInput, nodeParentLabel, destinationRow, destinationSelect, nodeAlignRow, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from './dom.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { findOutgoingDestination } from './source-edit.ts';
 import { decodeLabelLineBreaks, decodeLabelQuotes, getOneLineLabel } from './editor-parse.ts';
 import { renderClassPicker } from './node-inspector-class.ts';
+import { getNodeAlign } from './node-align.ts';
 import { clearInspectorFocus, updateNodeInspectorPosition } from './node-inspector-focus.ts';
 
 export function replaceDeclarationInLine(line: string, id: string, newToken: string) {
@@ -70,6 +71,7 @@ export function renderNodeInspector() {
   nodeInspector.hidden = !node;
   if (!node) {
     decisionShapeRow.hidden = true;
+    nodeAlignRow.hidden = true;
     nodeTextInput.value = '';
     nodeNotesInput.value = '';
     clearInspectorFocus();
@@ -89,12 +91,19 @@ export function renderNodeInspector() {
   nodeNameInput.value = getNodeNamePart(graph, node);
   showNameCheck({ fullId: node.id });
   nodeNotesInput.value = decodeLabelLineBreaks(node.note);
+  const nodeAlign = getNodeAlign(graph.lines, node.id);
+  for (const button of nodeAlignRow.querySelectorAll('button')) {
+    const isJustificationPressed = button.dataset.justification === nodeAlign.justification;
+    const isAlignmentPressed = button.dataset.alignment === nodeAlign.alignment;
+    button.setAttribute('aria-pressed', String(isJustificationPressed || isAlignmentPressed));
+  }
   // Retired Category/Color inputs; a class picker (any node kind) replaces them below.
   // nodeTypeRow.hidden = previewing || node.kind !== 'block';
   // nodeTypeColorRow.hidden = previewing;
   // nodeTypeInput.value = node.kind === 'block' ? nodeType : '';
   // nodeTypeColorInput.value = colorForNode(node);
   nodeClassRow.hidden = previewing;
+  nodeAlignRow.hidden = previewing;
   nodeNotesRow.hidden = previewing;
   if (!previewing)
     renderClassPicker(node);

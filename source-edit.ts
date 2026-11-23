@@ -2,6 +2,7 @@ import { NOTE_PREFIX } from './editor-types.ts';
 import type { EditorEdge, EditorGraph } from './editor-types.ts';
 import { getDeclarationSuffix } from './editor-parse.ts';
 import { parseSizeLine } from './node-size.ts';
+import { parseAlignLine } from './node-align.ts';
 import { CLASS_LINE_RE } from './class-lines.ts';
 
 // New nodes go before the class block; mermaid drops classes stated before a node's declaration.
@@ -33,6 +34,10 @@ export function buildSourceWithLinesReplaced(graph: EditorGraph, removedLineInde
     const size = parseSizeLine(graph.lines[lineIndex]);
     const isSizeOfRemovedNode = !!size && deletedNodeIds.has(size.id);
     if (isSizeOfRemovedNode)
+      continue;
+    const align = parseAlignLine(graph.lines[lineIndex]);
+    const isAlignOfRemovedNode = !!align && deletedNodeIds.has(align.id);
+    if (isAlignOfRemovedNode)
       continue;
     const classMatch = graph.lines[lineIndex].match(CLASS_LINE_RE);
     if (!classMatch) {

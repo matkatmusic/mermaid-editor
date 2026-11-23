@@ -56,6 +56,7 @@ export const nodeNotesInput = document.getElementById('nodeNotesInput') as HTMLT
 // export const nodeTypeColorRow = document.getElementById('nodeTypeColorRow')!;
 // export const nodeTypeColorInput = document.getElementById('nodeTypeColorInput') as HTMLInputElement;
 export const nodeClassRow = document.getElementById('nodeClassRow')!;
+export const nodeAlignRow = document.getElementById('nodeAlignRow')!;
 export const classPickerBtn = document.getElementById('classPickerBtn') as HTMLButtonElement;
 export const classPickerSwatch = document.getElementById('classPickerSwatch')!;
 export const classPickerLabel = document.getElementById('classPickerLabel')!;

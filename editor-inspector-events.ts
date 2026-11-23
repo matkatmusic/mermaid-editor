@@ -1,5 +1,5 @@
 import { checkTypedNodeName, commitNodeName, isNodeNameBoxInvalid, refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
-import { decisionShapeSwitch, destinationSelect, nodeInspectorActions, nodeNameInput, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from './dom.ts';
+import { decisionShapeSwitch, destinationSelect, nodeAlignRow, nodeInspectorActions, nodeNameInput, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from './dom.ts';
 import { getNodeId } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { getEditorGraph } from './editor-graph.ts';
@@ -14,6 +14,8 @@ import { applyDestination, applyDestinationSelection, updateDecisionShape, updat
 import { addChoiceOnDecision, insertDecisionAfterNode, insertStaticAfterNode } from './editor-insert-after.ts';
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { getOneLineLabel } from './editor-parse.ts';
+import { setNodeAlignment, setNodeJustification } from './editor-node-align.ts';
+import type { Alignment, Justification } from './node-align.ts';
 
 function openNodeTextEditor(event: MouseEvent) {
   const nodeEl = (event.target as HTMLElement).closest('g.node');
@@ -158,6 +160,20 @@ function changeDecisionShapeOnSwitch() {
   updateDecisionShape(state.selectedEditorNodeId, !decisionShapeSwitch.checked);
 }
 decisionShapeSwitch.addEventListener('change', changeDecisionShapeOnSwitch);
+function setNodeAlignOnButtonClick(event: MouseEvent) {
+  const button = (event.target as HTMLElement).closest('button');
+  if (!button)
+    return;
+  const id = state.selectedEditorNodeId;
+  if (!id)
+    return;
+  const { justification, alignment } = button.dataset;
+  if (justification)
+    setNodeJustification(id, justification as Justification);
+  if (alignment)
+    setNodeAlignment(id, alignment as Alignment);
+}
+nodeAlignRow.addEventListener('click', setNodeAlignOnButtonClick);
 function renameNodeOnCommitKey(event: KeyboardEvent) {
   const isCommitKey = event.key === 'Enter' || event.key === 'Tab';
   if (!isCommitKey)

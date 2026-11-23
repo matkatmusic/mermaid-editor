@@ -43,6 +43,7 @@ var inspectorNotice = document.getElementById("inspectorNotice");
 var nodeNotesRow = document.getElementById("nodeNotesRow");
 var nodeNotesInput = document.getElementById("nodeNotesInput");
 var nodeClassRow = document.getElementById("nodeClassRow");
+var nodeAlignRow = document.getElementById("nodeAlignRow");
 var classPickerBtn = document.getElementById("classPickerBtn");
 var classPickerSwatch = document.getElementById("classPickerSwatch");
 var classPickerLabel = document.getElementById("classPickerLabel");
@@ -147,6 +148,7 @@ for (const key of Object.keys(state)) {
 var INSPECTOR_TITLES = { question: "Decision block", block: "static block", choice: "choice block" };
 var NOTE_PREFIX = "%% ==note==:";
 var SIZE_PREFIX = "%% ==size==:";
+var ALIGN_PREFIX = "%% ==align==:";
 
 class EditorValidationError extends Error {
   problems;
@@ -223,11 +225,54 @@ function setEditorActionPromise(promise) {
 }
 setEditorActionPromise(Promise.resolve());
 
+// node-align.ts
+var ALIGN_LINE_PATTERN = /^%% ==align==: ([A-Za-z0-9_]+) (left|center|right) (top|center|bottom)$/;
+function parseAlignLine(line) {
+  const match = line.trim().match(ALIGN_LINE_PATTERN);
+  if (!match)
+    return null;
+  return { id: match[1], justification: match[2], alignment: match[3] };
+}
+function getNodeAlign(lines, id) {
+  for (const line of lines) {
+    const align = parseAlignLine(line);
+    if (align?.id === id)
+      return align;
+  }
+  return { id, justification: "center", alignment: "center" };
+}
+function buildAlignLine(id, justification, alignment) {
+  return `${ALIGN_PREFIX} ${id} ${justification} ${alignment}`;
+}
+function buildSourceWithoutNodeAlign(source, id) {
+  const keptLines = [];
+  for (const line of source.split(`
+`)) {
+    const align = parseAlignLine(line);
+    const isOldLineOfNode = align?.id === id;
+    if (!isOldLineOfNode)
+      keptLines.push(line);
+  }
+  return keptLines.join(`
+`);
+}
+function buildSourceWithNodeAlign(source, id, justification, alignment) {
+  const sourceWithoutOldLine = buildSourceWithoutNodeAlign(source, id);
+  const isDefault = justification === "center" && alignment === "center";
+  if (isDefault)
+    return sourceWithoutOldLine;
+  const body = sourceWithoutOldLine.replace(/\s+$/, "");
+  return `${body}
+${buildAlignLine(id, justification, alignment)}`;
+}
+
 // node-size.ts
 var NODE_PADDING_WIDTH = 32;
 var NODE_PADDING_HEIGHT = 24;
 var HEXAGON_PADDING_HEIGHT = 70;
 var HEXAGON_POINTS_WIDTH_RATIO = 4 / 7;
+var FLEX_JUSTIFY_CONTENT = { left: "flex-start", center: "center", right: "flex-end" };
+var FLEX_ALIGN_ITEMS = { top: "flex-start", center: "center", bottom: "flex-end" };
 var SIZE_LINE_PATTERN = /^%% ==size==: ([A-Za-z0-9_]+) (\d+) (\d+)$/;
 var DECLARATION_PATTERN = /^(\s*)([A-Za-z0-9_]+)(\[|\{\{)"(.*)"(\]|\}\})\s*$/;
 function parseSizeLine(line) {
@@ -265,7 +310,13 @@ function buildSourceWithSizeWrappers(source) {
     if (size)
       sizes.set(size.id, size);
   }
-  if (sizes.size === 0)
+  const aligns = new Map;
+  for (const line of lines) {
+    const align = parseAlignLine(line);
+    if (align)
+      aligns.set(align.id, align);
+  }
+  if (sizes.size === 0 && aligns.size === 0)
     return source;
   const wrappedLines = [];
   for (const line of lines) {
@@ -275,7 +326,15 @@ function buildSourceWithSizeWrappers(source) {
       continue;
     }
     const size = sizes.get(declaration[2]);
+    const align = aligns.get(declaration[2]);
     if (!size) {
+      if (align) {
+        if (align.justification !== "center") {
+          const [, indent, id, open, label, close] = declaration;
+          wrappedLines.push(`${indent}${id}${open}"<div style='text-align:${align.justification}'>${label}</div>"${close}`);
+          continue;
+        }
+      }
       wrappedLines.push(line);
       continue;
     }
@@ -287,8 +346,11 @@ function buildSourceWithSizeWrappers(source) {
       wrapperWidth = Number((size.width - NODE_PADDING_WIDTH - HEXAGON_POINTS_WIDTH_RATIO * size.height).toFixed(2));
       wrapperHeight = size.height - HEXAGON_PADDING_HEIGHT;
     }
-    const style = `display:flex;align-items:center;justify-content:center;width:max(${wrapperWidth}px,25ch);min-height:max(${wrapperHeight}px,2lh)`;
-    wrappedLines.push(`${indent}${id}${open}"<div style='${style}'><div>${label}</div></div>"${close}`);
+    const justification = align?.justification ?? "center";
+    const alignment = align?.alignment ?? "center";
+    const style = `display:flex;align-items:${FLEX_ALIGN_ITEMS[alignment]};justify-content:${FLEX_JUSTIFY_CONTENT[justification]};width:max(${wrapperWidth}px,25ch);min-height:max(${wrapperHeight}px,2lh)`;
+    const labelOpen = justification === "center" ? "<div>" : `<div style='text-align:${justification}'>`;
+    wrappedLines.push(`${indent}${id}${open}"<div style='${style}'>${labelOpen}${label}</div></div>"${close}`);
   }
   return wrappedLines.join(`
 `);
@@ -1133,7 +1195,6 @@ function buildArrowHead(path, length, marker) {
   head.style.fill = markerPathStyle.fill;
   head.style.stroke = markerPathStyle.stroke;
   head.setAttribute("transform", `translate(${point.x} ${point.y}) rotate(${angleDegrees}) scale(${scale}) translate(${-marker.refX.baseVal.value} ${-marker.refY.baseVal.value})`);
-  head.setAttribute("pointer-events", "none");
   head.setAttribute("data-edge-id", path.getAttribute("data-id"));
   return head;
 }
@@ -1161,6 +1222,16 @@ function updateOffscreenArrowHeads() {
     path.after(buildArrowHead(path, lastVisibleLength, marker));
   }
 }
+function scrollToEndBlockOfClickedArrowHead(event) {
+  const head = event.target.closest(".offscreen-arrow-head");
+  if (!head)
+    return;
+  event.stopPropagation();
+  const path = diagramBox.querySelector(`path.flowchart-link[data-id="${head.getAttribute("data-edge-id")}"]`);
+  const [, endBlockId] = getEdgeEnds(path, parseEdges(codeBox.value));
+  diagramBox.querySelector(`[id*="flowchart-${endBlockId}-"]`).scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+}
+outputBox.addEventListener("click", scrollToEndBlockOfClickedArrowHead, true);
 outputBox.addEventListener("scroll", updateOffscreenArrowHeads);
 window.addEventListener("resize", updateOffscreenArrowHeads);
 
@@ -1448,11 +1519,12 @@ function buildRows(edges, graph) {
 var PHONE_CLICKED_BORDER_MS = 3000;
 var UNCLASSED_PHONE_STYLE = "background:repeating-linear-gradient(45deg, #f4b4b4 0 8px, #fde8e8 8px 16px)";
 var classIndex = { assignments: new Map, defsByName: new Map };
-function getPhoneNodeAppearance(node) {
+function getPhoneNodeAppearance(node, graph) {
   const classStyle = findNodeStyle(classIndex, node.id);
+  const textAlignStyle = `;text-align:${getNodeAlign(graph.lines, node.id).justification}`;
   if (!classStyle)
-    return { boxStyle: UNCLASSED_PHONE_STYLE, labelStyle: "" };
-  return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}`, labelStyle: "" };
+    return { boxStyle: UNCLASSED_PHONE_STYLE + textAlignStyle, labelStyle: "" };
+  return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}${textAlignStyle}`, labelStyle: "" };
 }
 function encodeHtml(text) {
   const withAmp = text.replace(/&/g, "&amp;");
@@ -1501,12 +1573,12 @@ function buildRowHtml(row, graph, edges, isMasked) {
     return "";
   if (row.status === "block") {
     const blockClass = isMasked ? "phone-block phone-block-past" : "phone-block";
-    const { boxStyle, labelStyle } = getPhoneNodeAppearance(node);
+    const { boxStyle, labelStyle } = getPhoneNodeAppearance(node, graph);
     return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
   }
   const choices = choicesOf(row.id, edges);
   const activeAttr = row.status === "active" ? " data-active-question" : "";
-  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node);
+  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node, graph);
   const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
   const wrapClass = isMasked ? "phone-decision phone-decision-past" : "phone-decision";
   const isAutoPicked = row.status === "past" && choices.length === 1;
@@ -2078,6 +2150,10 @@ function buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines) {
     const isSizeOfRemovedNode = !!size && deletedNodeIds.has(size.id);
     if (isSizeOfRemovedNode)
       continue;
+    const align = parseAlignLine(graph.lines[lineIndex]);
+    const isAlignOfRemovedNode = !!align && deletedNodeIds.has(align.id);
+    if (isAlignOfRemovedNode)
+      continue;
     const classMatch = graph.lines[lineIndex].match(CLASS_LINE_RE);
     if (!classMatch) {
       kept.push(graph.lines[lineIndex]);
@@ -2215,6 +2291,7 @@ function renderNodeInspector() {
   nodeInspector.hidden = !node;
   if (!node) {
     decisionShapeRow.hidden = true;
+    nodeAlignRow.hidden = true;
     nodeTextInput.value = "";
     nodeNotesInput.value = "";
     clearInspectorFocus();
@@ -2234,7 +2311,14 @@ function renderNodeInspector() {
   nodeNameInput.value = getNodeNamePart(graph, node);
   showNameCheck({ fullId: node.id });
   nodeNotesInput.value = decodeLabelLineBreaks(node.note);
+  const nodeAlign = getNodeAlign(graph.lines, node.id);
+  for (const button of nodeAlignRow.querySelectorAll("button")) {
+    const isJustificationPressed = button.dataset.justification === nodeAlign.justification;
+    const isAlignmentPressed = button.dataset.alignment === nodeAlign.alignment;
+    button.setAttribute("aria-pressed", String(isJustificationPressed || isAlignmentPressed));
+  }
   nodeClassRow.hidden = previewing;
+  nodeAlignRow.hidden = previewing;
   nodeNotesRow.hidden = previewing;
   if (!previewing)
     renderClassPicker(node);
@@ -3395,6 +3479,7 @@ function disableDiagramEdits() {
   nodeActions.inert = true;
   nodeTextInput.inert = true;
   nodeClassRow.inert = true;
+  nodeAlignRow.inert = true;
   nodeInspectorActions.inert = true;
   destinationRow.inert = true;
   nodeInspectorRemovalPreview.inert = true;
@@ -3412,6 +3497,7 @@ function enableDiagramEdits() {
   nodeActions.inert = false;
   nodeTextInput.inert = false;
   nodeClassRow.inert = false;
+  nodeAlignRow.inert = false;
   nodeInspectorActions.inert = false;
   destinationRow.inert = false;
   nodeInspectorRemovalPreview.inert = false;
@@ -3729,6 +3815,28 @@ function applyDestinationSelection() {
   applyDestination(destinationSelect.value);
 }
 
+// editor-node-align.ts
+function setNodeJustification(id, justification) {
+  async function applyNodeJustification() {
+    const stored = getNodeAlign(codeBox.value.split(`
+`), id);
+    if (stored.justification === justification)
+      return;
+    await applyEditorSource(buildSourceWithNodeAlign(codeBox.value, id, justification, stored.alignment));
+  }
+  appendEditorAction(applyNodeJustification);
+}
+function setNodeAlignment(id, alignment) {
+  async function applyNodeAlignment() {
+    const stored = getNodeAlign(codeBox.value.split(`
+`), id);
+    if (stored.alignment === alignment)
+      return;
+    await applyEditorSource(buildSourceWithNodeAlign(codeBox.value, id, stored.justification, alignment));
+  }
+  appendEditorAction(applyNodeAlignment);
+}
+
 // editor-inspector-events.ts
 function openNodeTextEditor(event) {
   const nodeEl = event.target.closest("g.node");
@@ -3866,6 +3974,20 @@ function changeDecisionShapeOnSwitch() {
   updateDecisionShape(state.selectedEditorNodeId, !decisionShapeSwitch.checked);
 }
 decisionShapeSwitch.addEventListener("change", changeDecisionShapeOnSwitch);
+function setNodeAlignOnButtonClick(event) {
+  const button = event.target.closest("button");
+  if (!button)
+    return;
+  const id = state.selectedEditorNodeId;
+  if (!id)
+    return;
+  const { justification, alignment } = button.dataset;
+  if (justification)
+    setNodeJustification(id, justification);
+  if (alignment)
+    setNodeAlignment(id, alignment);
+}
+nodeAlignRow.addEventListener("click", setNodeAlignOnButtonClick);
 function renameNodeOnCommitKey(event) {
   const isCommitKey = event.key === "Enter" || event.key === "Tab";
   if (!isCommitKey)
@@ -4351,6 +4473,20 @@ var selectPhoneChoice = async (event) => {
   }
 };
 phoneDiagramBox.addEventListener("click", selectPhoneChoice);
+var scrollMainViewToPhoneRow = (event) => {
+  const row = event.target.closest(".phone-block, .phone-question");
+  if (!row)
+    return;
+  const node = diagramBox.querySelector('[id*="flowchart-' + row.dataset.nodeId + '-"]');
+  const outputRect = outputBox.getBoundingClientRect();
+  const nodeRect = node.getBoundingClientRect();
+  outputBox.scrollBy({
+    left: nodeRect.left + nodeRect.width / 2 - outputRect.left - outputBox.clientWidth / 2,
+    top: nodeRect.top + nodeRect.height / 2 - outputRect.top - outputBox.clientHeight / 2,
+    behavior: "smooth"
+  });
+};
+phoneDiagramBox.addEventListener("click", scrollMainViewToPhoneRow);
 
 // main-events.ts
 var DEFAULT_CLASS_LINES = [

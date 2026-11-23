@@ -1,4 +1,6 @@
 import { SIZE_PREFIX } from './editor-types.ts';
+import { parseAlignLine } from './node-align.ts';
+import type { Alignment, Justification, NodeAlign } from './node-align.ts';
 
 // Mermaid draws a rectangle this much bigger than its label; node-size.test.ts and tests/node-size.test.ts pin both numbers.
 export const NODE_PADDING_WIDTH = 32;
@@ -9,6 +11,9 @@ export const HEXAGON_PADDING_HEIGHT = 70;
 export const HEXAGON_POINTS_WIDTH_RATIO = 4 / 7;
 
 export type NodeSize = { id: string; width: number; height: number };
+
+const FLEX_JUSTIFY_CONTENT: Record<Justification, string> = { left: 'flex-start', center: 'center', right: 'flex-end' };
+const FLEX_ALIGN_ITEMS: Record<Alignment, string> = { top: 'flex-start', center: 'center', bottom: 'flex-end' };
 
 const SIZE_LINE_PATTERN = /^%% ==size==: ([A-Za-z0-9_]+) (\d+) (\d+)$/;
 const DECLARATION_PATTERN = /^(\s*)([A-Za-z0-9_]+)(\[|\{\{)"(.*)"(\]|\}\})\s*$/;
@@ -51,7 +56,13 @@ export function buildSourceWithSizeWrappers(source: string) {
         if (size)
             sizes.set(size.id, size);
     }
-    if (sizes.size === 0)
+    const aligns = new Map<string, NodeAlign>();
+    for (const line of lines) {
+        const align = parseAlignLine(line);
+        if (align)
+            aligns.set(align.id, align);
+    }
+    if (sizes.size === 0 && aligns.size === 0)
         return source;
     const wrappedLines: string[] = [];
     for (const line of lines) {
@@ -61,7 +72,16 @@ export function buildSourceWithSizeWrappers(source: string) {
             continue;
         }
         const size = sizes.get(declaration[2]);
+        const align = aligns.get(declaration[2]);
         if (!size) {
+            // Without a size line the label is as big as its text, so only the justification of its lines can show.
+            if (align) {
+                if (align.justification !== 'center') {
+                    const [, indent, id, open, label, close] = declaration;
+                    wrappedLines.push(`${indent}${id}${open}"<div style='text-align:${align.justification}'>${label}</div>"${close}`);
+                    continue;
+                }
+            }
             wrappedLines.push(line);
             continue;
         }
@@ -73,8 +93,11 @@ export function buildSourceWithSizeWrappers(source: string) {
             wrapperWidth = Number((size.width - NODE_PADDING_WIDTH - HEXAGON_POINTS_WIDTH_RATIO * size.height).toFixed(2));
             wrapperHeight = size.height - HEXAGON_PADDING_HEIGHT;
         }
-        const style = `display:flex;align-items:center;justify-content:center;width:max(${wrapperWidth}px,25ch);min-height:max(${wrapperHeight}px,2lh)`;
-        wrappedLines.push(`${indent}${id}${open}"<div style='${style}'><div>${label}</div></div>"${close}`);
+        const justification = align?.justification ?? 'center';
+        const alignment = align?.alignment ?? 'center';
+        const style = `display:flex;align-items:${FLEX_ALIGN_ITEMS[alignment]};justify-content:${FLEX_JUSTIFY_CONTENT[justification]};width:max(${wrapperWidth}px,25ch);min-height:max(${wrapperHeight}px,2lh)`;
+        const labelOpen = justification === 'center' ? '<div>' : `<div style='text-align:${justification}'>`;
+        wrappedLines.push(`${indent}${id}${open}"<div style='${style}'>${labelOpen}${label}</div></div>"${close}`);
     }
     return wrappedLines.join('\n');
 }

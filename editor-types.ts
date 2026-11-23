@@ -16,6 +16,7 @@ export interface EditorNode {
 
 export const NOTE_PREFIX = '%% ==note==:';
 export const SIZE_PREFIX = '%% ==size==:';
+export const ALIGN_PREFIX = '%% ==align==:';
 
 export interface EditorEdge {
   from: string;

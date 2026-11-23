@@ -68,3 +68,53 @@ for (const drawerState of ["open", "closed"]) {
     assert.ok(row3Bottom <= measured.firstAction.top + 1, `row 3 bottom ${row3Bottom}px, row 4 top ${measured.firstAction.top}px`);
   });
 }
+
+async function selectNodeAndMeasureKindRow(id: string) {
+  await resetEditorFixture();
+  await setEditorSource(SOURCE);
+  await waitMilliseconds(500);
+  await clickNodeWithMouse(id);
+  await waitMilliseconds(300);
+  return executeExpression(`JSON.stringify((() => {
+    const box = (element) => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }; };
+    const labelOf = (checkboxId) => box(document.getElementById(checkboxId).closest('label'));
+    const items = {
+      staticLabel: labelOf('nodeKindStatic'), decisionLabel: labelOf('nodeKindQuestion'), choiceLabel: labelOf('nodeKindChoice'),
+      shapeSwitchLabel: box(document.getElementById('decisionShapeRow')),
+    };
+    const shapeSwitchShown = !document.getElementById('decisionShapeRow').hidden;
+    const alignButtons = [...document.querySelectorAll('#nodeAlignRow button')].map(box);
+    return { items, shapeSwitchShown, alignButtons, inspector: box(document.getElementById('nodeInspector')) };
+  })())`).then(JSON.parse);
+}
+
+type ItemBox = { left: number; right: number; top: number; bottom: number };
+
+function boxesIntersect(first: ItemBox, second: ItemBox) {
+  return first.left < second.right && second.left < first.right && first.top < second.bottom && second.top < first.bottom;
+}
+
+for (const [kindName, nodeId] of [["static", "B_START"], ["decision", "Q_ASK"], ["choice", "Q_CHOICE_ASK_YES"]]) {
+  test(`test_the_six_align_buttons_sit_right_of_the_choice_checkbox_on_one_line_without_overlap_for_a_${kindName}_block`, async () => {
+    const measured = await selectNodeAndMeasureKindRow(nodeId);
+    console.log(`MEASURED ${kindName}: ${JSON.stringify(measured)}`);
+    assert.equal(measured.alignButtons.length, 6);
+    // The first align button is right of the Choice checkbox and on its line.
+    const firstButton = measured.alignButtons[0];
+    assert.ok(firstButton.left >= measured.items.choiceLabel.right, `first button left ${firstButton.left}px, Choice right ${measured.items.choiceLabel.right}px`);
+    const choiceCentre = (measured.items.choiceLabel.top + measured.items.choiceLabel.bottom) / 2;
+    for (const button of measured.alignButtons)
+      assert.ok(Math.abs((button.top + button.bottom) / 2 - choiceCentre) <= 4, `button centre ${(button.top + button.bottom) / 2}px, Choice centre ${choiceCentre}px`);
+    // The shape switch is shown only for a Decision block.
+    assert.equal(measured.shapeSwitchShown, kindName === "decision");
+    // No two items overlap, and every item is inside the inspector box.
+    const shownItems = Object.entries(measured.items).filter(([name]) => name !== "shapeSwitchLabel" || measured.shapeSwitchShown);
+    const everyBox = [...shownItems.map(([name, itemBox]) => ({ name, itemBox })), ...measured.alignButtons.map((itemBox: ItemBox, index: number) => ({ name: `alignButton${index}`, itemBox }))];
+    for (const [firstIndex, first] of everyBox.entries()) {
+      assert.ok(first.itemBox.left >= measured.inspector.left && first.itemBox.right <= measured.inspector.right, `${first.name} is outside the inspector`);
+      assert.ok(first.itemBox.top >= measured.inspector.top && first.itemBox.bottom <= measured.inspector.bottom, `${first.name} is outside the inspector`);
+      for (const second of everyBox.slice(firstIndex + 1))
+        assert.ok(!boxesIntersect(first.itemBox, second.itemBox), `${first.name} overlaps ${second.name}`);
+    }
+  });
+}
