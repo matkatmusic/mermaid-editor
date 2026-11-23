@@ -34,6 +34,8 @@ var nodeTextInput = document.getElementById("nodeTextInput");
 var nodeKindStaticBox = document.getElementById("nodeKindStatic");
 var nodeKindQuestionBox = document.getElementById("nodeKindQuestion");
 var nodeKindChoiceBox = document.getElementById("nodeKindChoice");
+var decisionShapeRow = document.getElementById("decisionShapeRow");
+var decisionShapeSwitch = document.getElementById("decisionShapeSwitch");
 var nodeParentLabel = document.getElementById("nodeParentLabel");
 var nodeNameInput = document.getElementById("nodeNameInput");
 var nodeNameCheck = document.getElementById("nodeNameCheck");
@@ -145,6 +147,7 @@ for (const key of Object.keys(state)) {
 // editor-types.ts
 var INSPECTOR_TITLES = { question: "Decision block", block: "static block", choice: "choice block" };
 var NOTE_PREFIX = "%% ==note==:";
+var SIZE_PREFIX = "%% ==size==:";
 
 class EditorValidationError extends Error {
   problems;
@@ -221,6 +224,77 @@ function setEditorActionPromise(promise) {
 }
 setEditorActionPromise(Promise.resolve());
 
+// node-size.ts
+var NODE_PADDING_WIDTH = 32;
+var NODE_PADDING_HEIGHT = 24;
+var HEXAGON_PADDING_HEIGHT = 70;
+var HEXAGON_POINTS_WIDTH_RATIO = 4 / 7;
+var SIZE_LINE_PATTERN = /^%% ==size==: ([A-Za-z0-9_]+) (\d+) (\d+)$/;
+var DECLARATION_PATTERN = /^(\s*)([A-Za-z0-9_]+)(\[|\{\{)"(.*)"(\]|\}\})\s*$/;
+function parseSizeLine(line) {
+  const match = line.trim().match(SIZE_LINE_PATTERN);
+  if (!match)
+    return null;
+  return { id: match[1], width: Number(match[2]), height: Number(match[3]) };
+}
+function buildSizeLine(id, width, height) {
+  return `${SIZE_PREFIX} ${id} ${width} ${height}`;
+}
+function buildSourceWithoutNodeSize(source, id) {
+  const keptLines = [];
+  for (const line of source.split(`
+`)) {
+    const size = parseSizeLine(line);
+    const isOldLineOfNode = size?.id === id;
+    if (!isOldLineOfNode)
+      keptLines.push(line);
+  }
+  return keptLines.join(`
+`);
+}
+function buildSourceWithNodeSize(source, id, width, height) {
+  const body = buildSourceWithoutNodeSize(source, id).replace(/\s+$/, "");
+  return `${body}
+${buildSizeLine(id, width, height)}`;
+}
+function buildSourceWithSizeWrappers(source) {
+  const lines = source.split(`
+`);
+  const sizes = new Map;
+  for (const line of lines) {
+    const size = parseSizeLine(line);
+    if (size)
+      sizes.set(size.id, size);
+  }
+  if (sizes.size === 0)
+    return source;
+  const wrappedLines = [];
+  for (const line of lines) {
+    const declaration = line.match(DECLARATION_PATTERN);
+    if (!declaration) {
+      wrappedLines.push(line);
+      continue;
+    }
+    const size = sizes.get(declaration[2]);
+    if (!size) {
+      wrappedLines.push(line);
+      continue;
+    }
+    const [, indent, id, open, label, close] = declaration;
+    const isHexagon = open === "{{";
+    let wrapperWidth = size.width - NODE_PADDING_WIDTH;
+    let wrapperHeight = size.height - NODE_PADDING_HEIGHT;
+    if (isHexagon) {
+      wrapperWidth = Number((size.width - NODE_PADDING_WIDTH - HEXAGON_POINTS_WIDTH_RATIO * size.height).toFixed(2));
+      wrapperHeight = size.height - HEXAGON_PADDING_HEIGHT;
+    }
+    const style = `display:flex;align-items:center;justify-content:center;width:max(${wrapperWidth}px,25ch);min-height:max(${wrapperHeight}px,2lh)`;
+    wrappedLines.push(`${indent}${id}${open}"<div style='${style}'><div>${label}</div></div>"${close}`);
+  }
+  return wrappedLines.join(`
+`);
+}
+
 // editor-parse.ts
 function trimEditorQuotes(text) {
   return text.replace(/^"(.*)"$/, "$1");
@@ -249,6 +323,11 @@ function parseEditorToken(token) {
     return { id: token, shape: null, label: "" };
   const id = match[1];
   const rest = match[2].trim();
+  const startsHexagon = rest.startsWith("{{");
+  const endsHexagon = rest.endsWith("}}");
+  const isHexagon = startsHexagon && endsHexagon;
+  if (isHexagon)
+    return { id, shape: "hexagon", label: trimEditorQuotes(rest.slice(2, -2)) };
   const startsBrace = rest.startsWith("{");
   const endsBrace = rest.endsWith("}");
   const isBrace = startsBrace && endsBrace;
@@ -272,11 +351,11 @@ function getDeclarationRequirement(id) {
     return 'start with "Q_CHOICE" and use bracket shape []';
   const isQuestion = id.startsWith("Q_");
   if (isQuestion)
-    return 'start with "Q_" and use brace shape {}';
+    return 'start with "Q_" and use diamond shape {} or hexagon shape {{}}';
   const isBlock = id.startsWith("B_");
   if (isBlock)
     return 'start with "B_" and use bracket shape []';
-  return 'use "Q_" with brace shape {} for a decision, "Q_CHOICE" with bracket shape [] for a choice, or "B_" with bracket shape [] for a static block';
+  return 'use "Q_" with diamond shape {} or hexagon shape {{}} for a decision, "Q_CHOICE" with bracket shape [] for a choice, or "B_" with bracket shape [] for a static block';
 }
 function validateDeclaration(id, shape, lineNumber, problems) {
   const subject = `Line ${lineNumber}: id "${id}"`;
@@ -292,8 +371,9 @@ function validateDeclaration(id, shape, lineNumber, problems) {
   }
   const isQuestion = id.startsWith("Q_");
   if (isQuestion) {
-    if (shape !== "brace")
-      problems.push(`${subject} is a decision and must use brace shape {} (for example, ${id}{"Decision"}).`);
+    const isDecisionShape = shape === "brace" || shape === "hexagon";
+    if (!isDecisionShape)
+      problems.push(`${subject} is a decision and must use diamond shape {} or hexagon shape {{}} (for example, ${id}{{"Decision"}}).`);
     return;
   }
   const isBlock = id.startsWith("B_");
@@ -334,7 +414,7 @@ function parseEditorEdgeLine(line) {
 }
 function getDeclarationSuffix(node) {
   if (node.kind === "question")
-    return `{"${node.label}"}`;
+    return node.isHexagon ? `{{"${node.label}"}}` : `{"${node.label}"}`;
   if (node.kind === "choice")
     return `["${node.label}"]`;
   return `["${node.label}"]`;
@@ -381,7 +461,7 @@ function parseEditorGraph(source) {
         storeDeclaration(declLines, decl, lineIndex);
         validateDeclaration(decl.id, decl.shape, lineIndex + 1, problems);
       } else {
-        const opensQuotedLabel = line.match(/^([A-Za-z0-9_]+)(?:\[|\{|\(\[)"/);
+        const opensQuotedLabel = line.match(/^([A-Za-z0-9_]+)(?:\[|\{\{?|\(\[)"/);
         if (opensQuotedLabel) {
           multiLineIds.add(opensQuotedLabel[1]);
           problems.push(`Line ${lineIndex + 1}: the definition of "${opensQuotedLabel[1]}" must start and end on one line. Its text has a line break.`);
@@ -410,6 +490,26 @@ function parseEditorGraph(source) {
     if (leadsToManyNodes)
       problems.push(`Line ${exit.firstEdgeLineIndex + 1}: block "${id}" leads to ${exit.nextIds.size} nodes (${[...exit.nextIds].join(", ")}); a block must lead to one node, so the phone view can follow one question at a time.`);
   }
+  const sizes = new Map;
+  for (let lineIndex = 0;lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex].trim();
+    if (!line.startsWith(SIZE_PREFIX))
+      continue;
+    const size = parseSizeLine(line);
+    if (!size) {
+      problems.push(`Line ${lineIndex + 1}: the size line must look like "${buildSizeLine("B_NAME", 352, 154)}": the node id, then the width and the height in whole px.`);
+      continue;
+    }
+    if (!declLines.has(size.id)) {
+      problems.push(`Line ${lineIndex + 1}: the size line names "${size.id}", which is not declared.`);
+      continue;
+    }
+    if (sizes.has(size.id)) {
+      problems.push(`Line ${lineIndex + 1}: "${size.id}" has two size lines; keep one.`);
+      continue;
+    }
+    sizes.set(size.id, { width: size.width, height: size.height });
+  }
   const uniqueProblems = [...new Set(problems)];
   const nodes = new Map;
   for (const [id, decl] of declLines) {
@@ -418,7 +518,7 @@ function parseEditorGraph(source) {
     for (let i = decl.lineIndex - 1;i >= 0 && lines[i].trim().startsWith(NOTE_PREFIX); i--)
       noteLines.unshift(lines[i].trim().slice(NOTE_PREFIX.length).trim());
     nodes.set(id, { id, kind, label: decl.label, note: noteLines.join(`
-`), lineIndex: decl.lineIndex });
+`), lineIndex: decl.lineIndex, isHexagon: decl.shape === "hexagon", size: sizes.get(id) });
   }
   return { graph: { lines, nodes, edges }, problems: uniqueProblems };
 }
@@ -960,6 +1060,111 @@ function applyNoteDots(graph) {
   }
 }
 
+// offscreen-arrow-heads.ts
+var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+var EDGE_INSET_PX = 2;
+var SAMPLE_COUNT = 100;
+var REFINE_STEPS = 20;
+var DIRECTION_LENGTH = 2;
+function getVisibleArea(insetPx) {
+  const outputRect = outputBox.getBoundingClientRect();
+  const left = outputRect.left + outputBox.clientLeft + insetPx;
+  const top = outputRect.top + outputBox.clientTop + insetPx;
+  return { left, top, right: left + outputBox.clientWidth - 2 * insetPx, bottom: top + outputBox.clientHeight - 2 * insetPx };
+}
+function isPointInArea(point, area) {
+  if (point.x < area.left)
+    return false;
+  if (point.x > area.right)
+    return false;
+  if (point.y < area.top)
+    return false;
+  if (point.y > area.bottom)
+    return false;
+  return true;
+}
+function doesRectOverlapArea(rect, area) {
+  if (rect.right < area.left)
+    return false;
+  if (rect.left > area.right)
+    return false;
+  if (rect.bottom < area.top)
+    return false;
+  if (rect.top > area.bottom)
+    return false;
+  return true;
+}
+function getScreenPointAtLength(path, length, matrix) {
+  return path.getPointAtLength(length).matrixTransform(matrix);
+}
+function findLastVisibleLength(path, totalLength, matrix, area) {
+  let lastInsideLength = -1;
+  for (let step = 0;step <= SAMPLE_COUNT; step++) {
+    const length = totalLength * step / SAMPLE_COUNT;
+    const isInside = isPointInArea(getScreenPointAtLength(path, length, matrix), area);
+    if (isInside)
+      lastInsideLength = length;
+  }
+  if (lastInsideLength < 0)
+    return null;
+  let insideLength = lastInsideLength;
+  let outsideLength = Math.min(totalLength, lastInsideLength + totalLength / SAMPLE_COUNT);
+  for (let step = 0;step < REFINE_STEPS; step++) {
+    const middleLength = (insideLength + outsideLength) / 2;
+    const isInside = isPointInArea(getScreenPointAtLength(path, middleLength, matrix), area);
+    if (isInside)
+      insideLength = middleLength;
+    else
+      outsideLength = middleLength;
+  }
+  return insideLength;
+}
+function buildArrowHead(path, length, marker) {
+  const point = path.getPointAtLength(length);
+  const pointAhead = path.getPointAtLength(Math.min(length + DIRECTION_LENGTH, path.getTotalLength()));
+  const angleDegrees = Math.atan2(pointAhead.y - point.y, pointAhead.x - point.x) * 180 / Math.PI;
+  const markerPath = marker.querySelector("path");
+  const viewBox = marker.viewBox.baseVal;
+  const scale = Math.min(marker.markerWidth.baseVal.value / viewBox.width, marker.markerHeight.baseVal.value / viewBox.height);
+  const head = document.createElementNS(SVG_NAMESPACE, "path");
+  head.setAttribute("d", markerPath.getAttribute("d"));
+  head.setAttribute("class", "arrowMarkerPath offscreen-arrow-head");
+  head.setAttribute("style", markerPath.getAttribute("style") ?? "");
+  const markerPathStyle = getComputedStyle(markerPath);
+  head.style.fill = markerPathStyle.fill;
+  head.style.stroke = markerPathStyle.stroke;
+  head.setAttribute("transform", `translate(${point.x} ${point.y}) rotate(${angleDegrees}) scale(${scale}) translate(${-marker.refX.baseVal.value} ${-marker.refY.baseVal.value})`);
+  head.setAttribute("pointer-events", "none");
+  head.setAttribute("data-edge-id", path.getAttribute("data-id"));
+  return head;
+}
+function updateOffscreenArrowHeads() {
+  for (const oldHead of diagramBox.querySelectorAll(".offscreen-arrow-head"))
+    oldHead.remove();
+  const visibleArea = getVisibleArea(0);
+  const insetArea = getVisibleArea(EDGE_INSET_PX);
+  for (const path of diagramBox.querySelectorAll("path.flowchart-link")) {
+    const markerEnd = path.getAttribute("marker-end");
+    if (markerEnd === null)
+      continue;
+    if (!doesRectOverlapArea(path.getBoundingClientRect(), visibleArea))
+      continue;
+    const matrix = path.getScreenCTM();
+    const totalLength = path.getTotalLength();
+    const endPoint = getScreenPointAtLength(path, totalLength, matrix);
+    if (isPointInArea(endPoint, visibleArea))
+      continue;
+    const lastVisibleLength = findLastVisibleLength(path, totalLength, matrix, insetArea);
+    if (lastVisibleLength === null)
+      continue;
+    const markerId = markerEnd.match(/#([^)"']+)/)[1];
+    const marker = diagramBox.querySelector(`#${CSS.escape(markerId)}`);
+    path.after(buildArrowHead(path, lastVisibleLength, marker));
+  }
+}
+outputBox.addEventListener("scroll", updateOffscreenArrowHeads);
+window.addEventListener("resize", updateOffscreenArrowHeads);
+
 // zoom.ts
 function viewBoxOf(svgText) {
   const match = svgText.match(/viewBox="[^"]*?\s([\d.]+)\s([\d.]+)"/);
@@ -998,6 +1203,7 @@ function applyMainZoom(preserveViewportCenter = true) {
       }
     }
   }
+  updateOffscreenArrowHeads();
 }
 function setMainZoomPercent(percent) {
   state.mainZoomPercent = Math.max(MIN_MAIN_ZOOM, Math.min(MAX_MAIN_ZOOM, Math.round(percent)));
@@ -1347,6 +1553,9 @@ function renderPhone(edges, graph) {
   const historyBox = phoneDiagramBox.querySelector("#phoneHistory");
   if (historyBox)
     historyBox.scrollTop = historyBox.scrollHeight;
+  const footerBox = phoneDiagramBox.querySelector("#phoneFooter");
+  if (footerBox)
+    footerBox.scrollTop = footerBox.scrollHeight;
   const hasClickedNode = state.phoneClickedNodeId !== null;
   if (hasClickedNode) {
     const isClickRecent = Date.now() - state.phoneClickedAtMs < PHONE_CLICKED_BORDER_MS;
@@ -1474,16 +1683,16 @@ async function render() {
       }
     }
     state.currentBottomQ = bottomQ;
-    const mainSource = buildSourceWithCodeTags(moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value));
+    const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value)));
     const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const myRenderId = state.renderId;
     const { svg: regularSvg } = await mermaid.render("diagram-" + state.renderId++, mainSource);
     if (state.renderId !== myRenderId + 1)
       return;
-    const hasEdges = edges.length > 0;
+    const hasNodes = graph.nodes.size > 0;
     const scaleIsUnset = state.diagramScale === null;
-    if (hasEdges) {
+    if (hasNodes) {
       if (scaleIsUnset)
         state.diagramScale = 1;
     }
@@ -1493,7 +1702,7 @@ async function render() {
     applyNoteDots(graph);
     renderEditorSelection();
     applyPathHighlight();
-    if (edges.length > 0) {
+    if (hasNodes) {
       const scale = state.diagramScale;
       const mainZoom = state.mainZoomPercent / 100;
       const regularSvgEl = diagramBox.querySelector("svg");
@@ -1504,6 +1713,7 @@ async function render() {
     outputBox.scrollLeft = regularViewport.left;
     outputBox.scrollTop = regularViewport.top;
     updateNodeInspectorPosition();
+    updateOffscreenArrowHeads();
     errorLog.textContent = "";
     errorLog.classList.remove("open");
   } catch (err) {
@@ -1606,7 +1816,7 @@ async function saveDiagram() {
     pendingSaveCount++;
     saveVersion++;
     try {
-      const openFileResponse = await fetch("/api/open-file", { method: "PUT", body: codeBox.value });
+      const openFileResponse = await fetch("/api/open-file?path=" + encodeURIComponent(state.loadedPath), { method: "PUT", body: codeBox.value });
       if (!openFileResponse.ok)
         throw new Error(await openFileResponse.text());
     } finally {
@@ -1830,10 +2040,19 @@ function buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines) {
     for (let i = removedIndex - 1;i >= 0 && graph.lines[i].trim().startsWith(NOTE_PREFIX); i--)
       removedWithNotes.add(i);
   }
+  const removedNodeIds = new Set;
+  for (const node of graph.nodes.values()) {
+    if (removedLineIndexes.has(node.lineIndex))
+      removedNodeIds.add(node.id);
+  }
   const kept = [];
   for (let lineIndex = 0;lineIndex < graph.lines.length; lineIndex++) {
     const isRemoved = removedWithNotes.has(lineIndex);
-    if (!isRemoved)
+    if (isRemoved)
+      continue;
+    const size = parseSizeLine(graph.lines[lineIndex]);
+    const isSizeOfRemovedNode = !!size && removedNodeIds.has(size.id);
+    if (!isSizeOfRemovedNode)
       kept.push(graph.lines[lineIndex]);
   }
   let classBlockStart = -1;
@@ -1935,7 +2154,7 @@ function renderClassPicker(node) {
 // node-inspector.ts
 function replaceDeclarationInLine(line, id, newToken) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`${escapedId}(\\{"[^"]*"\\}|\\["[^"]*"\\]|\\{[^}]*\\}|\\[[^\\]]*\\]|\\(\\[[^\\]]*\\]\\))`);
+  const re = new RegExp(`${escapedId}(\\{\\{"[^"]*"\\}\\}|\\{"[^"]*"\\}|\\["[^"]*"\\]|\\{\\{[^}]*\\}\\}|\\{[^}]*\\}|\\[[^\\]]*\\]|\\(\\[[^\\]]*\\]\\))`);
   return line.replace(re, newToken);
 }
 function createInspectorActionButton(action, label, spanTwoColumns = false) {
@@ -1958,6 +2177,7 @@ function renderNodeInspector() {
   const node = graph.nodes.get(state.selectedEditorNodeId ?? "");
   nodeInspector.hidden = !node;
   if (!node) {
+    decisionShapeRow.hidden = true;
     nodeTextInput.value = "";
     nodeNotesInput.value = "";
     clearInspectorFocus();
@@ -1969,6 +2189,8 @@ function renderNodeInspector() {
   nodeKindStaticBox.checked = node.kind === "block";
   nodeKindQuestionBox.checked = node.kind === "question";
   nodeKindChoiceBox.checked = node.kind === "choice";
+  decisionShapeRow.hidden = node.kind !== "question";
+  decisionShapeSwitch.checked = !node.isHexagon;
   const parentId = getParentQuestionId(graph, node.id);
   const parentText = parentId === undefined ? "parent: none" : `- parent: ${parentId}`;
   nodeParentLabel.textContent = node.kind === "choice" ? parentText : "";
@@ -2049,6 +2271,12 @@ function findNodeIdAtMatch(graph, match) {
   const lineEnd = newlineAfter === -1 ? source.length : newlineAfter;
   const line = source.slice(lineStart, lineEnd);
   const matchOffset = match.start - lineStart;
+  const sizeLine = parseSizeLine(line);
+  if (sizeLine) {
+    const isNode = graph.nodes.has(sizeLine.id);
+    if (isNode)
+      return sizeLine.id;
+  }
   const parts = [];
   let partStart = 0;
   const arrows = [...line.matchAll(/-->|---|==>|-\.->/g)];
@@ -2386,7 +2614,7 @@ function addQuestionAfter() {
   const noId = buildChoiceId(qId, "N");
   const newLines = [
     `  ${selected} --> ${qId}`,
-    `  ${qId}{"New question"}`,
+    `  ${qId}{{"New question"}}`,
     `  ${yesId}["Yes"]`,
     `  ${noId}["No"]`,
     `  ${qId} --> ${yesId}`,
@@ -2514,7 +2742,7 @@ async function insertDecisionAfterNode(sourceId, graph) {
   const yesId = buildChoiceId(decisionId, "Y");
   const noId = buildChoiceId(decisionId, "N");
   const newLines = [
-    `  ${decisionId}{"New Decision"}`,
+    `  ${decisionId}{{"New Decision"}}`,
     `  ${yesId}["Yes"]`,
     `  ${noId}["No"]`,
     `  ${sourceId} --> ${decisionId}`,
@@ -2620,7 +2848,7 @@ function insertDecisionBefore() {
   const decisionId = getNextEditorId("Q_NEW", graph);
   const newChoiceId = buildChoiceId(decisionId, "NEW");
   const newLines = [
-    `  ${decisionId}{"New Decision"}`,
+    `  ${decisionId}{{"New Decision"}}`,
     `  ${newChoiceId}["New choice"]`,
     `  ${decisionId} --> ${newChoiceId}`
   ];
@@ -2847,6 +3075,7 @@ async function loadDiagram(name) {
   const { metadata } = splitEditorMetadata(text);
   applyTypeMetadata(metadata);
   state.currentName = name;
+  sessionStorage.setItem("tabOpenedFile", JSON.stringify({ name }));
   state.openedFileHandle = null;
   statusBox.textContent = state.loadedPath ?? "";
   phonePath.length = 0;
@@ -2887,8 +3116,10 @@ async function openFileFromDialog() {
   showOpenedFile(path, text);
 }
 async function showOpenedFile(path, text) {
-  if (state.watcher)
+  if (state.watcher) {
     state.watcher.close();
+    state.watcher = null;
+  }
   state.currentName = null;
   state.openedFileHandle = null;
   state.loadedPath = path;
@@ -2911,7 +3142,8 @@ async function showOpenedFile(path, text) {
   loadList();
   setDrawerOpen(true);
   setLastSavedDiagramText(text);
-  createDiagramWatcher(path, "/api/watch-opened", "/api/opened-file");
+  sessionStorage.setItem("tabOpenedFile", JSON.stringify({ path }));
+  createDiagramWatcher(path, "/api/watch-opened?path=" + encodeURIComponent(path), "/api/opened-file?path=" + encodeURIComponent(path));
   const graph = getEditorGraph();
   if (graph.nodes.has(metadata?.lastSelectedNodeId ?? ""))
     selectEditorNode(metadata.lastSelectedNodeId);
@@ -2988,7 +3220,7 @@ function getChosenPathIds() {
   return ids;
 }
 function getPlainLabel(id, graph) {
-  return graph.nodes.get(id).label.replace(/<br\s*\/?>/gi, " ");
+  return decodeLabelQuotes(graph.nodes.get(id).label).replace(/<br\s*\/?>/gi, " ");
 }
 function buildDecisionComment(ids, graph) {
   const lines = ["%% Decisions made:"];
@@ -3039,6 +3271,11 @@ function buildChosenPathSource(ids) {
   for (let i = 0;i + 1 < ids.length; i++)
     lines.push(`  ${ids[i]} --> ${ids[i + 1]}`);
   lines.push(...buildClassLines(declaredIds));
+  for (const id of declaredIds) {
+    const size = graph.nodes.get(id).size;
+    if (size)
+      lines.push(buildSizeLine(id, size.width, size.height));
+  }
   return lines.join(`
 `) + `
 `;
@@ -3154,6 +3391,14 @@ async function writeAllPathsWithEditsDisabled() {
   }
 }
 document.getElementById("exportAllPathsBtn").addEventListener("click", writeAllPathsWithEditsDisabled);
+
+// editor-node-size.ts
+function setNodeSize(id, width, height) {
+  async function applyNodeSize() {
+    await applyEditorSource(buildSourceWithNodeSize(codeBox.value, id, width, height));
+  }
+  appendEditorAction(applyNodeSize);
+}
 
 // editor-view-state.ts
 async function saveEditorViewState() {
@@ -3340,6 +3585,23 @@ function moveToQuestionOnAngleBracket(event) {
 document.addEventListener("keydown", moveToQuestionOnAngleBracket);
 
 // editor-commit.ts
+function updateDecisionShape(id, isHexagon) {
+  if (!id)
+    return;
+  async function applyDecisionShapeUpdate() {
+    const graph = getEditorGraph();
+    const node = graph.nodes.get(id);
+    if (!node)
+      return;
+    const newToken = isHexagon ? `${id}{{"${node.label}"}}` : `${id}{"${node.label}"}`;
+    const lines = graph.lines.slice();
+    lines[node.lineIndex] = replaceDeclarationInLine(lines[node.lineIndex], id, newToken);
+    const newSource = lines.join(`
+`);
+    await applyEditorSource(isHexagon ? newSource : buildSourceWithoutNodeSize(newSource, id));
+  }
+  appendEditorAction(applyDecisionShapeUpdate);
+}
 function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotesInput.value.trim()) {
   if (!id)
     return;
@@ -3375,7 +3637,8 @@ function updateNodeText(id = state.selectedEditorNodeId, text = nodeTextInput.va
       return;
     const sourceText = encodeLabelLineBreaks(encodeLabelQuotes(text), node.label);
     if (node.label !== sourceText) {
-      const newToken = node.kind === "question" ? `${id}{"${sourceText}"}` : `${id}["${sourceText}"]`;
+      const decisionToken = node.isHexagon ? `${id}{{"${sourceText}"}}` : `${id}{"${sourceText}"}`;
+      const newToken = node.kind === "question" ? decisionToken : `${id}["${sourceText}"]`;
       const lines = graph.lines.slice();
       lines[node.lineIndex] = replaceDeclarationInLine(lines[node.lineIndex], id, newToken);
       await applyEditorSource(lines.join(`
@@ -3564,6 +3827,10 @@ function writeNodeTextOnChange() {
   document.addEventListener("pointerup", scheduleCommitAfterClick, { once: true });
 }
 nodeTextInput.addEventListener("change", writeNodeTextOnChange);
+function changeDecisionShapeOnSwitch() {
+  updateDecisionShape(state.selectedEditorNodeId, !decisionShapeSwitch.checked);
+}
+decisionShapeSwitch.addEventListener("change", changeDecisionShapeOnSwitch);
 function renameNodeOnCommitKey(event) {
   const isCommitKey = event.key === "Enter" || event.key === "Tab";
   if (!isCommitKey)
@@ -3572,6 +3839,12 @@ function renameNodeOnCommitKey(event) {
   commitNodeName();
 }
 nodeNameInput.addEventListener("keydown", renameNodeOnCommitKey);
+function forceNodeNameFormat() {
+  const { selectionStart, selectionEnd } = nodeNameInput;
+  nodeNameInput.value = nodeNameInput.value.toUpperCase().replace(/ /g, "_");
+  nodeNameInput.setSelectionRange(selectionStart, selectionEnd);
+}
+nodeNameInput.addEventListener("input", forceNodeNameFormat);
 nodeNameInput.addEventListener("input", checkTypedNodeName);
 function renameNodeOnChange() {
   if (isNodeNameBoxInvalid())
@@ -3861,11 +4134,14 @@ function createClassFromEditor() {
   classEditorError.textContent = "";
   const assignToNodeId = classEditorAssignNodeId;
   setEditorActionPromise((async () => {
-    await createClass(name, classEditorFill.value, classEditorStroke.value);
-    if (assignToNodeId)
-      await setNodeClass(assignToNodeId, name);
-    if (classesDialog.open)
-      renderClassesDialog();
+    try {
+      await createClass(name, classEditorFill.value, classEditorStroke.value);
+      if (assignToNodeId)
+        await setNodeClass(assignToNodeId, name);
+    } finally {
+      if (classesDialog.open)
+        renderClassesDialog();
+    }
   })());
   classEditorDialog.close();
 }
@@ -3897,7 +4173,7 @@ function updateClassFromRow(event) {
   if (isColorInput) {
     const fill = row.querySelector(".classes-fill").value;
     const stroke = row.querySelector(".classes-stroke").value;
-    setEditorActionPromise(setClassColors(name, fill, stroke).then(renderClassesDialog));
+    setEditorActionPromise(setClassColors(name, fill, stroke).finally(renderClassesDialog));
   } else if (isNameInput) {
     const newName = target.value.trim();
     const isNameBlank = !newName;
@@ -3918,7 +4194,7 @@ function updateClassFromRow(event) {
       target.value = name;
       return;
     }
-    setEditorActionPromise(renameClass(name, newName).then(renderClassesDialog));
+    setEditorActionPromise(renameClass(name, newName).finally(renderClassesDialog));
   }
 }
 function removeClassFromRow(event) {
@@ -3926,7 +4202,7 @@ function removeClassFromRow(event) {
   if (!button)
     return;
   const name = button.closest(".classes-row").dataset.className;
-  setEditorActionPromise(removeClass(name).then(renderClassesDialog));
+  setEditorActionPromise(removeClass(name).finally(renderClassesDialog));
 }
 classesMenuBtn.addEventListener("click", openClassesDialog);
 classesCloseBtn.addEventListener("click", closeClassesDialog);
@@ -4039,12 +4315,25 @@ var selectPhoneChoice = async (event) => {
 phoneDiagramBox.addEventListener("click", selectPhoneChoice);
 
 // main-events.ts
+var DEFAULT_CLASS_LINES = [
+  "  classDef information fill:#ffffff,stroke:#000000",
+  "  classDef Decision fill:#ffff00,stroke:#000000",
+  "  classDef Yes-path fill:#00ff00,stroke:#000000",
+  "  classDef No-path fill:#ff0000,stroke:#000000",
+  "  classDef Checkpoint fill:#ff8000,stroke:#000000",
+  "  classDef Action fill:#fc00ff,stroke:#000000",
+  "  classDef Question fill:#79d4fb,stroke:#000000",
+  "  classDef Answer fill:#5df9b5,stroke:#000000"
+];
 function resetEditorToNewDiagram() {
-  if (state.watcher)
+  if (state.watcher) {
     state.watcher.close();
+    state.watcher = null;
+  }
   state.currentName = null;
   state.openedFileHandle = null;
   state.loadedPath = null;
+  sessionStorage.removeItem("tabOpenedFile");
   statusBox.textContent = "";
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
@@ -4052,8 +4341,8 @@ function resetEditorToNewDiagram() {
   state.diagramScale = null;
   state.currentDecisionId = null;
   applyTypeMetadata(null);
-  codeBox.value = `flowchart TD
-  B_NEW[New idea]`;
+  codeBox.value = ["flowchart TD", "  B_NEW[New idea]", ...DEFAULT_CLASS_LINES].join(`
+`);
   resetEditorHistory(codeBox.value);
   render();
   loadList();
@@ -4123,6 +4412,194 @@ openFileBtn.addEventListener("click", openFileFromDialog);
 codeBox.addEventListener("input", renderCodeBoxEdit);
 document.getElementById("fileMenuItems").addEventListener("click", closeFileMenu);
 
+// node-resize.ts
+var GRAB_MARGIN_PX = 6;
+var HEXAGON_POINT_COUNT = 6;
+var isResizing = false;
+var shouldSkipNextClick = false;
+function isBlockOrChoiceId(id) {
+  const isBlock = id.startsWith("B_");
+  const isChoice = id.startsWith("Q_CHOICE_");
+  return isBlock || isChoice;
+}
+function isDecisionId(id) {
+  const isQuestion = id.startsWith("Q_");
+  const isChoice = id.startsWith("Q_CHOICE_");
+  return isQuestion && !isChoice;
+}
+function findRectangleGrabAt(x, y, nodeEl, id) {
+  const shape = nodeEl.querySelector("rect");
+  if (!shape)
+    return null;
+  const box = shape.getBoundingClientRect();
+  if (x < box.left - GRAB_MARGIN_PX)
+    return null;
+  if (x > box.right + GRAB_MARGIN_PX)
+    return null;
+  if (y < box.top - GRAB_MARGIN_PX)
+    return null;
+  if (y > box.bottom + GRAB_MARGIN_PX)
+    return null;
+  const left = Math.abs(x - box.left) <= GRAB_MARGIN_PX;
+  const right = Math.abs(x - box.right) <= GRAB_MARGIN_PX;
+  const top = Math.abs(y - box.top) <= GRAB_MARGIN_PX;
+  const bottom = Math.abs(y - box.bottom) <= GRAB_MARGIN_PX;
+  const isNearOutline = left || right || top || bottom;
+  if (!isNearOutline)
+    return null;
+  return { nodeEl, shape, id, isHexagon: false, left, right, top, bottom };
+}
+function findHexagonGrabAt(x, y, nodeEl, id) {
+  const shape = nodeEl.querySelector("polygon");
+  if (!shape)
+    return null;
+  if (shape.points.numberOfItems !== HEXAGON_POINT_COUNT)
+    return null;
+  const matrix = shape.getScreenCTM();
+  const points = [...shape.points].map((point) => new DOMPoint(point.x, point.y).matrixTransform(matrix));
+  const boxLeft = Math.min(...points.map((point) => point.x));
+  const boxRight = Math.max(...points.map((point) => point.x));
+  const boxTop = Math.min(...points.map((point) => point.y));
+  const boxBottom = Math.max(...points.map((point) => point.y));
+  const middleY = (boxTop + boxBottom) / 2;
+  const topEdgeXs = points.filter((point) => Math.abs(point.y - boxTop) < 1).map((point) => point.x);
+  const isOverFlatEdge = x >= Math.min(...topEdgeXs) && x <= Math.max(...topEdgeXs);
+  const isNearMiddleHeight = Math.abs(y - middleY) <= 2 * GRAB_MARGIN_PX;
+  const grab = { nodeEl, shape, id, isHexagon: true, left: false, right: false, top: false, bottom: false };
+  if (isOverFlatEdge) {
+    if (Math.abs(y - boxTop) <= GRAB_MARGIN_PX)
+      return { ...grab, top: true };
+    if (Math.abs(y - boxBottom) <= GRAB_MARGIN_PX)
+      return { ...grab, bottom: true };
+  }
+  if (isNearMiddleHeight) {
+    if (Math.abs(x - boxLeft) <= GRAB_MARGIN_PX)
+      return { ...grab, left: true };
+    if (Math.abs(x - boxRight) <= GRAB_MARGIN_PX)
+      return { ...grab, right: true };
+  }
+  return null;
+}
+function findGrabAt(x, y) {
+  for (const nodeEl of diagramBox.querySelectorAll("g.node")) {
+    const id = getNodeId(nodeEl);
+    let grab = null;
+    if (isBlockOrChoiceId(id))
+      grab = findRectangleGrabAt(x, y, nodeEl, id);
+    if (isDecisionId(id))
+      grab = findHexagonGrabAt(x, y, nodeEl, id);
+    if (grab)
+      return grab;
+  }
+  return null;
+}
+function getResizeCursor(grab) {
+  const isOnVerticalSide = grab.left || grab.right;
+  const isOnHorizontalSide = grab.top || grab.bottom;
+  if (!isOnHorizontalSide)
+    return "ew-resize";
+  if (!isOnVerticalSide)
+    return "ns-resize";
+  const isOnFallingDiagonal = grab.left && grab.top || grab.right && grab.bottom;
+  return isOnFallingDiagonal ? "nwse-resize" : "nesw-resize";
+}
+function measureMinimumTextArea(nodeEl, pixelsPerUnit) {
+  const label = nodeEl.querySelector(".nodeLabel");
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:absolute;visibility:hidden;width:25ch;height:2lh";
+  label.appendChild(probe);
+  const probeBox = probe.getBoundingClientRect();
+  probe.remove();
+  return { width: probeBox.width / pixelsPerUnit, height: probeBox.height / pixelsPerUnit };
+}
+function followResizeDrag(startEvent, grab) {
+  const startBox = grab.shape.getBoundingClientRect();
+  const startSize = grab.shape.getBBox();
+  const pixelsPerUnit = startBox.width / startSize.width;
+  const minimumText = measureMinimumTextArea(grab.nodeEl, pixelsPerUnit);
+  const minimumHeight = minimumText.height + (grab.isHexagon ? HEXAGON_PADDING_HEIGHT : NODE_PADDING_HEIGHT);
+  function getMinimumWidth(height) {
+    if (grab.isHexagon)
+      return minimumText.width + NODE_PADDING_WIDTH + HEXAGON_POINTS_WIDTH_RATIO * height;
+    return minimumText.width + NODE_PADDING_WIDTH;
+  }
+  let newHeight = Math.max(minimumHeight, startSize.height);
+  let newWidth = Math.max(getMinimumWidth(newHeight), startSize.width);
+  let hasMoved = false;
+  const outline = document.createElement("div");
+  outline.id = "nodeResizeOutline";
+  outline.style.cssText = "position:fixed;box-sizing:border-box;border:2px dashed #1a73e8;pointer-events:none;z-index:1000";
+  document.body.appendChild(outline);
+  const previousUserSelect = document.body.style.userSelect;
+  document.body.style.userSelect = "none";
+  isResizing = true;
+  function drawOutline() {
+    const widthPx = newWidth * pixelsPerUnit;
+    const heightPx = newHeight * pixelsPerUnit;
+    outline.style.width = widthPx + "px";
+    outline.style.height = heightPx + "px";
+    outline.style.left = (grab.left ? startBox.right - widthPx : startBox.left) + "px";
+    outline.style.top = (grab.top ? startBox.bottom - heightPx : startBox.top) + "px";
+  }
+  function moveResize(event) {
+    const movedX = (event.clientX - startEvent.clientX) / pixelsPerUnit;
+    const movedY = (event.clientY - startEvent.clientY) / pixelsPerUnit;
+    hasMoved = true;
+    if (grab.bottom)
+      newHeight = Math.max(minimumHeight, startSize.height + movedY);
+    if (grab.top)
+      newHeight = Math.max(minimumHeight, startSize.height - movedY);
+    if (grab.right)
+      newWidth = Math.max(getMinimumWidth(newHeight), startSize.width + movedX);
+    if (grab.left)
+      newWidth = Math.max(getMinimumWidth(newHeight), startSize.width - movedX);
+    drawOutline();
+  }
+  function endResize() {
+    document.removeEventListener("mousemove", moveResize);
+    outline.remove();
+    document.body.style.userSelect = previousUserSelect;
+    isResizing = false;
+    if (!hasMoved)
+      return;
+    shouldSkipNextClick = true;
+    setNodeSize(grab.id, Math.round(newWidth), Math.round(newHeight));
+  }
+  drawOutline();
+  document.addEventListener("mousemove", moveResize);
+  document.addEventListener("mouseup", endResize, { once: true });
+}
+function showResizeCursor(event) {
+  if (isResizing)
+    return;
+  const grab = findGrabAt(event.clientX, event.clientY);
+  outputBox.style.cursor = grab ? getResizeCursor(grab) : "";
+}
+function startResizeOnMouseDown(event) {
+  shouldSkipNextClick = false;
+  if (event.button !== 0)
+    return;
+  if (event.shiftKey)
+    return;
+  if (event.metaKey)
+    return;
+  if (event.ctrlKey)
+    return;
+  const grab = findGrabAt(event.clientX, event.clientY);
+  if (!grab)
+    return;
+  followResizeDrag(event, grab);
+}
+function skipClickAfterResize(event) {
+  if (!shouldSkipNextClick)
+    return;
+  shouldSkipNextClick = false;
+  event.stopPropagation();
+}
+outputBox.addEventListener("mousemove", showResizeCursor);
+outputBox.addEventListener("mousedown", startResizeOnMouseDown);
+outputBox.addEventListener("click", skipClickAfterResize, true);
+
 // editor-add-standalone.ts
 async function addStandaloneStaticBlock() {
   const graph = getEditorGraph();
@@ -4138,7 +4615,7 @@ async function addStandaloneDecisionBlock() {
   const yesId = buildChoiceId(decisionId, "Y");
   const noId = buildChoiceId(decisionId, "N");
   const newLines = [
-    `  ${decisionId}{"New Decision"}`,
+    `  ${decisionId}{{"New Decision"}}`,
     `  ${yesId}["Yes"]`,
     `  ${noId}["No"]`,
     `  ${decisionId} --> ${yesId}`,
@@ -4178,6 +4655,14 @@ document.addEventListener("keydown", closeViewportMenuOnEscape);
 // viewer.ts
 applyMainZoom(false);
 async function loadLastOpened() {
+  const tabOpenedFile = JSON.parse(sessionStorage.getItem("tabOpenedFile") ?? "null");
+  if (tabOpenedFile?.name)
+    return loadDiagram(tabOpenedFile.name);
+  if (tabOpenedFile?.path) {
+    const tabFileResponse = await fetch("/api/opened-file?path=" + encodeURIComponent(tabOpenedFile.path));
+    if (tabFileResponse.ok)
+      return showOpenedFile(tabOpenedFile.path, await tabFileResponse.text());
+  }
   const response = await fetch("/api/last-opened");
   if (response.status === 204)
     return loadDiagram("accountability.mmd");
@@ -4187,4 +4672,4 @@ async function loadLastOpened() {
   showOpenedFile(saved.path, saved.text);
 }
 loadLastOpened();
-Object.assign(window, { render, loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds });
+Object.assign(window, { render, loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds, setNodeSize });
