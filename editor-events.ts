@@ -66,7 +66,7 @@ const selectClickedNode = (event: MouseEvent) => {
       return;
     }
   }
-  state.connectFromNodeId = null;
+  // state.connectFromNodeId = null;
   if (id)
     selectNodeSourceLine(id);
   selectEditorNode(id);
@@ -77,6 +77,12 @@ const selectClickedNode = (event: MouseEvent) => {
   }
 };
 outputBox.addEventListener('click', selectClickedNode);
+
+// A Shift mouse-down makes the browser extend the text selection from the Editor drawer to the click.
+outputBox.addEventListener('mousedown', (event) => {
+  if (event.shiftKey)
+    event.preventDefault();
+});
 
 const selectPhoneChoice = async (event: MouseEvent) => {
   // A phone choice also selects and scrolls the main view to the next open decision.
