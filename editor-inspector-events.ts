@@ -161,11 +161,6 @@ function renameNodeOnCommitKey(event: KeyboardEvent) {
   commitNodeName();
 }
 nodeNameInput.addEventListener('keydown', renameNodeOnCommitKey);
-nodeNameInput.addEventListener('input', checkTypedNodeName);
-// Click-away renames too; after a pointer press the rename waits for the click to land.
-function renameNodeOnChange() {
-  // A bad name stays in the box, so a click on another node can be refused and the user can fix the name.
-  if (isNodeNameBoxInvalid())
 // The coding standard for node names is capitals and underscores, so the box forces it while the user types.
 function forceNodeNameFormat() {
   const { selectionStart, selectionEnd } = nodeNameInput;
@@ -173,6 +168,11 @@ function forceNodeNameFormat() {
   nodeNameInput.setSelectionRange(selectionStart, selectionEnd);
 }
 nodeNameInput.addEventListener('input', forceNodeNameFormat);
+nodeNameInput.addEventListener('input', checkTypedNodeName);
+// Click-away renames too; after a pointer press the rename waits for the click to land.
+function renameNodeOnChange() {
+  // A bad name stays in the box, so a click on another node can be refused and the user can fix the name.
+  if (isNodeNameBoxInvalid())
     return;
   const id = state.selectedEditorNodeId;
   const text = nodeNameInput.value;
