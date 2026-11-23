@@ -1,7 +1,7 @@
 import { codeBox } from './dom.ts';
 import { parseEdges } from './diagram-source.ts';
 import { getEditorGraph } from './editor-graph.ts';
-import { getDeclarationSuffix } from './editor-parse.ts';
+import { decodeLabelQuotes, getDeclarationSuffix } from './editor-parse.ts';
 import { buildHistoryRows } from './phone-render.ts';
 import { state } from './state.ts';
 import { writeToOpenedFileFolder, writeToServerDiagrams } from './path-write.ts';
@@ -24,7 +24,7 @@ export function getChosenPathIds(): string[] {
 }
 
 function getPlainLabel(id: string, graph: EditorGraph) {
-  return graph.nodes.get(id)!.label.replace(/<br\s*\/?>/gi, ' ');
+  return decodeLabelQuotes(graph.nodes.get(id)!.label).replace(/<br\s*\/?>/gi, ' ');
 }
 
 // One "%% question -> chosen answer" line per decision, for the top of the path file.
