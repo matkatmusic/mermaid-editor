@@ -64,8 +64,9 @@ test("test_parse_editor_graph_reports_two_size_lines_for_one_node", () => {
 
 test("test_removing_a_node_removes_its_size_line", () => {
   const { graph } = parseEditorGraph(`${BASE}\n%% ==size==: B_A 352 154\n%% ==size==: B_B 200 200`);
-  const result = buildSourceWithLinesReplaced(graph, new Set([1]), []);
-  assert.equal(result, ['flowchart TD', '  B_B["B"]', '  B_A --> B_B', '%% ==size==: B_B 200 200'].join('\n'));
+  // The edge line goes with the node, as in every real delete route; a kept edge would mean the node stays.
+  const result = buildSourceWithLinesReplaced(graph, new Set([1, 3]), []);
+  assert.equal(result, ['flowchart TD', '  B_B["B"]', '%% ==size==: B_B 200 200'].join('\n'));
 });
 
 const SIZED_BLOCK = 'flowchart TD\n  B_A["Hello"]\n%% ==size==: B_A 352 154';

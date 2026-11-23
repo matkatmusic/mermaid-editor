@@ -2,6 +2,7 @@ import { NOTE_PREFIX } from './editor-types.ts';
 import type { EditorEdge, EditorGraph } from './editor-types.ts';
 import { getDeclarationSuffix } from './editor-parse.ts';
 import { parseSizeLine } from './node-size.ts';
+import { CLASS_LINE_RE } from './class-lines.ts';
 
 // New nodes go before the class block; mermaid drops classes stated before a node's declaration.
 export function buildSourceWithLinesReplaced(graph: EditorGraph, removedLineIndexes: Set<number>, newLines: string[]) {
@@ -15,15 +16,37 @@ export function buildSourceWithLinesReplaced(graph: EditorGraph, removedLineInde
     if (removedLineIndexes.has(node.lineIndex))
       removedNodeIds.add(node.id);
   }
+  // A removed definition line can hold a node that stays: an inline `A --> B["x"]` whose B is declared again in newLines or used by a kept edge.
+  const deletedNodeIds = new Set<string>();
+  for (const id of removedNodeIds) {
+    const idPattern = new RegExp(`(?<!\\w)${id}(?!\\w)`);
+    const isDeclaredAgain = newLines.some((line) => idPattern.test(line));
+    const isUsedByKeptEdge = graph.edges.some((edge) => !removedWithNotes.has(edge.lineIndex) && (edge.from === id || edge.to === id));
+    if (!isDeclaredAgain && !isUsedByKeptEdge)
+      deletedNodeIds.add(id);
+  }
   const kept: string[] = [];
   for (let lineIndex = 0; lineIndex < graph.lines.length; lineIndex++) {
     const isRemoved = removedWithNotes.has(lineIndex);
     if (isRemoved)
       continue;
     const size = parseSizeLine(graph.lines[lineIndex]);
-    const isSizeOfRemovedNode = !!size && removedNodeIds.has(size.id);
-    if (!isSizeOfRemovedNode)
+    const isSizeOfRemovedNode = !!size && deletedNodeIds.has(size.id);
+    if (isSizeOfRemovedNode)
+      continue;
+    const classMatch = graph.lines[lineIndex].match(CLASS_LINE_RE);
+    if (!classMatch) {
       kept.push(graph.lines[lineIndex]);
+      continue;
+    }
+    const namedIds = classMatch[2].split(',');
+    const remainingIds = namedIds.filter((id) => !deletedNodeIds.has(id));
+    if (remainingIds.length === namedIds.length) {
+      kept.push(graph.lines[lineIndex]);
+      continue;
+    }
+    if (remainingIds.length > 0)
+      kept.push(`${classMatch[1]}class ${remainingIds.join(',')} ${classMatch[3]}`);
   }
   let classBlockStart = -1;
   for (let i = 0; i < kept.length; i++) {
