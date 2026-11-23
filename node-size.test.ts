@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { parseEditorGraph } from "./editor-graph-parse.ts";
 import { buildSourceWithLinesReplaced } from "./source-edit.ts";
-import { buildSizeLine, buildSourceWithNodeSize, buildSourceWithSizeWrappers, parseSizeLine } from "./node-size.ts";
+import { buildSizeLine, buildSourceWithNodeSize, buildSourceWithoutNodeSize, buildSourceWithSizeWrappers, parseSizeLine } from "./node-size.ts";
 
 const BASE = ['flowchart TD', '  B_A["A"]', '  B_B["B"]', '  B_A --> B_B'].join('\n');
 
@@ -78,9 +78,16 @@ test("test_size_wrapper_goes_around_the_label_of_a_block", () => {
 });
 
 test("test_size_wrapper_goes_around_the_label_of_a_hexagon_decision", () => {
+  // Scenario: the stored size is the outer box. Outer height = wrapper height + 70; outer width = wrapper width + 32 + 4/7 of the outer height.
   const source = 'flowchart TD\n  Q_A{{"Hi?"}}\n%% ==size==: Q_A 352 154';
-  const expected = `flowchart TD\n  Q_A{{"<div style='${STYLE}'><div>Hi?</div></div>"}}\n%% ==size==: Q_A 352 154`;
+  const hexagonStyle = "display:flex;align-items:center;justify-content:center;width:max(232px,25ch);min-height:max(84px,2lh)";
+  const expected = `flowchart TD\n  Q_A{{"<div style='${hexagonStyle}'><div>Hi?</div></div>"}}\n%% ==size==: Q_A 352 154`;
   assert.equal(buildSourceWithSizeWrappers(source), expected);
+});
+
+test("test_build_source_without_node_size_drops_only_the_line_of_that_node", () => {
+  const source = `${BASE}\n%% ==size==: B_A 100 100\n%% ==size==: B_B 200 200`;
+  assert.equal(buildSourceWithoutNodeSize(source, 'B_A'), `${BASE}\n%% ==size==: B_B 200 200`);
 });
 
 test("test_size_wrapper_skips_a_diamond_decision", () => {

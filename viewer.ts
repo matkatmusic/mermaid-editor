@@ -14,6 +14,7 @@ import { listAllPathIds } from './path-export-all.ts';
 import { setNodeSize } from './editor-node-size.ts';
 import './editor-events.ts';
 import './main-events.ts';
+import './node-resize.ts';
 import './viewport-menu.ts';
 
 // render();

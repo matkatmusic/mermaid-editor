@@ -9,6 +9,7 @@ import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { createDecisionAfter, createStaticAfter } from './editor-insert-after.ts';
 import { destinationSelect, diagramBox, nodeNotesInput, nodeTextInput, outputBox } from './dom.ts';
 import { NOTE_PREFIX } from './editor-types.ts';
+import { buildSourceWithoutNodeSize } from './node-size.ts';
 
 // Rewrites only this decision's declaration between Q_X{{"text"}} (hexagon) and Q_X{"text"} (diamond); the text, class lines and edges stay.
 export function updateDecisionShape(id: string | null, isHexagon: boolean) {
@@ -22,7 +23,9 @@ export function updateDecisionShape(id: string | null, isHexagon: boolean) {
     const newToken = isHexagon ? `${id}{{"${node.label}"}}` : `${id}{"${node.label}"}`;
     const lines = graph.lines.slice();
     lines[node.lineIndex] = replaceDeclarationInLine(lines[node.lineIndex], id!, newToken);
-    await applyEditorSource(lines.join('\n'));
+    const newSource = lines.join('\n');
+    // A diamond has no size, so its size line goes in the same edit.
+    await applyEditorSource(isHexagon ? newSource : buildSourceWithoutNodeSize(newSource, id!));
   }
   appendEditorAction(applyDecisionShapeUpdate);
 }
