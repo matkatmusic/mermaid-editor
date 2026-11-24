@@ -122,11 +122,12 @@ test('test_add_and_insert_actions_preserve_the_zoom_scale_in_the_regular_view', 
   await dispatchNodeClick('Q_FIRST');
   await clickInspectorAction('add-choice');
   const afterAdd = await scales();
-  assert.ok(Math.abs(afterAdd.regular - initial.regular) < 0.000001);
+  // The style height of the svg is rounded; the smaller blocks make the diagram shorter, so the same rounding is a larger part of the scale.
+  assert.ok(Math.abs(afterAdd.regular - initial.regular) < 0.00001);
 
   await dispatchNodeClick('B_START');
   await clickInspectorAction('insert-decision-after');
   const afterInsert = await scales();
-  assert.ok(Math.abs(afterInsert.regular - initial.regular) < 0.000001);
+  assert.ok(Math.abs(afterInsert.regular - initial.regular) < 0.00001);
   await executeExpression("document.getElementById('zoomResetBtn').click()");
 });

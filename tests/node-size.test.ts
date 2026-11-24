@@ -19,10 +19,10 @@ const BODY = [
     "  Q_A --> Q_CHOICE_A_N --> B_END",
 ].join("\n");
 
-// 25 "0" characters measured in the page font is 209.77 px; the node box adds 32 px of padding to the text area.
-const MINIMUM_NODE_WIDTH = 209.77 + 32;
-// 2 text rows of 24 px each, plus 24 px of padding.
-const MINIMUM_NODE_HEIGHT = 48 + 24;
+// 25 "0" characters measured in the page font is 209.77 px; the node box adds 8 px of padding to the text area.
+const MINIMUM_NODE_WIDTH = 209.77 + 8;
+// 2 text rows of 24 px each, plus 8 px of padding.
+const MINIMUM_NODE_HEIGHT = 48 + 8;
 
 async function loadSource(source: string) {
     await resetEditorFixture();
@@ -65,7 +65,7 @@ test("test_a_sized_hexagon_decision_renders_with_the_label_size_of_the_stored_si
     })())`));
     assert.equal(box.error, "");
     assert.ok(box.width >= 400 - 1, JSON.stringify(box));
-    assert.ok(box.height >= 120 - 24 - 1, JSON.stringify(box));
+    assert.ok(box.height >= 120 - 1, JSON.stringify(box));
 });
 
 test("test_a_size_smaller_than_the_minimum_renders_at_25_zero_characters_and_2_rows", async () => {
@@ -86,7 +86,7 @@ test("test_a_block_grows_taller_when_its_text_does_not_fit_the_stored_height", a
 });
 
 test("test_a_node_without_a_size_line_gives_mermaid_the_same_line_as_before", async () => {
-    // Scenario: only B_START has a size line; the line of B_END that Mermaid gets stays exactly as written.
+    // Scenario: only B_START has a size line; the line of B_END that Mermaid gets only gets the negative margin wrapper of every block.
     await loadSource(`${BODY}\n%% ==size==: B_START 400 120`);
     await executeExpression(`(() => {
         window.capturedSources = [];
@@ -97,7 +97,7 @@ test("test_a_node_without_a_size_line_gives_mermaid_the_same_line_as_before", as
     const captured: string = await executeExpression("window.capturedSources[0]");
     await executeExpression("mermaid.render = window.originalMermaidRender");
     const lines = captured.split("\n");
-    assert.ok(lines.includes('  B_END["End"]'), captured);
+    assert.ok(lines.includes('  B_END["<div style=\'margin:-8px -12px\'>End</div>"]'), captured);
     assert.ok(lines.some((line) => line.startsWith('  B_START["<div style=')), captured);
 });
 

@@ -91,9 +91,9 @@ test("test_a_sized_hexagon_renders_with_the_stored_size_as_its_outer_box", async
 test("test_a_sized_hexagon_never_gets_smaller_than_25_zero_characters_of_text_and_2_rows", async () => {
     await loadSource(`${BODY}\n%% ==size==: Q_A 50 20`);
     const box = await readHexagonSize("Q_A");
-    // The text area is 209.77 px wide and 48 px high; the outer box adds 70 px of height, 32 px of width and the two points (4/7 of the outer height).
-    assert.ok(Math.abs(box.height - 118) < 1.5, JSON.stringify(box));
-    assert.ok(Math.abs(box.width - (209.77 + 32 + 118 * 4 / 7)) < 1.5, JSON.stringify(box));
+    // The text area is 209.77 px wide and 48 px high; the outer box adds 48 px of height, 8 px of width and the two points (4/7 of the outer height).
+    assert.ok(Math.abs(box.height - 96) < 1.5, JSON.stringify(box));
+    assert.ok(Math.abs(box.width - (209.77 + 8 + 96 * 4 / 7)) < 1.5, JSON.stringify(box));
 });
 
 test("test_hexagon_decisions_show_the_resize_cursor_only_at_the_four_grab_places", async () => {
@@ -172,7 +172,7 @@ test("test_a_hexagon_drag_cannot_go_below_the_minimum_and_undo_restores_the_size
     const middleX = (box.left + box.right) / 2;
     await dragMouse({ x: middleX, y: box.bottom - 2 }, { x: middleX, y: box.bottom - 2 - 400 });
     const after = await readHexagonSize("Q_A");
-    assert.ok(Math.abs(after.height - 118) < 1.5, JSON.stringify(after));
+    assert.ok(Math.abs(after.height - 96) < 1.5, JSON.stringify(after));
     await executeExpression("window.applyEditorUndo(); window.editorActionPromise");
     await waitMilliseconds(500);
     assert.equal(await readSizeLine("Q_A"), "%% ==size==: Q_A 400 120");

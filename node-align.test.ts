@@ -84,38 +84,39 @@ const SIZE_STYLE_PREFIX = "display:flex;";
 test("test_align_wrapper_of_a_sized_block_moves_the_text_left_and_down", () => {
   // Scenario: left = flex-start across, bottom = flex-end down; the label lines get text-align:left.
   const source = 'flowchart TD\n  B_A["Hello"]\n%% ==size==: B_A 352 154\n%% ==align==: B_A left bottom';
-  const style = `${SIZE_STYLE_PREFIX}align-items:flex-end;justify-content:flex-start;width:max(320px,25ch);min-height:max(130px,2lh)`;
+  const style = `${SIZE_STYLE_PREFIX}align-items:flex-end;justify-content:flex-start;width:max(344px,25ch);min-height:max(146px,2lh);white-space:normal;margin:-8px -12px`;
   const expected = `flowchart TD\n  B_A["<div style='${style}'><div style='text-align:left'>Hello</div></div>"]\n%% ==size==: B_A 352 154\n%% ==align==: B_A left bottom`;
   assert.equal(buildSourceWithSizeWrappers(source), expected);
 });
 
 test("test_align_wrapper_of_a_sized_block_moves_the_text_right_and_up", () => {
   const source = 'flowchart TD\n  B_A["Hello"]\n%% ==size==: B_A 352 154\n%% ==align==: B_A right top';
-  const style = `${SIZE_STYLE_PREFIX}align-items:flex-start;justify-content:flex-end;width:max(320px,25ch);min-height:max(130px,2lh)`;
+  const style = `${SIZE_STYLE_PREFIX}align-items:flex-start;justify-content:flex-end;width:max(344px,25ch);min-height:max(146px,2lh);white-space:normal;margin:-8px -12px`;
   const expected = `flowchart TD\n  B_A["<div style='${style}'><div style='text-align:right'>Hello</div></div>"]\n%% ==size==: B_A 352 154\n%% ==align==: B_A right top`;
   assert.equal(buildSourceWithSizeWrappers(source), expected);
 });
 
 test("test_align_wrapper_keeps_the_centre_text_of_a_sized_block_when_only_the_vertical_value_is_set", () => {
   const source = 'flowchart TD\n  B_A["Hello"]\n%% ==size==: B_A 352 154\n%% ==align==: B_A center top';
-  const style = `${SIZE_STYLE_PREFIX}align-items:flex-start;justify-content:center;width:max(320px,25ch);min-height:max(130px,2lh)`;
+  const style = `${SIZE_STYLE_PREFIX}align-items:flex-start;justify-content:center;width:max(344px,25ch);min-height:max(146px,2lh);white-space:normal;margin:-8px -12px`;
   assert.ok(buildSourceWithSizeWrappers(source).includes(`B_A["<div style='${style}'><div>Hello</div></div>"]`));
 });
 
 test("test_align_wrapper_goes_around_the_label_of_a_sized_hexagon_decision", () => {
   const source = 'flowchart TD\n  Q_A{{"Hi?"}}\n%% ==size==: Q_A 352 154\n%% ==align==: Q_A right bottom';
-  const style = `${SIZE_STYLE_PREFIX}align-items:flex-end;justify-content:flex-end;width:max(232px,25ch);min-height:max(84px,2lh)`;
+  const style = `${SIZE_STYLE_PREFIX}align-items:flex-end;justify-content:flex-end;width:max(256px,25ch);min-height:max(106px,2lh);white-space:normal;margin:-11px -12px`;
   assert.ok(buildSourceWithSizeWrappers(source).includes(`Q_A{{"<div style='${style}'><div style='text-align:right'>Hi?</div></div>"}}`));
 });
 
 test("test_align_wrapper_of_an_unsized_block_only_sets_the_text_alignment", () => {
   // Scenario: no size line, so no flex box and no minimum size; the text lines are justified inside the label.
   const source = 'flowchart TD\n  B_A["Hello"]\n%% ==align==: B_A right top';
-  const expected = `flowchart TD\n  B_A["<div style='text-align:right'>Hello</div>"]\n%% ==align==: B_A right top`;
+  const expected = `flowchart TD\n  B_A["<div style='margin:-8px -12px;text-align:right'>Hello</div>"]\n%% ==align==: B_A right top`;
   assert.equal(buildSourceWithSizeWrappers(source), expected);
 });
 
-test("test_align_wrapper_of_an_unsized_block_that_is_centre_justified_leaves_the_line_alone", () => {
+test("test_align_wrapper_of_an_unsized_block_that_is_centre_justified_only_gets_the_margin", () => {
   const source = 'flowchart TD\n  B_A["Hello"]\n%% ==align==: B_A center bottom';
-  assert.equal(buildSourceWithSizeWrappers(source), source);
+  const expected = `flowchart TD\n  B_A["<div style='margin:-8px -12px'>Hello</div>"]\n%% ==align==: B_A center bottom`;
+  assert.equal(buildSourceWithSizeWrappers(source), expected);
 });

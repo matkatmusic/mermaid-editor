@@ -1,3 +1,4 @@
+import { LABEL_MARGIN_X } from './node-size.ts';
 declare const mermaid: any;
 
 export type Edge = [string, string];
@@ -5,7 +6,17 @@ export type Edge = [string, string];
 // mermaid.initialize({ startOnLoad: false });
 // mermaid.initialize({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1000000 });
 export const darkModeToggle = document.getElementById('darkModeToggle') as HTMLInputElement;
-export const getMermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1000000, theme: darkModeToggle.checked ? 'dark' : 'default', themeVariables: darkModeToggle.checked ? { primaryColor: '#ececff', nodeBkg: '#ececff', mainBkg: '#ececff', primaryTextColor: '#000', nodeTextColor: '#000', primaryBorderColor: '#9370db', nodeBorder: '#9370db' } : {} });
+// A label wraps at 80 "0" characters of the Mermaid label font, as an IDE wraps its lines.
+const getLabelWrapWidthInPixels = () => {
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;font:16px "trebuchet ms", verdana, arial, sans-serif;width:80ch';
+    document.body.appendChild(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    // Mermaid measures a label without its negative side margins, so the wrap width is 80 characters minus both margins.
+    return width - 2 * LABEL_MARGIN_X;
+};
+export const getMermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1000000, flowchart: { wrappingWidth: getLabelWrapWidthInPixels(), minNodeWidth: 0 }, theme: darkModeToggle.checked ? 'dark' : 'default', themeVariables: darkModeToggle.checked ? { primaryColor: '#ececff', nodeBkg: '#ececff', mainBkg: '#ececff', primaryTextColor: '#000', nodeTextColor: '#000', primaryBorderColor: '#9370db', nodeBorder: '#9370db' } : {} });
 mermaid.initialize(getMermaidOptions());
 export const codeBox = document.getElementById('code') as HTMLTextAreaElement;
 export const sourceGutter = document.getElementById('sourceGutter')!;

@@ -70,18 +70,18 @@ test("test_removing_a_node_removes_its_size_line", () => {
 });
 
 const SIZED_BLOCK = 'flowchart TD\n  B_A["Hello"]\n%% ==size==: B_A 352 154';
-const STYLE = "display:flex;align-items:center;justify-content:center;width:max(320px,25ch);min-height:max(130px,2lh)";
+const STYLE = "display:flex;align-items:center;justify-content:center;width:max(344px,25ch);min-height:max(146px,2lh);white-space:normal;margin:-8px -12px";
 
 test("test_size_wrapper_goes_around_the_label_of_a_block", () => {
-  // Scenario: wrapper width = node width - 32; wrapper height = node height - 24.
+  // Scenario: wrapper width = node width - 8; wrapper height = node height - 8.
   const expected = `flowchart TD\n  B_A["<div style='${STYLE}'><div>Hello</div></div>"]\n%% ==size==: B_A 352 154`;
   assert.equal(buildSourceWithSizeWrappers(SIZED_BLOCK), expected);
 });
 
 test("test_size_wrapper_goes_around_the_label_of_a_hexagon_decision", () => {
-  // Scenario: the stored size is the outer box. Outer height = wrapper height + 70; outer width = wrapper width + 32 + 4/7 of the outer height.
+  // Scenario: the stored size is the outer box. Outer height = wrapper height + 48; outer width = wrapper width + 8 + 4/7 of the outer height.
   const source = 'flowchart TD\n  Q_A{{"Hi?"}}\n%% ==size==: Q_A 352 154';
-  const hexagonStyle = "display:flex;align-items:center;justify-content:center;width:max(232px,25ch);min-height:max(84px,2lh)";
+  const hexagonStyle = "display:flex;align-items:center;justify-content:center;width:max(256px,25ch);min-height:max(106px,2lh);white-space:normal;margin:-11px -12px";
   const expected = `flowchart TD\n  Q_A{{"<div style='${hexagonStyle}'><div>Hi?</div></div>"}}\n%% ==size==: Q_A 352 154`;
   assert.equal(buildSourceWithSizeWrappers(source), expected);
 });
@@ -96,13 +96,13 @@ test("test_size_wrapper_skips_a_diamond_decision", () => {
   assert.equal(buildSourceWithSizeWrappers(source), source);
 });
 
-test("test_source_without_size_lines_reaches_mermaid_unchanged", () => {
-  assert.equal(buildSourceWithSizeWrappers(BASE), BASE);
+test("test_source_without_size_lines_gets_only_the_negative_margin_around_each_label", () => {
+  assert.equal(buildSourceWithSizeWrappers('flowchart TD\n  B_A["A"]'), `flowchart TD\n  B_A["<div style='margin:-8px -12px'>A</div>"]`);
 });
 
-test("test_node_without_a_size_line_keeps_its_own_label_when_another_node_has_one", () => {
+test("test_node_without_a_size_line_gets_only_the_negative_margin_when_another_node_has_one", () => {
   const source = `${BASE}\n%% ==size==: B_A 352 154`;
   const result = buildSourceWithSizeWrappers(source).split('\n');
   assert.ok(result[1].includes('<div style='), result[1]);
-  assert.equal(result[2], '  B_B["B"]');
+  assert.equal(result[2], `  B_B["<div style='margin:-8px -12px'>B</div>"]`);
 });

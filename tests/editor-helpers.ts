@@ -54,7 +54,12 @@ export async function dispatchNodeClick(id: string) {
 }
 
 export async function dispatchNodeDblclick(id: string) {
-  await executeExpression(`document.querySelector('[id*="flowchart-${id}-"]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`);
+  // The double click is on the middle of the label text: a double click outside the text gives the block its automatic size (task 108).
+  await executeExpression(`(() => {
+    const node = document.querySelector('[id*="flowchart-${id}-"]');
+    const textBox = node.querySelector('.nodeLabel').getBoundingClientRect();
+    node.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: (textBox.left + textBox.right) / 2, clientY: (textBox.top + textBox.bottom) / 2 }));
+  })()`);
 }
 
 export async function setEditorSource(source: string) {

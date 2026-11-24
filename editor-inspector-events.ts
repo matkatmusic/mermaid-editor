@@ -15,14 +15,55 @@ import { addChoiceOnDecision, insertDecisionAfterNode, insertStaticAfterNode } f
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { getOneLineLabel } from './editor-parse.ts';
 import { setNodeAlignment, setNodeJustification } from './editor-node-align.ts';
+import { resetNodeSize } from './editor-node-size.ts';
 import type { Alignment, Justification } from './node-align.ts';
 
+// The bounding box of all text lines of the label; the size wrapper that fills a sized block is not text.
+function isPointInsideLabelText(nodeEl: Element, x: number, y: number) {
+  let left = Infinity;
+  let right = -Infinity;
+  let top = Infinity;
+  let bottom = -Infinity;
+  const walker = document.createTreeWalker(nodeEl.querySelector('.nodeLabel')!, NodeFilter.SHOW_TEXT);
+  for (let current = walker.nextNode(); current; current = walker.nextNode()) {
+    const range = document.createRange();
+    range.selectNodeContents(current);
+    for (const rect of range.getClientRects()) {
+      if (rect.width === 0)
+        continue;
+      left = Math.min(left, rect.left);
+      right = Math.max(right, rect.right);
+      top = Math.min(top, rect.top);
+      bottom = Math.max(bottom, rect.bottom);
+    }
+  }
+  return x >= left && x <= right && y >= top && y <= bottom;
+}
+// The first click of a double click selects the node, the inspector grows and the diagram moves up to about 12 px.
+// So "on the text" is decided at the first press, where the user aimed, not at the double click.
+let firstPress: { nodeId: string; isOnText: boolean } | null = null;
+function rememberFirstPress(event: MouseEvent) {
+  if (event.detail !== 1)
+    return;
+  const nodeEl = (event.target as HTMLElement).closest('g.node');
+  if (!nodeEl)
+    return;
+  firstPress = { nodeId: getNodeId(nodeEl), isOnText: isPointInsideLabelText(nodeEl, event.clientX, event.clientY) };
+}
+outputBox.addEventListener('mousedown', rememberFirstPress, true);
+// A double click on the text opens the Node text editor; a double click on the block outside the text gives the block its automatic size.
 function openNodeTextEditor(event: MouseEvent) {
   const nodeEl = (event.target as HTMLElement).closest('g.node');
   if (!nodeEl)
     return;
   if (refuseMoveWhileNodeNameIsInvalid())
     return;
+  const isOnText = firstPress?.nodeId === getNodeId(nodeEl) ? firstPress.isOnText : isPointInsideLabelText(nodeEl, event.clientX, event.clientY);
+  firstPress = null;
+  if (!isOnText) {
+    resetNodeSize(getNodeId(nodeEl));
+    return;
+  }
   selectEditorNode(getNodeId(nodeEl));
   nodeTextInput.focus();
   nodeTextInput.select();

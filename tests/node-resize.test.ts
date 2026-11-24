@@ -24,10 +24,10 @@ const SOURCE = [
     "%% ==size==: Q_CHOICE_A_Y 280 90",
 ].join("\n");
 
-// 25 "0" characters measured in the page font is 209.77 px; the node box adds 32 px of padding to the text area.
-const MINIMUM_NODE_WIDTH = 209.77 + 32;
-// 2 text rows of 24 px each, plus 24 px of padding.
-const MINIMUM_NODE_HEIGHT = 48 + 24;
+// 25 "0" characters measured in the page font is 209.77 px; the node box adds 8 px of padding to the text area.
+const MINIMUM_NODE_WIDTH = 209.77 + 8;
+// 2 text rows of 24 px each, plus 8 px of padding.
+const MINIMUM_NODE_HEIGHT = 48 + 8;
 
 interface ScreenBox {
     left: number;

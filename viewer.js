@@ -1,6 +1,169 @@
+// editor-types.ts
+var INSPECTOR_TITLES = { question: "Decision block", block: "static block", choice: "choice block" };
+var NOTE_PREFIX = "%% ==note==:";
+var SIZE_PREFIX = "%% ==size==:";
+var ALIGN_PREFIX = "%% ==align==:";
+
+class EditorValidationError extends Error {
+  problems;
+  constructor(problems) {
+    super(`Invalid diagram:
+${problems.join(`
+`)}`);
+    this.problems = problems;
+    this.name = "EditorValidationError";
+  }
+}
+var EDITOR_METADATA_FENCE = "%%%%====";
+var EDITOR_METADATA_WARNING = "DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE";
+
+// node-align.ts
+var ALIGN_LINE_PATTERN = /^%% ==align==: ([A-Za-z0-9_]+) (left|center|right) (top|center|bottom)$/;
+function parseAlignLine(line) {
+  const match = line.trim().match(ALIGN_LINE_PATTERN);
+  if (!match)
+    return null;
+  return { id: match[1], justification: match[2], alignment: match[3] };
+}
+function getNodeAlign(lines, id) {
+  for (const line of lines) {
+    const align = parseAlignLine(line);
+    if (align?.id === id)
+      return align;
+  }
+  return { id, justification: "center", alignment: "center" };
+}
+function buildAlignLine(id, justification, alignment) {
+  return `${ALIGN_PREFIX} ${id} ${justification} ${alignment}`;
+}
+function buildSourceWithoutNodeAlign(source, id) {
+  const keptLines = [];
+  for (const line of source.split(`
+`)) {
+    const align = parseAlignLine(line);
+    const isOldLineOfNode = align?.id === id;
+    if (!isOldLineOfNode)
+      keptLines.push(line);
+  }
+  return keptLines.join(`
+`);
+}
+function buildSourceWithNodeAlign(source, id, justification, alignment) {
+  const sourceWithoutOldLine = buildSourceWithoutNodeAlign(source, id);
+  const isDefault = justification === "center" && alignment === "center";
+  if (isDefault)
+    return sourceWithoutOldLine;
+  const body = sourceWithoutOldLine.replace(/\s+$/, "");
+  return `${body}
+${buildAlignLine(id, justification, alignment)}`;
+}
+
+// node-size.ts
+var TEXT_PADDING = 4;
+var MERMAID_PADDING_X = 16;
+var MERMAID_RECT_PADDING_Y = 12;
+var MERMAID_HEXAGON_PADDING_Y = 35;
+var HEXAGON_LABEL_MARGIN_Y = 11;
+var LABEL_MARGIN_X = MERMAID_PADDING_X - TEXT_PADDING;
+var RECT_LABEL_MARGIN = `-${MERMAID_RECT_PADDING_Y - TEXT_PADDING}px -${LABEL_MARGIN_X}px`;
+var HEXAGON_LABEL_MARGIN = `-${HEXAGON_LABEL_MARGIN_Y}px -${LABEL_MARGIN_X}px`;
+var NODE_PADDING_WIDTH = 2 * TEXT_PADDING;
+var NODE_PADDING_HEIGHT = 2 * TEXT_PADDING;
+var HEXAGON_PADDING_HEIGHT = 2 * (MERMAID_HEXAGON_PADDING_Y - HEXAGON_LABEL_MARGIN_Y);
+var HEXAGON_POINTS_WIDTH_RATIO = 4 / 7;
+var FLEX_JUSTIFY_CONTENT = { left: "flex-start", center: "center", right: "flex-end" };
+var FLEX_ALIGN_ITEMS = { top: "flex-start", center: "center", bottom: "flex-end" };
+var SIZE_LINE_PATTERN = /^%% ==size==: ([A-Za-z0-9_]+) (\d+) (\d+)$/;
+var DECLARATION_PATTERN = /^(\s*)([A-Za-z0-9_]+)(\[|\{\{)"(.*)"(\]|\}\})\s*$/;
+function parseSizeLine(line) {
+  const match = line.trim().match(SIZE_LINE_PATTERN);
+  if (!match)
+    return null;
+  return { id: match[1], width: Number(match[2]), height: Number(match[3]) };
+}
+function buildSizeLine(id, width, height) {
+  return `${SIZE_PREFIX} ${id} ${width} ${height}`;
+}
+function buildSourceWithoutNodeSize(source, id) {
+  const keptLines = [];
+  for (const line of source.split(`
+`)) {
+    const size = parseSizeLine(line);
+    const isOldLineOfNode = size?.id === id;
+    if (!isOldLineOfNode)
+      keptLines.push(line);
+  }
+  return keptLines.join(`
+`);
+}
+function buildSourceWithNodeSize(source, id, width, height) {
+  const body = buildSourceWithoutNodeSize(source, id).replace(/\s+$/, "");
+  return `${body}
+${buildSizeLine(id, width, height)}`;
+}
+function buildSourceWithSizeWrappers(source) {
+  const lines = source.split(`
+`);
+  const sizes = new Map;
+  for (const line of lines) {
+    const size = parseSizeLine(line);
+    if (size)
+      sizes.set(size.id, size);
+  }
+  const aligns = new Map;
+  for (const line of lines) {
+    const align = parseAlignLine(line);
+    if (align)
+      aligns.set(align.id, align);
+  }
+  const wrappedLines = [];
+  for (const line of lines) {
+    const declaration = line.match(DECLARATION_PATTERN);
+    if (!declaration) {
+      wrappedLines.push(line);
+      continue;
+    }
+    const size = sizes.get(declaration[2]);
+    const align = aligns.get(declaration[2]);
+    const [, indent, id, open, label, close] = declaration;
+    const isHexagon = open === "{{";
+    const labelMargin = isHexagon ? HEXAGON_LABEL_MARGIN : RECT_LABEL_MARGIN;
+    if (!size) {
+      let style = `margin:${labelMargin}`;
+      if (align) {
+        if (align.justification !== "center")
+          style += `;text-align:${align.justification}`;
+      }
+      wrappedLines.push(`${indent}${id}${open}"<div style='${style}'>${label}</div>"${close}`);
+      continue;
+    }
+    let wrapperWidth = size.width - NODE_PADDING_WIDTH;
+    let wrapperHeight = size.height - NODE_PADDING_HEIGHT;
+    if (isHexagon) {
+      wrapperWidth = Number((size.width - NODE_PADDING_WIDTH - HEXAGON_POINTS_WIDTH_RATIO * size.height).toFixed(2));
+      wrapperHeight = size.height - HEXAGON_PADDING_HEIGHT;
+    }
+    const justification = align?.justification ?? "center";
+    const alignment = align?.alignment ?? "center";
+    const style = `display:flex;align-items:${FLEX_ALIGN_ITEMS[alignment]};justify-content:${FLEX_JUSTIFY_CONTENT[justification]};width:max(${wrapperWidth}px,25ch);min-height:max(${wrapperHeight}px,2lh);white-space:normal;margin:${labelMargin}`;
+    const labelOpen = justification === "center" ? "<div>" : `<div style='text-align:${justification}'>`;
+    wrappedLines.push(`${indent}${id}${open}"<div style='${style}'>${labelOpen}${label}</div></div>"${close}`);
+  }
+  return wrappedLines.join(`
+`);
+}
+
 // dom.ts
 var darkModeToggle = document.getElementById("darkModeToggle");
-var getMermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1e6, theme: darkModeToggle.checked ? "dark" : "default", themeVariables: darkModeToggle.checked ? { primaryColor: "#ececff", nodeBkg: "#ececff", mainBkg: "#ececff", primaryTextColor: "#000", nodeTextColor: "#000", primaryBorderColor: "#9370db", nodeBorder: "#9370db" } : {} });
+var getLabelWrapWidthInPixels = () => {
+  const probe = document.createElement("div");
+  probe.style.cssText = 'position:absolute;visibility:hidden;font:16px "trebuchet ms", verdana, arial, sans-serif;width:80ch';
+  document.body.appendChild(probe);
+  const width = probe.getBoundingClientRect().width;
+  probe.remove();
+  return width - 2 * LABEL_MARGIN_X;
+};
+var getMermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1e6, flowchart: { wrappingWidth: getLabelWrapWidthInPixels(), minNodeWidth: 0 }, theme: darkModeToggle.checked ? "dark" : "default", themeVariables: darkModeToggle.checked ? { primaryColor: "#ececff", nodeBkg: "#ececff", mainBkg: "#ececff", primaryTextColor: "#000", nodeTextColor: "#000", primaryBorderColor: "#9370db", nodeBorder: "#9370db" } : {} });
 mermaid.initialize(getMermaidOptions());
 var codeBox = document.getElementById("code");
 var sourceGutter = document.getElementById("sourceGutter");
@@ -68,6 +231,8 @@ var walkBackCancelBtn = document.getElementById("walkBackCancelBtn");
 var nodeInspectorDismissBtn = document.getElementById("nodeInspectorDismissBtn");
 var destinationRow = document.getElementById("destinationRow");
 var destinationSelect = document.getElementById("destinationSelect");
+var destinationInput = document.getElementById("destinationInput");
+var destinationList = document.getElementById("destinationList");
 var nodeInspectorActions = document.getElementById("nodeInspectorActions");
 var nodeInspectorControls = document.getElementById("nodeInspectorControls");
 var nodeInspectorRemovalPreview = document.getElementById("nodeInspectorRemovalPreview");
@@ -87,7 +252,7 @@ function setInspectorTextFocus() {
   nodeTextInput.select();
 }
 function setInspectorDestinationFocus() {
-  destinationSelect.focus();
+  destinationInput.focus();
 }
 function clearInspectorFocus() {
   const active = document.activeElement;
@@ -143,25 +308,6 @@ for (const key of Object.keys(state)) {
     configurable: true
   });
 }
-
-// editor-types.ts
-var INSPECTOR_TITLES = { question: "Decision block", block: "static block", choice: "choice block" };
-var NOTE_PREFIX = "%% ==note==:";
-var SIZE_PREFIX = "%% ==size==:";
-var ALIGN_PREFIX = "%% ==align==:";
-
-class EditorValidationError extends Error {
-  problems;
-  constructor(problems) {
-    super(`Invalid diagram:
-${problems.join(`
-`)}`);
-    this.problems = problems;
-    this.name = "EditorValidationError";
-  }
-}
-var EDITOR_METADATA_FENCE = "%%%%====";
-var EDITOR_METADATA_WARNING = "DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE";
 
 // editor-metadata.ts
 function splitEditorMetadata(source) {
@@ -224,137 +370,6 @@ function setEditorActionPromise(promise) {
   window.editorActionPromise = promise;
 }
 setEditorActionPromise(Promise.resolve());
-
-// node-align.ts
-var ALIGN_LINE_PATTERN = /^%% ==align==: ([A-Za-z0-9_]+) (left|center|right) (top|center|bottom)$/;
-function parseAlignLine(line) {
-  const match = line.trim().match(ALIGN_LINE_PATTERN);
-  if (!match)
-    return null;
-  return { id: match[1], justification: match[2], alignment: match[3] };
-}
-function getNodeAlign(lines, id) {
-  for (const line of lines) {
-    const align = parseAlignLine(line);
-    if (align?.id === id)
-      return align;
-  }
-  return { id, justification: "center", alignment: "center" };
-}
-function buildAlignLine(id, justification, alignment) {
-  return `${ALIGN_PREFIX} ${id} ${justification} ${alignment}`;
-}
-function buildSourceWithoutNodeAlign(source, id) {
-  const keptLines = [];
-  for (const line of source.split(`
-`)) {
-    const align = parseAlignLine(line);
-    const isOldLineOfNode = align?.id === id;
-    if (!isOldLineOfNode)
-      keptLines.push(line);
-  }
-  return keptLines.join(`
-`);
-}
-function buildSourceWithNodeAlign(source, id, justification, alignment) {
-  const sourceWithoutOldLine = buildSourceWithoutNodeAlign(source, id);
-  const isDefault = justification === "center" && alignment === "center";
-  if (isDefault)
-    return sourceWithoutOldLine;
-  const body = sourceWithoutOldLine.replace(/\s+$/, "");
-  return `${body}
-${buildAlignLine(id, justification, alignment)}`;
-}
-
-// node-size.ts
-var NODE_PADDING_WIDTH = 32;
-var NODE_PADDING_HEIGHT = 24;
-var HEXAGON_PADDING_HEIGHT = 70;
-var HEXAGON_POINTS_WIDTH_RATIO = 4 / 7;
-var FLEX_JUSTIFY_CONTENT = { left: "flex-start", center: "center", right: "flex-end" };
-var FLEX_ALIGN_ITEMS = { top: "flex-start", center: "center", bottom: "flex-end" };
-var SIZE_LINE_PATTERN = /^%% ==size==: ([A-Za-z0-9_]+) (\d+) (\d+)$/;
-var DECLARATION_PATTERN = /^(\s*)([A-Za-z0-9_]+)(\[|\{\{)"(.*)"(\]|\}\})\s*$/;
-function parseSizeLine(line) {
-  const match = line.trim().match(SIZE_LINE_PATTERN);
-  if (!match)
-    return null;
-  return { id: match[1], width: Number(match[2]), height: Number(match[3]) };
-}
-function buildSizeLine(id, width, height) {
-  return `${SIZE_PREFIX} ${id} ${width} ${height}`;
-}
-function buildSourceWithoutNodeSize(source, id) {
-  const keptLines = [];
-  for (const line of source.split(`
-`)) {
-    const size = parseSizeLine(line);
-    const isOldLineOfNode = size?.id === id;
-    if (!isOldLineOfNode)
-      keptLines.push(line);
-  }
-  return keptLines.join(`
-`);
-}
-function buildSourceWithNodeSize(source, id, width, height) {
-  const body = buildSourceWithoutNodeSize(source, id).replace(/\s+$/, "");
-  return `${body}
-${buildSizeLine(id, width, height)}`;
-}
-function buildSourceWithSizeWrappers(source) {
-  const lines = source.split(`
-`);
-  const sizes = new Map;
-  for (const line of lines) {
-    const size = parseSizeLine(line);
-    if (size)
-      sizes.set(size.id, size);
-  }
-  const aligns = new Map;
-  for (const line of lines) {
-    const align = parseAlignLine(line);
-    if (align)
-      aligns.set(align.id, align);
-  }
-  if (sizes.size === 0 && aligns.size === 0)
-    return source;
-  const wrappedLines = [];
-  for (const line of lines) {
-    const declaration = line.match(DECLARATION_PATTERN);
-    if (!declaration) {
-      wrappedLines.push(line);
-      continue;
-    }
-    const size = sizes.get(declaration[2]);
-    const align = aligns.get(declaration[2]);
-    if (!size) {
-      if (align) {
-        if (align.justification !== "center") {
-          const [, indent, id, open, label, close] = declaration;
-          wrappedLines.push(`${indent}${id}${open}"<div style='text-align:${align.justification}'>${label}</div>"${close}`);
-          continue;
-        }
-      }
-      wrappedLines.push(line);
-      continue;
-    }
-    const [, indent, id, open, label, close] = declaration;
-    const isHexagon = open === "{{";
-    let wrapperWidth = size.width - NODE_PADDING_WIDTH;
-    let wrapperHeight = size.height - NODE_PADDING_HEIGHT;
-    if (isHexagon) {
-      wrapperWidth = Number((size.width - NODE_PADDING_WIDTH - HEXAGON_POINTS_WIDTH_RATIO * size.height).toFixed(2));
-      wrapperHeight = size.height - HEXAGON_PADDING_HEIGHT;
-    }
-    const justification = align?.justification ?? "center";
-    const alignment = align?.alignment ?? "center";
-    const style = `display:flex;align-items:${FLEX_ALIGN_ITEMS[alignment]};justify-content:${FLEX_JUSTIFY_CONTENT[justification]};width:max(${wrapperWidth}px,25ch);min-height:max(${wrapperHeight}px,2lh)`;
-    const labelOpen = justification === "center" ? "<div>" : `<div style='text-align:${justification}'>`;
-    wrappedLines.push(`${indent}${id}${open}"<div style='${style}'>${labelOpen}${label}</div></div>"${close}`);
-  }
-  return wrappedLines.join(`
-`);
-}
 
 // editor-parse.ts
 function trimEditorQuotes(text) {
@@ -1515,6 +1530,23 @@ function buildRows(edges, graph) {
   return buildHistoryRows(edges, graph);
 }
 
+// label-code.ts
+var LABEL_LINE_BREAK = String.raw`(?:<br\s*\/?>|\\n)`;
+var FENCED_CODE_BLOCK_PATTERN = new RegExp("(?:^|" + LABEL_LINE_BREAK + ")```" + LABEL_LINE_BREAK + "([\\s\\S]*?)" + LABEL_LINE_BREAK + "```(?:" + LABEL_LINE_BREAK + "|$)", "gi");
+var CODE_LINE_BREAK_PATTERN = new RegExp(LABEL_LINE_BREAK, "i");
+var CODE_BLOCK_STYLE = "display:block;text-align:left;white-space:pre";
+function buildSourceWithCodeTags(source) {
+  return source.replace(/"[^"\n]*"/g, (quoted) => {
+    const withBackticks = quoted.slice(1, -1).replace(/#96;/g, "`");
+    const withCodeBlocks = withBackticks.replace(FENCED_CODE_BLOCK_PATTERN, (_block, codeText) => {
+      const codeLines = codeText.split(CODE_LINE_BREAK_PATTERN).map((codeLine) => codeLine.replace(/&/g, "#amp;").replace(/</g, "#lt;").replace(/>/g, "#gt;").replace(/`/g, "#96;"));
+      return `<code style='${CODE_BLOCK_STYLE}'>${codeLines.join("<br/>")}</code>`;
+    });
+    const withCodeTags = withCodeBlocks.replace(/`([^`]+)`/g, (_span, codeText) => "<code>" + codeText.replace(/&/g, "#amp;").replace(/</g, "#lt;").replace(/>/g, "#gt;") + "</code>");
+    return '"' + withCodeTags.replace(/`/g, "#96;") + '"';
+  });
+}
+
 // phone-html.ts
 var PHONE_CLICKED_BORDER_MS = 3000;
 var UNCLASSED_PHONE_STYLE = "background:repeating-linear-gradient(45deg, #f4b4b4 0 8px, #fde8e8 8px 16px)";
@@ -1537,7 +1569,18 @@ function getLabelOf(id, graph) {
   return decodeLabelQuotes(graph.nodes.get(id)?.label ?? id);
 }
 function getLabelHtml(id, graph) {
-  return encodeHtml(getLabelOf(id, graph)).replace(/\\n/g, "<br>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  const pieces = getLabelOf(id, graph).split(FENCED_CODE_BLOCK_PATTERN);
+  const htmlPieces = [];
+  for (const [index, piece] of pieces.entries()) {
+    const isCodeBlock = index % 2 === 1;
+    if (isCodeBlock) {
+      const codeLines = piece.split(CODE_LINE_BREAK_PATTERN).map(encodeHtml);
+      htmlPieces.push(`<code class="phone-code-block" style="${CODE_BLOCK_STYLE}">${codeLines.join("<br>")}</code>`);
+      continue;
+    }
+    htmlPieces.push(encodeHtml(piece).replace(/\\n/g, "<br>").replace(/`([^`]+)`/g, "<code>$1</code>"));
+  }
+  return htmlPieces.join("");
 }
 function buildChoiceButtonsHtml(choices, row, graph) {
   const isPast = row.status === "past";
@@ -1705,15 +1748,6 @@ function syncGutterScroll() {
 }
 codeBox.addEventListener("scroll", syncGutterScroll);
 new ResizeObserver(renderSourceLines).observe(codeBox);
-
-// label-code.ts
-function buildSourceWithCodeTags(source) {
-  return source.replace(/"[^"\n]*"/g, (quoted) => {
-    const withBackticks = quoted.replace(/#96;/g, "`");
-    const withCodeTags = withBackticks.replace(/`([^`]+)`/g, (_span, codeText) => "<code>" + codeText.replace(/&/g, "#amp;").replace(/</g, "#lt;").replace(/>/g, "#gt;") + "</code>");
-    return withCodeTags.replace(/`/g, "#96;");
-  });
-}
 
 // render.ts
 var outputPointerHeld = null;
@@ -2264,6 +2298,135 @@ function renderClassPicker(node) {
   classPickerList.hidden = true;
 }
 
+// inspector-resize.ts
+var MAX_SHARE_OF_VIEW_AREA = 0.5;
+var nodeInspectorResizeHandle = document.getElementById("nodeInspectorResizeHandle");
+var extraHeight = 0;
+function applyInspectorExtraHeight() {
+  const sharedHeight = outputBox.getBoundingClientRect().height + nodeInspector.getBoundingClientRect().height;
+  nodeInspector.style.height = "";
+  const naturalHeight = nodeInspector.getBoundingClientRect().height;
+  const maxExtraHeight = Math.max(0, sharedHeight * MAX_SHARE_OF_VIEW_AREA - naturalHeight);
+  extraHeight = Math.min(extraHeight, maxExtraHeight);
+  if (extraHeight > 0)
+    nodeInspector.style.height = `${naturalHeight + extraHeight}px`;
+}
+function startInspectorResizeDrag(event) {
+  event.preventDefault();
+  const startY = event.clientY;
+  const startExtraHeight = extraHeight;
+  function growInspectorWithMouse(moveEvent) {
+    extraHeight = Math.max(0, startExtraHeight + startY - moveEvent.clientY);
+    applyInspectorExtraHeight();
+  }
+  function stopInspectorResizeDrag() {
+    document.removeEventListener("mousemove", growInspectorWithMouse);
+    document.removeEventListener("mouseup", stopInspectorResizeDrag);
+  }
+  document.addEventListener("mousemove", growInspectorWithMouse);
+  document.addEventListener("mouseup", stopInspectorResizeDrag);
+}
+nodeInspectorResizeHandle.addEventListener("mousedown", startInspectorResizeDrag);
+
+// destination-picker.ts
+var highlightedIndex = -1;
+function closeDestinationList() {
+  destinationList.hidden = true;
+  destinationInput.setAttribute("aria-expanded", "false");
+  highlightedIndex = -1;
+}
+function showDestinationInInput() {
+  closeDestinationList();
+  destinationInput.value = destinationSelect.selectedOptions[0]?.text ?? "";
+}
+function showDestinationOptionsMatching(query) {
+  const lowerCaseQuery = query.toLowerCase();
+  const items = [];
+  for (const option of destinationSelect.options) {
+    const isMatch = option.text.toLowerCase().includes(lowerCaseQuery);
+    if (!isMatch)
+      continue;
+    const item = document.createElement("div");
+    item.setAttribute("role", "option");
+    item.className = "destination-option";
+    item.dataset.value = option.value;
+    item.textContent = option.text;
+    items.push(item);
+  }
+  destinationList.replaceChildren(...items);
+  highlightedIndex = -1;
+  destinationList.hidden = false;
+  destinationInput.setAttribute("aria-expanded", "true");
+}
+function highlightDestinationItem(index) {
+  const items = [...destinationList.children];
+  highlightedIndex = Math.min(Math.max(index, 0), items.length - 1);
+  items.forEach((item, itemIndex) => item.setAttribute("aria-selected", String(itemIndex === highlightedIndex)));
+  items[highlightedIndex]?.scrollIntoView({ block: "nearest" });
+}
+function pickDestination(value) {
+  closeDestinationList();
+  destinationSelect.value = value;
+  destinationSelect.dispatchEvent(new Event("change", { bubbles: true }));
+}
+function openDestinationListOnClick() {
+  if (!destinationList.hidden)
+    return;
+  destinationInput.select();
+  showDestinationOptionsMatching("");
+}
+function filterDestinationListOnTyping() {
+  showDestinationOptionsMatching(destinationInput.value);
+}
+function moveOrPickDestinationOnKey(event) {
+  if (event.key === "Escape") {
+    showDestinationInInput();
+    return;
+  }
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    if (destinationList.hidden)
+      showDestinationOptionsMatching("");
+    highlightDestinationItem(highlightedIndex + 1);
+    return;
+  }
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    highlightDestinationItem(highlightedIndex - 1);
+    return;
+  }
+  if (event.key === "Enter") {
+    const item = destinationList.children[highlightedIndex];
+    if (!item)
+      return;
+    event.preventDefault();
+    pickDestination(item.dataset.value);
+  }
+}
+function pickDestinationOnItemClick(event) {
+  const item = event.target.closest(".destination-option");
+  if (!item)
+    return;
+  pickDestination(item.dataset.value);
+}
+function keepInputFocusOnListMouseDown(event) {
+  event.preventDefault();
+}
+function closeDestinationListOnOutsideMouseDown(event) {
+  if (destinationList.hidden)
+    return;
+  const isInsidePicker = event.target.closest("#destinationRow");
+  if (isInsidePicker)
+    return;
+  showDestinationInInput();
+}
+destinationInput.addEventListener("click", openDestinationListOnClick);
+destinationInput.addEventListener("input", filterDestinationListOnTyping);
+destinationInput.addEventListener("keydown", moveOrPickDestinationOnKey);
+destinationList.addEventListener("mousedown", keepInputFocusOnListMouseDown);
+destinationList.addEventListener("click", pickDestinationOnItemClick);
+document.addEventListener("mousedown", closeDestinationListOnOutsideMouseDown);
+
 // node-inspector.ts
 function replaceDeclarationInLine(line, id, newToken) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -2312,6 +2475,7 @@ function renderNodeInspector() {
   showNameCheck({ fullId: node.id });
   nodeNotesInput.value = decodeLabelLineBreaks(node.note);
   const nodeAlign = getNodeAlign(graph.lines, node.id);
+  nodeTextInput.style.textAlign = nodeAlign.justification;
   for (const button of nodeAlignRow.querySelectorAll("button")) {
     const isJustificationPressed = button.dataset.justification === nodeAlign.justification;
     const isAlignmentPressed = button.dataset.alignment === nodeAlign.alignment;
@@ -2324,8 +2488,10 @@ function renderNodeInspector() {
     renderClassPicker(node);
   nodeInspectorRemovalPreview.hidden = !previewing;
   nodeInspectorActions.hidden = previewing;
+  walkBackBtn.hidden = previewing;
   nodeInspectorControls.hidden = previewing;
   if (previewing) {
+    applyInspectorExtraHeight();
     updateNodeInspectorPosition();
     return;
   }
@@ -2363,6 +2529,8 @@ function renderNodeInspector() {
   } else {
     nodeInspectorDismissBtn.textContent = "Cancel";
   }
+  showDestinationInInput();
+  applyInspectorExtraHeight();
   updateNodeInspectorPosition();
 }
 
@@ -3522,6 +3690,16 @@ function setNodeSize(id, width, height) {
   }
   appendEditorAction(applyNodeSize);
 }
+function resetNodeSize(id) {
+  async function applyAutomaticSize() {
+    const hasSizeLine = codeBox.value.split(`
+`).some((line) => parseSizeLine(line)?.id === id);
+    if (!hasSizeLine)
+      return;
+    await applyEditorSource(buildSourceWithoutNodeSize(codeBox.value, id));
+  }
+  appendEditorAction(applyAutomaticSize);
+}
 
 // editor-view-state.ts
 async function saveEditorViewState() {
@@ -3838,12 +4016,48 @@ function setNodeAlignment(id, alignment) {
 }
 
 // editor-inspector-events.ts
+function isPointInsideLabelText(nodeEl, x, y) {
+  let left = Infinity;
+  let right = -Infinity;
+  let top = Infinity;
+  let bottom = -Infinity;
+  const walker = document.createTreeWalker(nodeEl.querySelector(".nodeLabel"), NodeFilter.SHOW_TEXT);
+  for (let current = walker.nextNode();current; current = walker.nextNode()) {
+    const range = document.createRange();
+    range.selectNodeContents(current);
+    for (const rect of range.getClientRects()) {
+      if (rect.width === 0)
+        continue;
+      left = Math.min(left, rect.left);
+      right = Math.max(right, rect.right);
+      top = Math.min(top, rect.top);
+      bottom = Math.max(bottom, rect.bottom);
+    }
+  }
+  return x >= left && x <= right && y >= top && y <= bottom;
+}
+var firstPress = null;
+function rememberFirstPress(event) {
+  if (event.detail !== 1)
+    return;
+  const nodeEl = event.target.closest("g.node");
+  if (!nodeEl)
+    return;
+  firstPress = { nodeId: getNodeId(nodeEl), isOnText: isPointInsideLabelText(nodeEl, event.clientX, event.clientY) };
+}
+outputBox.addEventListener("mousedown", rememberFirstPress, true);
 function openNodeTextEditor(event) {
   const nodeEl = event.target.closest("g.node");
   if (!nodeEl)
     return;
   if (refuseMoveWhileNodeNameIsInvalid())
     return;
+  const isOnText = firstPress?.nodeId === getNodeId(nodeEl) ? firstPress.isOnText : isPointInsideLabelText(nodeEl, event.clientX, event.clientY);
+  firstPress = null;
+  if (!isOnText) {
+    resetNodeSize(getNodeId(nodeEl));
+    return;
+  }
   selectEditorNode(getNodeId(nodeEl));
   nodeTextInput.focus();
   nodeTextInput.select();
@@ -4241,8 +4455,23 @@ function renderClassesDialog() {
 }
 
 // editor-class-events.ts
+function placeClassPickerListInsideWindow() {
+  classPickerList.style.maxHeight = "none";
+  const listHeight = classPickerList.scrollHeight + 2;
+  const buttonRect = classPickerBtn.getBoundingClientRect();
+  const spaceAbove = buttonRect.top - 8;
+  const spaceBelow = window.innerHeight - buttonRect.bottom - 8;
+  let opensUpward = spaceAbove >= spaceBelow;
+  if (listHeight <= spaceAbove)
+    opensUpward = true;
+  classPickerList.style.top = opensUpward ? "auto" : "100%";
+  classPickerList.style.bottom = opensUpward ? "100%" : "auto";
+  classPickerList.style.maxHeight = `${Math.max(opensUpward ? spaceAbove : spaceBelow, 0)}px`;
+}
 function toggleClassPickerList() {
   classPickerList.hidden = !classPickerList.hidden;
+  if (!classPickerList.hidden)
+    placeClassPickerListInsideWindow();
 }
 function clearClassPickerOnOutsideClick(event) {
   const insidePicker = event.target.closest("#classPicker");
@@ -4477,6 +4706,11 @@ var scrollMainViewToPhoneRow = (event) => {
   const row = event.target.closest(".phone-block, .phone-question");
   if (!row)
     return;
+  if (refuseMoveWhileNodeNameIsInvalid())
+    return;
+  selectNodeSourceLine(row.dataset.nodeId);
+  selectEditorNode(row.dataset.nodeId);
+  saveEditorViewState();
   const node = diagramBox.querySelector('[id*="flowchart-' + row.dataset.nodeId + '-"]');
   const outputRect = outputBox.getBoundingClientRect();
   const nodeRect = node.getBoundingClientRect();

@@ -8,6 +8,7 @@ import { isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './pho
 import { buildRows } from './phone-rows.ts';
 import { decodeLabelQuotes } from './editor-parse.ts';
 import { getNodeAlign } from './node-align.ts';
+import { CODE_BLOCK_STYLE, CODE_LINE_BREAK_PATTERN, FENCED_CODE_BLOCK_PATTERN } from './label-code.ts';
 
 // How long after a click the phone keeps the animated border on the clicked node; matches the CSS animation length.
 const PHONE_CLICKED_BORDER_MS = 3000;
@@ -39,8 +40,20 @@ function getLabelOf(id: string, graph: EditorGraph) {
 }
 
 // Text in single backticks shows as a code span; the backticks stay in the file.
+// The lines between two fences of three backticks show as one left-justified code block.
 function getLabelHtml(id: string, graph: EditorGraph) {
-  return encodeHtml(getLabelOf(id, graph)).replace(/\\n/g, '<br>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  const pieces = getLabelOf(id, graph).split(FENCED_CODE_BLOCK_PATTERN);
+  const htmlPieces: string[] = [];
+  for (const [index, piece] of pieces.entries()) {
+    const isCodeBlock = index % 2 === 1;
+    if (isCodeBlock) {
+      const codeLines = piece.split(CODE_LINE_BREAK_PATTERN).map(encodeHtml);
+      htmlPieces.push(`<code class="phone-code-block" style="${CODE_BLOCK_STYLE}">${codeLines.join('<br>')}</code>`);
+      continue;
+    }
+    htmlPieces.push(encodeHtml(piece).replace(/\\n/g, '<br>').replace(/`([^`]+)`/g, '<code>$1</code>'));
+  }
+  return htmlPieces.join('');
 }
 
 function buildChoiceButtonsHtml(choices: string[], row: Row, graph: EditorGraph) {

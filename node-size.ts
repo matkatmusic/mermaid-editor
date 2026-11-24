@@ -2,12 +2,24 @@ import { SIZE_PREFIX } from './editor-types.ts';
 import { parseAlignLine } from './node-align.ts';
 import type { Alignment, Justification, NodeAlign } from './node-align.ts';
 
-// Mermaid draws a rectangle this much bigger than its label; node-size.test.ts and tests/node-size.test.ts pin both numbers.
-export const NODE_PADDING_WIDTH = 32;
-export const NODE_PADDING_HEIGHT = 24;
-// A hexagon decision is drawn this much higher than its label, and its two points add this fraction of the outer height to the outer width.
-// Measured with tests/node-resize-hexagon.test.ts: outer width = label width + 32 + 4/7 * outer height.
-export const HEXAGON_PADDING_HEIGHT = 70;
+// Mermaid (look "neo") draws a rectangle 16 px per side wider and 12 px per side higher than its label, and a hexagon 16 px per side wider and 35 px per side higher.
+// Every label gets a negative margin that takes all of that back except TEXT_PADDING, so a block is its text box plus TEXT_PADDING on each side.
+const TEXT_PADDING = 4;
+const MERMAID_PADDING_X = 16;
+const MERMAID_RECT_PADDING_Y = 12;
+const MERMAID_HEXAGON_PADDING_Y = 35;
+// Mermaid measures a label as 0 px high at the least, and the hexagon text sits off-centre when the margins push it below 0.
+// 11 px per side keeps a one-line label (24 px) at 2 px or more.
+const HEXAGON_LABEL_MARGIN_Y = 11;
+export const LABEL_MARGIN_X = MERMAID_PADDING_X - TEXT_PADDING;
+const RECT_LABEL_MARGIN = `-${MERMAID_RECT_PADDING_Y - TEXT_PADDING}px -${LABEL_MARGIN_X}px`;
+const HEXAGON_LABEL_MARGIN = `-${HEXAGON_LABEL_MARGIN_Y}px -${LABEL_MARGIN_X}px`;
+// The outer box of a block is its text box plus this much; node-size.test.ts and tests/node-size.test.ts pin both numbers.
+export const NODE_PADDING_WIDTH = 2 * TEXT_PADDING;
+export const NODE_PADDING_HEIGHT = 2 * TEXT_PADDING;
+// A hexagon decision is drawn this much higher than its text box, and its two points add this fraction of the outer height to the outer width.
+// Measured with tests/node-resize-hexagon.test.ts: outer width = text box width + NODE_PADDING_WIDTH + 4/7 * outer height.
+export const HEXAGON_PADDING_HEIGHT = 2 * (MERMAID_HEXAGON_PADDING_Y - HEXAGON_LABEL_MARGIN_Y);
 export const HEXAGON_POINTS_WIDTH_RATIO = 4 / 7;
 
 export type NodeSize = { id: string; width: number; height: number };
@@ -62,8 +74,8 @@ export function buildSourceWithSizeWrappers(source: string) {
         if (align)
             aligns.set(align.id, align);
     }
-    if (sizes.size === 0 && aligns.size === 0)
-        return source;
+    // if (sizes.size === 0 && aligns.size === 0)
+    //     return source;
     const wrappedLines: string[] = [];
     for (const line of lines) {
         const declaration = line.match(DECLARATION_PATTERN);
@@ -73,20 +85,19 @@ export function buildSourceWithSizeWrappers(source: string) {
         }
         const size = sizes.get(declaration[2]);
         const align = aligns.get(declaration[2]);
-        if (!size) {
-            // Without a size line the label is as big as its text, so only the justification of its lines can show.
-            if (align) {
-                if (align.justification !== 'center') {
-                    const [, indent, id, open, label, close] = declaration;
-                    wrappedLines.push(`${indent}${id}${open}"<div style='text-align:${align.justification}'>${label}</div>"${close}`);
-                    continue;
-                }
-            }
-            wrappedLines.push(line);
-            continue;
-        }
         const [, indent, id, open, label, close] = declaration;
         const isHexagon = open === '{{';
+        const labelMargin = isHexagon ? HEXAGON_LABEL_MARGIN : RECT_LABEL_MARGIN;
+        if (!size) {
+            // Without a size line the label is as big as its text, so only the justification of its lines can show.
+            let style = `margin:${labelMargin}`;
+            if (align) {
+                if (align.justification !== 'center')
+                    style += `;text-align:${align.justification}`;
+            }
+            wrappedLines.push(`${indent}${id}${open}"<div style='${style}'>${label}</div>"${close}`);
+            continue;
+        }
         let wrapperWidth = size.width - NODE_PADDING_WIDTH;
         let wrapperHeight = size.height - NODE_PADDING_HEIGHT;
         if (isHexagon) {
@@ -95,7 +106,7 @@ export function buildSourceWithSizeWrappers(source: string) {
         }
         const justification = align?.justification ?? 'center';
         const alignment = align?.alignment ?? 'center';
-        const style = `display:flex;align-items:${FLEX_ALIGN_ITEMS[alignment]};justify-content:${FLEX_JUSTIFY_CONTENT[justification]};width:max(${wrapperWidth}px,25ch);min-height:max(${wrapperHeight}px,2lh)`;
+        const style = `display:flex;align-items:${FLEX_ALIGN_ITEMS[alignment]};justify-content:${FLEX_JUSTIFY_CONTENT[justification]};width:max(${wrapperWidth}px,25ch);min-height:max(${wrapperHeight}px,2lh);white-space:normal;margin:${labelMargin}`;
         const labelOpen = justification === 'center' ? '<div>' : `<div style='text-align:${justification}'>`;
         wrappedLines.push(`${indent}${id}${open}"<div style='${style}'>${labelOpen}${label}</div></div>"${close}`);
     }

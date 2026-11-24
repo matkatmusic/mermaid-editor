@@ -9,7 +9,8 @@ registerBrowserHooks(import.meta.url, openEditorDrawer);
 // A chain of blocks with an edge from the last block back to the first, so one edge goes up and the others go down.
 function buildChainSource(blockCount: number) {
     const ids = Array.from({ length: blockCount }, (_, index) => `B_N${index}`);
-    return ["flowchart TD", ...ids.map((id) => `  ${id}["Block ${id}"]`), `  ${ids.join(" --> ")}`, `  ${ids[ids.length - 1]} --> ${ids[0]}`].join("\n");
+    // Each block gets a size line: blocks are only their text box plus 8 px, so the chain would not be tall enough to scroll.
+    return ["flowchart TD", ...ids.map((id) => `  ${id}["Block ${id}"]`), `  ${ids.join(" --> ")}`, `  ${ids[ids.length - 1]} --> ${ids[0]}`, ...ids.map((id) => `%% ==size==: ${id} 160 72`)].join("\n");
 }
 
 async function loadChain(blockCount: number) {
@@ -135,7 +136,7 @@ test("test_the_extra_arrow_head_has_the_same_fill_as_the_normal_arrow_head", asy
 
 async function loadChainWithBackEdge(blockCount: number, backEdgeTargetIndex: number) {
     const ids = Array.from({ length: blockCount }, (_, index) => `B_N${index}`);
-    const source = ["flowchart TD", ...ids.map((id) => `  ${id}["Block ${id}"]`), `  ${ids.join(" --> ")}`, `  ${ids[ids.length - 1]} --> ${ids[backEdgeTargetIndex]}`].join("\n");
+    const source = ["flowchart TD", ...ids.map((id) => `  ${id}["Block ${id}"]`), `  ${ids.join(" --> ")}`, `  ${ids[ids.length - 1]} --> ${ids[backEdgeTargetIndex]}`, ...ids.map((id) => `%% ==size==: ${id} 160 72`)].join("\n");
     await resetEditorFixture();
     await setEditorSource(source);
     await waitMilliseconds(800);
