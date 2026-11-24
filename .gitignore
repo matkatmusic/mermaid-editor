@@ -4,3 +4,4 @@ node_modules/
 
 .plate/
 .claude_hooks/
+.claude/papercuts.md
