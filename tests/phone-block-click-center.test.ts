@@ -33,6 +33,14 @@ async function scrollMainViewToTop() {
     await waitMilliseconds(300);
 }
 
+async function measurePhoneView(id: string): Promise<{ rowIds: string[]; clickedRowTop: number }> {
+    return JSON.parse(await executeExpression(`JSON.stringify({
+        rowIds: [...document.querySelectorAll('#phoneDiagram [data-node-id]')].map((row) => row.dataset.nodeId),
+        clickedRowTop: document.querySelector('#phoneDiagram [data-node-id="${id}"]').getBoundingClientRect().top,
+    })`));
+}
+
+// Presses and releases the mouse on the phone row; returns the Phone view as it was just before the press.
 async function clickPhoneRowWithMouse(id: string) {
     const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const row = document.querySelector('#phoneDiagram [data-node-id="${id}"]');
@@ -40,8 +48,10 @@ async function clickPhoneRowWithMouse(id: string) {
         const rect = row.getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     })())`));
+    const phoneViewBeforePress = await measurePhoneView(id);
     await send("Input.dispatchMouseEvent", { type: "mousePressed", x: center.x, y: center.y, button: "left", clickCount: 1 });
     await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: center.x, y: center.y, button: "left", clickCount: 1 });
+    return phoneViewBeforePress;
 }
 
 async function measureCenterOffsetBetweenBlockAndMainView(id: string) {
@@ -61,16 +71,21 @@ test("test_clicking_a_phone_block_row_scrolls_the_main_view_to_center_that_block
     await scrollMainViewToTop();
     // The block starts far from the center of the main view.
     const offsetBefore = await measureCenterOffsetBetweenBlockAndMainView(CLICKED_BLOCK_ID);
-    assert.ok(Math.abs(offsetBefore.vertical) > 200, `block must start off center, vertical offset was ${offsetBefore.vertical}`);    const highlightedBefore = await getHighlightedNodeIds();
+    assert.ok(Math.abs(offsetBefore.vertical) > 200, `block must start off center, vertical offset was ${offsetBefore.vertical}`);
+    assert.deepEqual(await getHighlightedNodeIds(), []);
     // Click the phone row with a real mouse, then wait for the smooth scroll to end.
-    await clickPhoneRowWithMouse(CLICKED_BLOCK_ID);
+    const phoneViewBefore = await clickPhoneRowWithMouse(CLICKED_BLOCK_ID);
     await waitMilliseconds(1500);
     // The block center is within tolerance of the main view center.
     const offsetAfter = await measureCenterOffsetBetweenBlockAndMainView(CLICKED_BLOCK_ID);
     assert.ok(Math.abs(offsetAfter.horizontal) <= CENTER_TOLERANCE_PIXELS, `horizontal offset was ${offsetAfter.horizontal}`);
     assert.ok(Math.abs(offsetAfter.vertical) <= CENTER_TOLERANCE_PIXELS, `vertical offset was ${offsetAfter.vertical}`);
-    // The selected block did not change.
-    assert.deepEqual(await getHighlightedNodeIds(), highlightedBefore);
+    // The clicked block is now the one selected block, and the Node inspector shows it.
+    assert.deepEqual(await getHighlightedNodeIds(), [CLICKED_BLOCK_ID]);
+    assert.equal(await executeExpression("document.getElementById('selectedNode').textContent"), CLICKED_BLOCK_ID);
+    assert.ok(CLICKED_BLOCK_ID.includes(await executeExpression("document.getElementById('nodeNameInput').value")));
+    // The Phone view has the same rows, and the clicked row did not move.
+    assert.deepEqual(await measurePhoneView(CLICKED_BLOCK_ID), phoneViewBefore);
 });
 
 test("test_clicking_a_phone_block_row_scrolls_the_main_view_back_up_to_center_that_block", async () => {

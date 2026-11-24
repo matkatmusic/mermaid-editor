@@ -90,7 +90,7 @@
   #centerColumn { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
   #multiSelectBadge { position: absolute; top: 8px; left: 8px; z-index: 2147483647; pointer-events: none; padding: 4px 10px; border-radius: 12px; background: var(--select-stroke); color: #fff; font: 13px/1.3 sans-serif; }
   #centerColumn > #output { flex: 1; min-height: 0; height: auto; }
-  #nodeInspector { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 8px; border-top: 1px solid var(--line); font-family: monospace; }
+  #nodeInspector { position: relative; box-sizing: border-box; flex: none; display: flex; flex-direction: column; gap: 8px; padding: 8px; border-top: 1px solid var(--line); font-family: monospace; }
   /* #nodeInspector[hidden] { visibility: hidden; } */
   #nodeInspector[hidden] { opacity: 0.5; pointer-events: none; }
   #nodeInspector h2 { display: none; }
@@ -103,8 +103,11 @@
   #nodeIdentityNotesRow #nodeNotesInput { align-self: stretch; }
   */
   #nodeIdentityBox { display: flex; flex-direction: column; gap: 4px; }
-  #nodeTextNotesRow { display: flex; align-items: flex-start; gap: 8px; }
-  #nodeTextColumn, #nodeNotesRow { flex: 1 1 0; min-width: 0; }
+  #nodeTextNotesRow { flex: 1 1 auto; min-height: 0; display: flex; align-items: stretch; gap: 8px; }
+  #nodeTextColumn, #nodeNotesRow { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+  #nodeTextColumn > .inspector-text-row, #nodeNotesRow > .inspector-text-row { flex: 1 1 auto; min-height: 0; align-items: stretch; }
+  #nodeTextColumn > .inspector-text-row > span, #nodeNotesRow > .inspector-text-row > span { align-self: center; }
+  #nodeInspectorResizeHandle { position: absolute; top: -3px; left: 0; right: 0; height: 6px; z-index: 5; cursor: row-resize; }
   #nodeNotesRow[hidden] { display: none; }
   .inspector-hint { margin-top: 2px; font-size: 10px; line-height: 12px; color: var(--text-quiet); text-align: right; }
   #nodeKindRow { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; }
@@ -117,7 +120,7 @@
   #decisionShapeSwitch:checked::after { left: 18px; }
   #decisionShapeSwitch:focus-visible { outline: 2px solid var(--select-stroke); outline-offset: 2px; }
   #nodeNameInput { flex: 1; min-width: 0; box-sizing: border-box; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; font: inherit; }
-  #nodeNameCheck { font-size: 13px; }
+  #nodeNameCheck { flex: 0 1 auto; min-width: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
   #nodeNameCheck.error { color: #b00020; }
   #nodeNotesInput { flex: 1; min-width: 0; box-sizing: border-box; resize: none; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; font: inherit; }
   /* #nodeNotesRow { flex: 1 1 220px; min-width: 220px; } */
@@ -127,7 +130,9 @@
   #viewportMenu[hidden] { display: none; }
   #inspectorBottomRow { display: flex; align-items: center; gap: 8px; }
   #inspectorBottomRow .inspector-grid:not([hidden]) { display: flex; gap: 8px; flex-wrap: wrap; }
-  #inspectorBottomRow #nodeInspectorActions { flex: 1 0 100%; min-width: 0; }
+  /* #inspectorBottomRow #nodeInspectorActions { flex: 1 0 100%; min-width: 0; } */
+  #inspectorBottomRow #nodeInspectorButtonsRow:not([hidden]) { flex: 1 0 100%; min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  #inspectorBottomRow #nodeInspectorActions:not([hidden]) { display: contents; }
   #inspectorBottomRow .span-2, #nodeInspectorDismissBtn { margin: 0; }
   #nodeInspectorDismissBtn { display: none !important; }
   #inspectorBottomRow { flex-wrap: wrap; }
@@ -155,12 +160,18 @@
   .inspector-grid button { padding: 2.5px 10px; }
   .inspector-destination-row:not([hidden]) { display: flex; align-items: center; gap: 6px; }
   .inspector-destination-row select { flex: 1; min-width: 0; padding: 6px 8px; font: inherit; }
+  .inspector-destination-row { position: relative; }
+  .inspector-destination-row input { flex: 1; min-width: 0; box-sizing: border-box; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; font: inherit; }
+  #destinationList { position: absolute; left: 0; right: 0; bottom: 100%; z-index: 25; max-height: 40vh; overflow: auto; display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+  #destinationList[hidden] { display: none; }
+  .destination-option { padding: 6px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .destination-option:hover, .destination-option[aria-selected="true"] { background: var(--bg-light); }
   .span-2 { grid-column: 1 / -1; }
   #nodeInspectorDismissBtn { margin: 8px; }
   .class-swatch { flex: none; display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 2px solid #999; box-sizing: border-box; }
   #classPicker { position: relative; flex: 1; min-width: 0; }
   #classPickerBtn { display: flex; align-items: center; gap: 6px; width: 100%; box-sizing: border-box; padding: 6px 8px; border: 2px solid var(--border-input); border-radius: 4px; background: var(--bg); color: var(--text); font: inherit; cursor: pointer; }
-  #classPickerList { position: absolute; /* top: 100%; overridden below (line 81) to open upward; kept here collapses the list to 2px */ left: 0; min-width: 100%; width: max-content; z-index: 25; display: flex; flex-direction: column; max-height: 220px; overflow: auto; background: var(--bg); border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+  #classPickerList { position: absolute; /* top: 100%; overridden below (line 81) to open upward; kept here collapses the list to 2px */ left: 0; min-width: 100%; width: max-content; z-index: 25; display: flex; flex-direction: column; /* max-height: 220px; retired by task 105: the script sets the height from the room in the window */ overflow: auto; background: var(--bg); border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
   #classPickerList[hidden] { display: none; }
   .class-picker-row { display: flex; align-items: center; gap: 6px; white-space: nowrap; padding: 6px 8px; border: none; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
   .class-picker-row:hover { background: var(--bg-light); }
@@ -258,6 +269,7 @@
       <div id="error"></div>
     </div>
 <aside id="nodeInspector" role="dialog" aria-labelledby="nodeInspectorTitle" hidden>
+  <div id="nodeInspectorResizeHandle"></div>
   <h2 id="nodeInspectorTitle"></h2>
   <!-- Retired: the free-form Node Identifier box is replaced by the type row and the Node Name box below.
   <label class="inspector-text-row"><span>Node Identifier:</span><input id="nodeIdInput" type="text" spellcheck="false" autocomplete="off"></label>
@@ -284,8 +296,7 @@
       </div>
     </div>
   </div>
-  <label class="inspector-text-row"><span>Node Name:</span><input id="nodeNameInput" type="text" spellcheck="false" autocomplete="off"></label>
-  <div id="nodeNameCheck" role="status"></div>
+  <label class="inspector-text-row"><span>Node Name:</span><input id="nodeNameInput" type="text" spellcheck="false" autocomplete="off"><div id="nodeNameCheck" role="status"></div></label>
   </div>
   <div id="nodeTextNotesRow">
   <div id="nodeTextColumn">
@@ -322,10 +333,10 @@
   -->
   <div id="nodeInspectorControls" class="inspector-grid">
     <button id="nodeInspectorDismissBtn" class="span-2">Cancel</button>
-    <label id="destinationRow" class="inspector-destination-row span-2"><span>Destination:</span><select id="destinationSelect"></select></label>
-    <button id="walkBackBtn" class="span-2">Walk back</button>
+    <label id="destinationRow" class="inspector-destination-row span-2"><span>Destination:</span><input id="destinationInput" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destinationList" autocomplete="off" spellcheck="false"><select id="destinationSelect" hidden tabindex="-1"></select><div id="destinationList" role="listbox" hidden></div></label>
+    <!-- Moved by task 106 into the buttons row: <button id="walkBackBtn" class="span-2">Walk back</button> -->
   </div>
-  <div id="nodeInspectorActions" class="inspector-grid"></div>
+  <div id="nodeInspectorButtonsRow"><button id="walkBackBtn" type="button" title="Select the node that comes before this node. If more than one node comes before it, a list asks which one.">Walk back</button><div id="nodeInspectorActions" class="inspector-grid"></div></div>
   <div id="nodeInspectorRemovalPreview" class="inspector-grid" hidden>
     <button id="nextRemovalPathBtn">Next replacement path</button>
     <button id="confirmRemoveQuestionBtn">Confirm removal</button>

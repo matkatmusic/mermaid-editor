@@ -21,7 +21,7 @@ async function measureInspector() {
       parentFont: fontSize(document.getElementById('nodeParentLabel')),
       kindRow: byId('nodeKindRow'), nameInput: byId('nodeNameInput'), nameCheck: byId('nodeNameCheck'),
       textInput: byId('nodeTextInput'), notesInput: byId('nodeNotesInput'), textHint: byId('nodeTextHint'), notesHint: byId('nodeNotesHint'),
-      classPicker: byId('classPickerBtn'), destination: byId('destinationSelect'),
+      classPicker: byId('classPickerBtn'), destination: byId('destinationInput'),
       firstAction: box(document.querySelector('#nodeInspectorActions button')),
     };
   })())`).then(JSON.parse);
@@ -66,6 +66,50 @@ for (const drawerState of ["open", "closed"]) {
     // Row 4: the buttons are below row 3.
     const row3Bottom = Math.max(measured.classPicker.bottom, measured.destination.bottom);
     assert.ok(row3Bottom <= measured.firstAction.top + 1, `row 3 bottom ${row3Bottom}px, row 4 top ${measured.firstAction.top}px`);
+  });
+}
+
+test("test_walk_back_button_sits_on_the_remove_button_line_and_has_a_tooltip", async () => {
+  // Step: select a block that has a parent.
+  const measured = await selectChoiceAndMeasure();
+  assert.ok(measured.firstAction.height > 0);
+  // Step: measure the Walk back button, the Remove button and the Destination picker.
+  const walkBack = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const walkBackBtn = document.getElementById('walkBackBtn');
+    const removeBtn = document.querySelector('#nodeInspectorActions button[data-action="remove"]');
+    return {
+      walkBackTop: walkBackBtn.getBoundingClientRect().top, removeTop: removeBtn.getBoundingClientRect().top,
+      isInActionsRow: walkBackBtn.parentElement.id === 'nodeInspectorButtonsRow' && removeBtn.closest('#nodeInspectorButtonsRow') !== null, isInDestinationRow: !!walkBackBtn.closest('#nodeInspectorControls'),
+      title: walkBackBtn.title,
+    };
+  })())`));
+  // Step: Walk back is in the buttons row, on the same line as Remove, and has a tooltip.
+  assert.equal(walkBack.isInActionsRow, true);
+  assert.equal(walkBack.isInDestinationRow, false);
+  assert.ok(Math.abs(walkBack.walkBackTop - walkBack.removeTop) <= 2, `walk back top ${walkBack.walkBackTop}px, remove top ${walkBack.removeTop}px`);
+  assert.ok(walkBack.title.length > 20, `title: "${walkBack.title}"`);
+});
+
+for (const nodeId of ["Q_CHOICE_ASK_YES", "B_" + "LONG_".repeat(30) + "END"]) {
+  test(`test_node_name_input_and_result_text_share_one_line_for_${nodeId.length}_character_id`, async () => {
+    // Step: select a block (a short id, then a very long id).
+    await resetEditorFixture();
+    await setEditorSource(SOURCE.replaceAll("B_END", nodeId.startsWith("B_") ? nodeId : "B_END"));
+    await waitMilliseconds(500);
+    await clickNodeWithMouse(nodeId);
+    await waitMilliseconds(300);
+    // Step: measure the Node Name input, the result text and the inspector.
+    const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+      const box = (id) => { const rect = document.getElementById(id).getBoundingClientRect(); return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right }; };
+      return { input: box('nodeNameInput'), result: box('nodeNameCheck'), inspector: box('nodeInspector'), text: document.getElementById('nodeNameCheck').textContent };
+    })())`));
+    // Step: the result text starts with "result:", sits right of the input, has the same vertical centre, and stays inside the inspector.
+    assert.ok(measured.text.startsWith("result:"), measured.text);
+    assert.ok(measured.input.right <= measured.result.left + 1, `input right ${measured.input.right}px, result left ${measured.result.left}px`);
+    const inputCentre = (measured.input.top + measured.input.bottom) / 2;
+    const resultCentre = (measured.result.top + measured.result.bottom) / 2;
+    assert.ok(Math.abs(inputCentre - resultCentre) <= 2, `input centre ${inputCentre}px, result centre ${resultCentre}px`);
+    assert.ok(measured.result.right <= measured.inspector.right, `result right ${measured.result.right}px, inspector right ${measured.inspector.right}px`);
   });
 }
 

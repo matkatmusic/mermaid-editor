@@ -144,6 +144,11 @@ const scrollMainViewToPhoneRow = (event: MouseEvent) => {
   const row = (event.target as HTMLElement).closest<HTMLElement>('.phone-block, .phone-question');
   if (!row)
     return;
+  if (refuseMoveWhileNodeNameIsInvalid())
+    return;
+  selectNodeSourceLine(row.dataset.nodeId!);
+  selectEditorNode(row.dataset.nodeId!);
+  saveEditorViewState();
   const node = diagramBox.querySelector('[id*="flowchart-' + row.dataset.nodeId + '-"]')!;
   const outputRect = outputBox.getBoundingClientRect();
   const nodeRect = node.getBoundingClientRect();

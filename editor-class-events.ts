@@ -5,8 +5,23 @@ import { findClassDef } from './class-lines.ts';
 import { renderClassesDialog } from './editor-classes-render.ts';
 
 // Class picker (node inspector "Class" row)
+function placeClassPickerListInsideWindow() {
+  classPickerList.style.maxHeight = 'none';
+  const listHeight = classPickerList.scrollHeight + 2;
+  const buttonRect = classPickerBtn.getBoundingClientRect();
+  const spaceAbove = buttonRect.top - 8;
+  const spaceBelow = window.innerHeight - buttonRect.bottom - 8;
+  let opensUpward = spaceAbove >= spaceBelow;
+  if (listHeight <= spaceAbove)
+    opensUpward = true;
+  classPickerList.style.top = opensUpward ? 'auto' : '100%';
+  classPickerList.style.bottom = opensUpward ? '100%' : 'auto';
+  classPickerList.style.maxHeight = `${Math.max(opensUpward ? spaceAbove : spaceBelow, 0)}px`;
+}
 function toggleClassPickerList() {
   classPickerList.hidden = !classPickerList.hidden;
+  if (!classPickerList.hidden)
+    placeClassPickerListInsideWindow();
 }
 function clearClassPickerOnOutsideClick(event: MouseEvent) {
   const insidePicker = (event.target as HTMLElement).closest('#classPicker');

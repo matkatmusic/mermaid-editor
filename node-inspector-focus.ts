@@ -1,4 +1,4 @@
-import { destinationSelect, nodeInspector, nodeTextInput } from './dom.ts';
+import { destinationInput, nodeInspector, nodeTextInput } from './dom.ts';
 
 export function updateNodeInspectorPosition() {
   // The widget now sits in the page layout under #output.
@@ -17,7 +17,7 @@ export function setInspectorTextFocus() {
 }
 
 export function setInspectorDestinationFocus() {
-  destinationSelect.focus();
+  destinationInput.focus();
 }
 
 // visibility:hidden used to auto-blur focus; opacity+pointer-events dimming does not, so blur explicitly.

@@ -9,6 +9,8 @@ import { decodeLabelLineBreaks, decodeLabelQuotes, getOneLineLabel } from './edi
 import { renderClassPicker } from './node-inspector-class.ts';
 import { getNodeAlign } from './node-align.ts';
 import { clearInspectorFocus, updateNodeInspectorPosition } from './node-inspector-focus.ts';
+import { applyInspectorExtraHeight } from './inspector-resize.ts';
+import { showDestinationInInput } from './destination-picker.ts';
 
 export function replaceDeclarationInLine(line: string, id: string, newToken: string) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -92,6 +94,7 @@ export function renderNodeInspector() {
   showNameCheck({ fullId: node.id });
   nodeNotesInput.value = decodeLabelLineBreaks(node.note);
   const nodeAlign = getNodeAlign(graph.lines, node.id);
+  nodeTextInput.style.textAlign = nodeAlign.justification;
   for (const button of nodeAlignRow.querySelectorAll('button')) {
     const isJustificationPressed = button.dataset.justification === nodeAlign.justification;
     const isAlignmentPressed = button.dataset.alignment === nodeAlign.alignment;
@@ -109,8 +112,10 @@ export function renderNodeInspector() {
     renderClassPicker(node);
   nodeInspectorRemovalPreview.hidden = !previewing;
   nodeInspectorActions.hidden = previewing;
+  walkBackBtn.hidden = previewing;
   nodeInspectorControls.hidden = previewing;
   if (previewing) {
+    applyInspectorExtraHeight();
     updateNodeInspectorPosition();
     return;
   }
@@ -165,6 +170,8 @@ export function renderNodeInspector() {
   else {
     nodeInspectorDismissBtn.textContent = 'Cancel';
   }
+  showDestinationInInput();
+  applyInspectorExtraHeight();
   updateNodeInspectorPosition();
 }
 

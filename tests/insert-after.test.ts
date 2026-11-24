@@ -125,6 +125,6 @@ test('test_new_static_text_enter_keeps_selection_and_focuses_destination', async
   await executeExpression(`(() => { const input = document.getElementById('nodeTextInput'); input.value = 'Follow up'; input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`);
   await executeExpression('window.editorActionPromise');
   assert.ok((await executeExpression('codeBox.value')).includes('B_NEW_1["Follow up"]'));
-  assert.deepEqual(await inspectorFocus(), { activeId: 'destinationSelect', selectedId: 'B_NEW_1' });
+  assert.deepEqual(await inspectorFocus(), { activeId: 'destinationInput', selectedId: 'B_NEW_1' });
   await assertEditorSourceIsSavedAndValid();
 });
