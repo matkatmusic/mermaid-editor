@@ -142,6 +142,33 @@ test("test_destination_picker_click_outside_closes_the_list_and_restores_the_sho
     assert.equal(state.inputValue, "End (B_END)");
 });
 
+test("test_destination_picker_rows_do_not_overlap_when_the_list_is_long", async () => {
+    // Step: load a diagram with 30 blocks and select the choice.
+    const manyBlocks = Array.from({ length: 30 }, (_, index) => `  B_EXTRA_${index}["Extra ${index}"]`);
+    const longSource = SOURCE.replace('  B_CHERRY_PIE["Cherry"]', ['  B_CHERRY_PIE["Cherry"]', ...manyBlocks].join("\n"));
+    await resetEditorFixture();
+    await setEditorSource(longSource);
+    await waitMilliseconds(500);
+    await clickNodeWithMouse("Q_CHOICE_ASK_YES");
+    await waitMilliseconds(300);
+    // Step: open the Destination list.
+    await clickWithMouse("#destinationInput");
+    // Step: read each row height, its text line height, and its position.
+    const rows: { top: number; bottom: number; height: number; textHeight: number }[] = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#destinationList [role="option"]')].map((row) => {
+        const rect = row.getBoundingClientRect();
+        const textRange = document.createRange();
+        textRange.selectNodeContents(row);
+        return { top: rect.top, bottom: rect.bottom, height: rect.height, textHeight: textRange.getBoundingClientRect().height };
+    }))`));
+    assert.ok(rows.length >= 30, `rows: ${rows.length}`);
+    // Step: each row is at least as tall as its text.
+    for (const row of rows)
+        assert.ok(row.height >= row.textHeight, `row height ${row.height} is less than text height ${row.textHeight}`);
+    // Step: no row overlaps the next row.
+    for (let index = 0; index < rows.length - 1; index++)
+        assert.ok(rows[index].bottom <= rows[index + 1].top + 0.01, `row ${index} bottom ${rows[index].bottom} is below row ${index + 1} top ${rows[index + 1].top}`);
+});
+
 test("test_destination_picker_input_has_a_label", async () => {
     // Step: select a choice.
     await selectChoiceWithDestinationPicker();
