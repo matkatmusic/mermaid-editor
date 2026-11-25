@@ -1598,7 +1598,7 @@ function buildChoiceButtonsHtml(choices, row, graph) {
       continue;
     const isChosen = choiceId === row.chosenChoiceId;
     if (isChosen) {
-      buttons.push(`<button type="button" class="phone-choice phone-choice-chosen" style="flex:0 1 70%" data-node-id="${choiceId}" disabled>${label}</button>`);
+      buttons.push(`<button type="button" class="phone-choice phone-choice-chosen" style="flex:0 1 70%" data-node-id="${choiceId}">${label}</button>`);
       continue;
     }
     const style = `style="flex:0 1 ${declinedPct}%"`;
@@ -4703,7 +4703,7 @@ var selectPhoneChoice = async (event) => {
 };
 phoneDiagramBox.addEventListener("click", selectPhoneChoice);
 var scrollMainViewToPhoneRow = (event) => {
-  const row = event.target.closest(".phone-block, .phone-question");
+  const row = event.target.closest(".phone-block, .phone-question, .phone-choice-chosen");
   if (!row)
     return;
   if (refuseMoveWhileNodeNameIsInvalid())

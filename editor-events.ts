@@ -141,7 +141,7 @@ const selectPhoneChoice = async (event: MouseEvent) => {
 phoneDiagramBox.addEventListener('click', selectPhoneChoice);
 
 const scrollMainViewToPhoneRow = (event: MouseEvent) => {
-  const row = (event.target as HTMLElement).closest<HTMLElement>('.phone-block, .phone-question');
+  const row = (event.target as HTMLElement).closest<HTMLElement>('.phone-block, .phone-question, .phone-choice-chosen');
   if (!row)
     return;
   if (refuseMoveWhileNodeNameIsInvalid())

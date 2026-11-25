@@ -88,6 +88,39 @@ test("test_clicking_a_phone_block_row_scrolls_the_main_view_to_center_that_block
     assert.deepEqual(await measurePhoneView(CLICKED_BLOCK_ID), phoneViewBefore);
 });
 
+test("test_clicking_the_chosen_choice_button_scrolls_the_main_view_to_center_and_select_that_choice", async () => {
+    // Scenario: one decision is answered in the Phone view; the main view is scrolled away; a real click on the green chosen button selects that choice.
+    const choiceId = "Q_CHOICE_ASK_YES";
+    const lines = ["flowchart TD", '  B_START["Start"]', '  Q_ASK{"Ask?"}', `  ${choiceId}["Yes"]`, '  Q_CHOICE_ASK_NO["No"]', '  B_NO["No end"]'];
+    for (let stepNumber = 1; stepNumber <= 40; stepNumber++)
+        lines.push(`  B_STEP_${stepNumber}["Step ${stepNumber}"]`);
+    lines.push("  B_START --> Q_ASK", `  Q_ASK --> ${choiceId} --> B_STEP_1`, "  Q_ASK --> Q_CHOICE_ASK_NO --> B_NO");
+    for (let stepNumber = 1; stepNumber < 40; stepNumber++)
+        lines.push(`  B_STEP_${stepNumber} --> B_STEP_${stepNumber + 1}`);
+    lines.push("");
+    await resetEditorFixture();
+    await executeExpression(`showOpenedFile('/tmp/phone-chosen-choice-click.mmd', ${JSON.stringify(lines.join("\n"))})`);
+    await waitMilliseconds(1000);
+    // Answer the decision with a real click on the choice button.
+    await clickPhoneRowWithMouse(choiceId);
+    await waitMilliseconds(1500);
+    assert.equal(await executeExpression(`document.querySelectorAll('#phoneDiagram .phone-choice-chosen[data-node-id="${choiceId}"]').length`), 1);
+    // Scroll the main view to the bottom, so the choice is off center.
+    await executeExpression("(() => { const outputBox = document.getElementById('output'); outputBox.scrollTo({ left: 0, top: outputBox.scrollHeight, behavior: 'instant' }); })()");
+    await waitMilliseconds(300);
+    const offsetBefore = await measureCenterOffsetBetweenBlockAndMainView(choiceId);
+    assert.ok(Math.abs(offsetBefore.vertical) > 200, `choice must start off center, vertical offset was ${offsetBefore.vertical}`);
+    // Click the green chosen button with a real mouse.
+    await clickPhoneRowWithMouse(choiceId);
+    await waitMilliseconds(1500);
+    // The choice is centered in the main view and is the one selected node.
+    const offsetAfter = await measureCenterOffsetBetweenBlockAndMainView(choiceId);
+    assert.ok(Math.abs(offsetAfter.vertical) <= CENTER_TOLERANCE_PIXELS, `vertical offset was ${offsetAfter.vertical}`);
+    assert.deepEqual(await getHighlightedNodeIds(), [choiceId]);
+    // The click did not answer the decision again: the chosen button is still there.
+    assert.equal(await executeExpression(`document.querySelectorAll('#phoneDiagram .phone-choice-chosen[data-node-id="${choiceId}"]').length`), 1);
+});
+
 test("test_clicking_a_phone_block_row_scrolls_the_main_view_back_up_to_center_that_block", async () => {
     // Scenario: the main view is scrolled past B_STEP_20 (to the bottom); a real click on its phone row scrolls back up.
     await openLongChainDiagram();

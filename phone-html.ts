@@ -72,7 +72,7 @@ function buildChoiceButtonsHtml(choices: string[], row: Row, graph: EditorGraph)
       continue;
     const isChosen = choiceId === row.chosenChoiceId;
     if (isChosen) {
-      buttons.push(`<button type="button" class="phone-choice phone-choice-chosen" style="flex:0 1 70%" data-node-id="${choiceId}" disabled>${label}</button>`);
+      buttons.push(`<button type="button" class="phone-choice phone-choice-chosen" style="flex:0 1 70%" data-node-id="${choiceId}">${label}</button>`);
       continue;
     }
     const style = `style="flex:0 1 ${declinedPct}%"`;
