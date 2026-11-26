@@ -1,5 +1,5 @@
-import { SIZE_PREFIX } from './editor-types.ts';
-import { parseAlignLine } from './node-align.ts';
+import { getNodeAlign } from './node-align.ts';
+import { buildSourceWithNodeProps, parsePropsLine } from './node-props.ts';
 import type { Alignment, Justification, NodeAlign } from './node-align.ts';
 
 // Mermaid (look "neo") draws a rectangle 16 px per side wider and 12 px per side higher than its label, and a hexagon 16 px per side wider and 35 px per side higher.
@@ -37,25 +37,27 @@ export function parseSizeLine(line: string): NodeSize | null {
     return { id: match[1], width: Number(match[2]), height: Number(match[3]) };
 }
 
-export function buildSizeLine(id: string, width: number, height: number) {
-    return `${SIZE_PREFIX} ${id} ${width} ${height}`;
-}
+// export function buildSizeLine(id: string, width: number, height: number) {
+//     return `${SIZE_PREFIX} ${id} ${width} ${height}`;
+// }
 
 export function buildSourceWithoutNodeSize(source: string, id: string) {
-    const keptLines: string[] = [];
-    for (const line of source.split('\n')) {
-        const size = parseSizeLine(line);
-        const isOldLineOfNode = size?.id === id;
-        if (!isOldLineOfNode)
-            keptLines.push(line);
-    }
-    return keptLines.join('\n');
+    // const keptLines: string[] = [];
+    // for (const line of source.split('\n')) {
+    //     const size = parseSizeLine(line);
+    //     const isOldLineOfNode = size?.id === id;
+    //     if (!isOldLineOfNode)
+    //         keptLines.push(line);
+    // }
+    // return keptLines.join('\n');
+    return buildSourceWithNodeProps(source, id, { width: undefined, height: undefined });
 }
 
 // The one function that sets a node's size; the drag resize of tasks 89 and 90 calls it too.
 export function buildSourceWithNodeSize(source: string, id: string, width: number, height: number) {
-    const body = buildSourceWithoutNodeSize(source, id).replace(/\s+$/, '');
-    return `${body}\n${buildSizeLine(id, width, height)}`;
+    // const body = buildSourceWithoutNodeSize(source, id).replace(/\s+$/, '');
+    // return `${body}\n${buildSizeLine(id, width, height)}`;
+    return buildSourceWithNodeProps(source, id, { width, height });
 }
 
 // Only the render path uses this text. The wrapper makes Mermaid lay the node out at the stored size:
@@ -63,16 +65,27 @@ export function buildSourceWithNodeSize(source: string, id: string, width: numbe
 export function buildSourceWithSizeWrappers(source: string) {
     const lines = source.split('\n');
     const sizes = new Map<string, NodeSize>();
-    for (const line of lines) {
-        const size = parseSizeLine(line);
-        if (size)
-            sizes.set(size.id, size);
-    }
+    // for (const line of lines) {
+    //     const size = parseSizeLine(line);
+    //     if (size)
+    //         sizes.set(size.id, size);
+    // }
     const aligns = new Map<string, NodeAlign>();
+    // for (const line of lines) {
+    //     const align = parseAlignLine(line);
+    //     if (align)
+    //         aligns.set(align.id, align);
+    // }
     for (const line of lines) {
-        const align = parseAlignLine(line);
-        if (align)
-            aligns.set(align.id, align);
+        const props = parsePropsLine(line);
+        if (!props)
+            continue;
+        const id = props.blockId;
+        if (props.width !== undefined) {
+            if (props.height !== undefined)
+                sizes.set(id, { id, width: props.width, height: props.height });
+        }
+        aligns.set(id, getNodeAlign([line], id));
     }
     // if (sizes.size === 0 && aligns.size === 0)
     //     return source;

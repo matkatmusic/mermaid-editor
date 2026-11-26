@@ -1,8 +1,6 @@
 // editor-types.ts
 var INSPECTOR_TITLES = { question: "Decision block", block: "static block", choice: "choice block" };
-var NOTE_PREFIX = "%% ==note==:";
-var SIZE_PREFIX = "%% ==size==:";
-var ALIGN_PREFIX = "%% ==align==:";
+var PROPS_PREFIX = "%% ==props==:";
 
 class EditorValidationError extends Error {
   problems;
@@ -17,6 +15,49 @@ ${problems.join(`
 var EDITOR_METADATA_FENCE = "%%%%====";
 var EDITOR_METADATA_WARNING = "DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE";
 
+// node-props.ts
+function parsePropsLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith(PROPS_PREFIX))
+    return null;
+  return JSON.parse(trimmed.slice(PROPS_PREFIX.length));
+}
+function buildPropsLine({ blockId, alignment, justification, width, height, note }) {
+  return `${PROPS_PREFIX} ${JSON.stringify({ blockId, alignment, justification, width, height, note })}`;
+}
+function getNodeProps(lines, id) {
+  for (const line of lines) {
+    const props = parsePropsLine(line);
+    if (props?.blockId === id)
+      return props;
+  }
+  return { blockId: id };
+}
+function buildSourceWithNodeProps(source, id, changes) {
+  const lines = source.split(`
+`);
+  const props = { ...getNodeProps(lines, id), ...changes };
+  const keptLines = [];
+  for (const line of lines) {
+    const isOldLineOfNode = parsePropsLine(line)?.blockId === id;
+    if (!isOldLineOfNode)
+      keptLines.push(line);
+  }
+  const hasNoFields = buildPropsLine(props) === buildPropsLine({ blockId: id });
+  if (hasNoFields)
+    return keptLines.join(`
+`);
+  const declarationPattern = new RegExp(`^\\s*${id}[\\[{(]`);
+  const declarationIndex = keptLines.findIndex((line) => declarationPattern.test(line));
+  if (declarationIndex === -1)
+    return [...keptLines, buildPropsLine(props)].join(`
+`);
+  const indent = keptLines[declarationIndex].match(/^\s*/)[0];
+  keptLines.splice(declarationIndex, 0, `${indent}${buildPropsLine(props)}`);
+  return keptLines.join(`
+`);
+}
+
 // node-align.ts
 var ALIGN_LINE_PATTERN = /^%% ==align==: ([A-Za-z0-9_]+) (left|center|right) (top|center|bottom)$/;
 function parseAlignLine(line) {
@@ -26,36 +67,17 @@ function parseAlignLine(line) {
   return { id: match[1], justification: match[2], alignment: match[3] };
 }
 function getNodeAlign(lines, id) {
-  for (const line of lines) {
-    const align = parseAlignLine(line);
-    if (align?.id === id)
-      return align;
-  }
-  return { id, justification: "center", alignment: "center" };
-}
-function buildAlignLine(id, justification, alignment) {
-  return `${ALIGN_PREFIX} ${id} ${justification} ${alignment}`;
+  const props = getNodeProps(lines, id);
+  return { id, justification: props.justification ?? "center", alignment: props.alignment ?? "center" };
 }
 function buildSourceWithoutNodeAlign(source, id) {
-  const keptLines = [];
-  for (const line of source.split(`
-`)) {
-    const align = parseAlignLine(line);
-    const isOldLineOfNode = align?.id === id;
-    if (!isOldLineOfNode)
-      keptLines.push(line);
-  }
-  return keptLines.join(`
-`);
+  return buildSourceWithNodeProps(source, id, { alignment: undefined, justification: undefined });
 }
 function buildSourceWithNodeAlign(source, id, justification, alignment) {
-  const sourceWithoutOldLine = buildSourceWithoutNodeAlign(source, id);
   const isDefault = justification === "center" && alignment === "center";
   if (isDefault)
-    return sourceWithoutOldLine;
-  const body = sourceWithoutOldLine.replace(/\s+$/, "");
-  return `${body}
-${buildAlignLine(id, justification, alignment)}`;
+    return buildSourceWithoutNodeAlign(source, id);
+  return buildSourceWithNodeProps(source, id, { justification, alignment });
 }
 
 // node-size.ts
@@ -81,40 +103,27 @@ function parseSizeLine(line) {
     return null;
   return { id: match[1], width: Number(match[2]), height: Number(match[3]) };
 }
-function buildSizeLine(id, width, height) {
-  return `${SIZE_PREFIX} ${id} ${width} ${height}`;
-}
 function buildSourceWithoutNodeSize(source, id) {
-  const keptLines = [];
-  for (const line of source.split(`
-`)) {
-    const size = parseSizeLine(line);
-    const isOldLineOfNode = size?.id === id;
-    if (!isOldLineOfNode)
-      keptLines.push(line);
-  }
-  return keptLines.join(`
-`);
+  return buildSourceWithNodeProps(source, id, { width: undefined, height: undefined });
 }
 function buildSourceWithNodeSize(source, id, width, height) {
-  const body = buildSourceWithoutNodeSize(source, id).replace(/\s+$/, "");
-  return `${body}
-${buildSizeLine(id, width, height)}`;
+  return buildSourceWithNodeProps(source, id, { width, height });
 }
 function buildSourceWithSizeWrappers(source) {
   const lines = source.split(`
 `);
   const sizes = new Map;
-  for (const line of lines) {
-    const size = parseSizeLine(line);
-    if (size)
-      sizes.set(size.id, size);
-  }
   const aligns = new Map;
   for (const line of lines) {
-    const align = parseAlignLine(line);
-    if (align)
-      aligns.set(align.id, align);
+    const props = parsePropsLine(line);
+    if (!props)
+      continue;
+    const id = props.blockId;
+    if (props.width !== undefined) {
+      if (props.height !== undefined)
+        sizes.set(id, { id, width: props.width, height: props.height });
+    }
+    aligns.set(id, getNodeAlign([line], id));
   }
   const wrappedLines = [];
   for (const line of lines) {
@@ -308,68 +317,6 @@ for (const key of Object.keys(state)) {
     configurable: true
   });
 }
-
-// editor-metadata.ts
-function splitEditorMetadata(source) {
-  const headerPattern = /(?:^|\r?\n)%%%%====\r?\n%% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE\r?\n%% (\{[^\r\n]*\})\r?\n%%%%====/g;
-  const matches = [...source.matchAll(headerPattern)];
-  if (matches.length === 0)
-    return { source, metadata: null };
-  let metadata = null;
-  try {
-    const parsed = JSON.parse(matches[matches.length - 1][1]);
-    const isObject = typeof parsed === "object";
-    const hasParsed = !!parsed;
-    const isRecord = hasParsed && isObject;
-    if (isRecord) {
-      const lastSelectedNodeId = typeof parsed.lastSelectedNodeId === "string" || parsed.lastSelectedNodeId === null ? parsed.lastSelectedNodeId : null;
-      metadata = {
-        lastSelectedNodeId,
-        outputScrollLeft: typeof parsed.outputScrollLeft === "number" ? parsed.outputScrollLeft : undefined,
-        outputScrollTop: typeof parsed.outputScrollTop === "number" ? parsed.outputScrollTop : undefined,
-        mainZoomPercent: typeof parsed.mainZoomPercent === "number" ? parsed.mainZoomPercent : undefined,
-        typeColors: getStringRecord(parsed.typeColors),
-        nodeTypes: getStringRecord(parsed.nodeTypes)
-      };
-    }
-  } catch {}
-  return { source: source.replace(headerPattern, "").replace(/\s+$/, ""), metadata };
-}
-function buildSourceWithMetadata(source) {
-  const body = splitEditorMetadata(source).source;
-  const metadata = {
-    lastSelectedNodeId: state.selectedEditorNodeId,
-    outputScrollLeft: outputBox.scrollLeft,
-    outputScrollTop: outputBox.scrollTop,
-    mainZoomPercent: state.mainZoomPercent
-  };
-  return `${body}
-${EDITOR_METADATA_FENCE}
-%% ${EDITOR_METADATA_WARNING}
-%% ${JSON.stringify(metadata)}
-${EDITOR_METADATA_FENCE}`;
-}
-function getStringRecord(value) {
-  const isMissing = !value;
-  const isNotObject = typeof value !== "object";
-  const isMissingOrNotObject = isMissing || isNotObject;
-  const isArray = Array.isArray(value);
-  const isInvalid = isMissingOrNotObject || isArray;
-  if (isInvalid)
-    return;
-  const result = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry === "string")
-      result[key] = entry;
-  }
-  return result;
-}
-function applyTypeMetadata(metadata) {}
-function setEditorActionPromise(promise) {
-  state.editorActionPromise = promise;
-  window.editorActionPromise = promise;
-}
-setEditorActionPromise(Promise.resolve());
 
 // editor-parse.ts
 function trimEditorQuotes(text) {
@@ -566,38 +513,171 @@ function parseEditorGraph(source) {
     if (leadsToManyNodes)
       problems.push(`Line ${exit.firstEdgeLineIndex + 1}: block "${id}" leads to ${exit.nextIds.size} nodes (${[...exit.nextIds].join(", ")}); a block must lead to one node, so the phone view can follow one question at a time.`);
   }
-  const sizes = new Map;
+  const propsById = new Map;
   for (let lineIndex = 0;lineIndex < lines.length; lineIndex++) {
-    const line = lines[lineIndex].trim();
-    if (!line.startsWith(SIZE_PREFIX))
+    const props = parsePropsLine(lines[lineIndex]);
+    if (!props)
       continue;
-    const size = parseSizeLine(line);
-    if (!size) {
-      problems.push(`Line ${lineIndex + 1}: the size line must look like "${buildSizeLine("B_NAME", 352, 154)}": the node id, then the width and the height in whole px.`);
-      continue;
-    }
-    if (!declLines.has(size.id)) {
-      problems.push(`Line ${lineIndex + 1}: the size line names "${size.id}", which is not declared.`);
+    if (!declLines.has(props.blockId)) {
+      problems.push(`Line ${lineIndex + 1}: the props line names "${props.blockId}", which is not declared.`);
       continue;
     }
-    if (sizes.has(size.id)) {
-      problems.push(`Line ${lineIndex + 1}: "${size.id}" has two size lines; keep one.`);
+    if (propsById.has(props.blockId)) {
+      problems.push(`Line ${lineIndex + 1}: "${props.blockId}" has two props lines; keep one.`);
       continue;
     }
-    sizes.set(size.id, { width: size.width, height: size.height });
+    propsById.set(props.blockId, props);
   }
   const uniqueProblems = [...new Set(problems)];
   const nodes = new Map;
   for (const [id, decl] of declLines) {
     const kind = id.startsWith("Q_CHOICE") ? "choice" : id.startsWith("Q_") ? "question" : "block";
-    const noteLines = [];
-    for (let i = decl.lineIndex - 1;i >= 0 && lines[i].trim().startsWith(NOTE_PREFIX); i--)
-      noteLines.unshift(lines[i].trim().slice(NOTE_PREFIX.length).trim());
-    nodes.set(id, { id, kind, label: decl.label, note: noteLines.join(`
-`), lineIndex: decl.lineIndex, isHexagon: decl.shape === "hexagon", size: sizes.get(id) });
+    const props = propsById.get(id);
+    let size;
+    if (props?.width !== undefined) {
+      if (props.height !== undefined)
+        size = { width: props.width, height: props.height };
+    }
+    nodes.set(id, { id, kind, label: decl.label, note: props?.note ?? "", lineIndex: decl.lineIndex, isHexagon: decl.shape === "hexagon", size });
   }
   return { graph: { lines, nodes, edges }, problems: uniqueProblems };
 }
+
+// node-note.ts
+var NOTE_LINE_PATTERN = /^%% ==note:\[([A-Za-z0-9_]+)\]==:(.*)$/;
+function parseNoteLine(line) {
+  const match = line.trim().match(NOTE_LINE_PATTERN);
+  if (!match)
+    return null;
+  return { id: match[1], text: match[2].trim() };
+}
+
+// file-format.ts
+var FILE_FORMAT_VERSION = 2;
+var POSITIONAL_NOTE_PREFIX = "%% ==note==:";
+function buildSourceWithPropsLines(source) {
+  const { graph } = parseEditorGraph(source);
+  const positionalNoteOwners = new Map;
+  for (const node of graph.nodes.values()) {
+    for (let i = node.lineIndex - 1;i >= 0 && graph.lines[i].trim().startsWith(POSITIONAL_NOTE_PREFIX); i--)
+      positionalNoteOwners.set(i, node.id);
+  }
+  const changesById = new Map;
+  const noteLinesById = new Map;
+  const keptLines = [];
+  function addChanges(id, changes) {
+    changesById.set(id, { ...changesById.get(id), ...changes });
+  }
+  function addNoteLine(id, text) {
+    noteLinesById.set(id, [...noteLinesById.get(id) ?? [], text]);
+  }
+  for (let lineIndex = 0;lineIndex < graph.lines.length; lineIndex++) {
+    const line = graph.lines[lineIndex];
+    const ownerId = positionalNoteOwners.get(lineIndex);
+    if (ownerId) {
+      addNoteLine(ownerId, line.trim().slice(POSITIONAL_NOTE_PREFIX.length).trim());
+      continue;
+    }
+    const note = parseNoteLine(line);
+    if (note) {
+      addNoteLine(note.id, note.text);
+      continue;
+    }
+    const size = parseSizeLine(line);
+    if (size) {
+      addChanges(size.id, { width: size.width, height: size.height });
+      continue;
+    }
+    const align = parseAlignLine(line);
+    if (align) {
+      addChanges(align.id, { alignment: align.alignment, justification: align.justification });
+      continue;
+    }
+    keptLines.push(line);
+  }
+  for (const [id, noteLines] of noteLinesById) {
+    const joined = noteLines.join(`
+`);
+    const noteText = encodeLabelLineBreaks(joined, joined);
+    if (noteText)
+      addChanges(id, { note: noteText });
+  }
+  let convertedSource = keptLines.join(`
+`);
+  for (const [id, changes] of changesById)
+    convertedSource = buildSourceWithNodeProps(convertedSource, id, changes);
+  return convertedSource;
+}
+
+// editor-metadata.ts
+function splitEditorMetadata(source) {
+  const headerPattern = /(?:^|\r?\n)%%%%====\r?\n%% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE\r?\n%% (\{[^\r\n]*\})\r?\n%%%%====/g;
+  const matches = [...source.matchAll(headerPattern)];
+  if (matches.length === 0)
+    return { source, metadata: null };
+  let metadata = null;
+  try {
+    const parsed = JSON.parse(matches[matches.length - 1][1]);
+    const isObject = typeof parsed === "object";
+    const hasParsed = !!parsed;
+    const isRecord = hasParsed && isObject;
+    if (isRecord) {
+      const lastSelectedNodeId = typeof parsed.lastSelectedNodeId === "string" || parsed.lastSelectedNodeId === null ? parsed.lastSelectedNodeId : null;
+      metadata = {
+        fileFormatVersion: typeof parsed.fileFormatVersion === "number" ? parsed.fileFormatVersion : undefined,
+        lastSelectedNodeId,
+        outputScrollLeft: typeof parsed.outputScrollLeft === "number" ? parsed.outputScrollLeft : undefined,
+        outputScrollTop: typeof parsed.outputScrollTop === "number" ? parsed.outputScrollTop : undefined,
+        mainZoomPercent: typeof parsed.mainZoomPercent === "number" ? parsed.mainZoomPercent : undefined,
+        typeColors: getStringRecord(parsed.typeColors),
+        nodeTypes: getStringRecord(parsed.nodeTypes)
+      };
+    }
+  } catch {}
+  return { source: source.replace(headerPattern, "").replace(/\s+$/, ""), metadata };
+}
+function buildSourceWithMetadata(source) {
+  const body = splitEditorMetadata(source).source;
+  const metadata = {
+    fileFormatVersion: FILE_FORMAT_VERSION,
+    lastSelectedNodeId: state.selectedEditorNodeId,
+    outputScrollLeft: outputBox.scrollLeft,
+    outputScrollTop: outputBox.scrollTop,
+    mainZoomPercent: state.mainZoomPercent
+  };
+  return `${body}
+${EDITOR_METADATA_FENCE}
+%% ${EDITOR_METADATA_WARNING}
+%% ${JSON.stringify(metadata)}
+${EDITOR_METADATA_FENCE}`;
+}
+function buildSourceInCurrentFileFormat(text) {
+  const { metadata } = splitEditorMetadata(text);
+  if (metadata?.fileFormatVersion !== undefined)
+    return text;
+  return buildSourceWithPropsLines(text);
+}
+function getStringRecord(value) {
+  const isMissing = !value;
+  const isNotObject = typeof value !== "object";
+  const isMissingOrNotObject = isMissing || isNotObject;
+  const isArray = Array.isArray(value);
+  const isInvalid = isMissingOrNotObject || isArray;
+  if (isInvalid)
+    return;
+  const result = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === "string")
+      result[key] = entry;
+  }
+  return result;
+}
+function applyTypeMetadata(metadata) {}
+function setEditorActionPromise(promise) {
+  state.editorActionPromise = promise;
+  window.editorActionPromise = promise;
+}
+setEditorActionPromise(Promise.resolve());
 
 // editor-graph.ts
 function getEditorGraph() {
@@ -1554,7 +1634,9 @@ var FENCED_CODE_BLOCK_PATTERN = new RegExp("(?:^|" + LABEL_LINE_BREAK + ")```" +
 var CODE_LINE_BREAK_PATTERN = new RegExp(LABEL_LINE_BREAK, "i");
 var CODE_BLOCK_STYLE = "display:block;text-align:left;white-space:pre";
 function buildSourceWithCodeTags(source) {
-  return source.replace(/"[^"\n]*"/g, (quoted) => {
+  return source.replace(/^[ \t]*%%.*$|"[^"\n]*"/gm, (quoted) => {
+    if (!quoted.startsWith('"'))
+      return quoted;
     const withBackticks = quoted.slice(1, -1).replace(/#96;/g, "`");
     const withCodeBlocks = withBackticks.replace(FENCED_CODE_BLOCK_PATTERN, (_block, codeText) => {
       const codeLines = codeText.split(CODE_LINE_BREAK_PATTERN).map((codeLine) => codeLine.replace(/&/g, "#amp;").replace(/</g, "#lt;").replace(/>/g, "#gt;").replace(/`/g, "#96;"));
@@ -1894,7 +1976,7 @@ function createDiagramWatcher(name, watchUrl = "/api/watch/" + encodeURIComponen
     const versionAtFetchStart = saveVersion;
     const saveInFlightAtFetchStart = pendingSaveCount > 0;
     const diagramResponse = await fetch(diskUrl);
-    const text = await diagramResponse.text();
+    const text = buildSourceInCurrentFileFormat(await diagramResponse.text());
     const isStaleWatcher = state.watcher !== source;
     if (isStaleWatcher)
       return;
@@ -2033,8 +2115,14 @@ function buildRenamedSource(source, renames) {
 `);
   const renamedLines = [];
   for (const line of lines) {
-    const isNoteLine = line.trimStart().startsWith(NOTE_PREFIX);
-    renamedLines.push(isNoteLine ? line : line.replace(wordPattern, (word) => renames.get(word)));
+    const props = parsePropsLine(line);
+    if (props) {
+      const indent = line.match(/^\s*/)[0];
+      const blockId = renames.get(props.blockId) ?? props.blockId;
+      renamedLines.push(`${indent}${buildPropsLine({ ...props, blockId })}`);
+      continue;
+    }
+    renamedLines.push(line.replace(wordPattern, (word) => renames.get(word)));
   }
   return renamedLines.join(`
 `);
@@ -2175,11 +2263,6 @@ function renameNodeIdentifier(oldId, newId) {
 
 // source-edit.ts
 function buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines) {
-  const removedWithNotes = new Set(removedLineIndexes);
-  for (const removedIndex of removedLineIndexes) {
-    for (let i = removedIndex - 1;i >= 0 && graph.lines[i].trim().startsWith(NOTE_PREFIX); i--)
-      removedWithNotes.add(i);
-  }
   const removedNodeIds = new Set;
   for (const node of graph.nodes.values()) {
     if (removedLineIndexes.has(node.lineIndex))
@@ -2189,22 +2272,18 @@ function buildSourceWithLinesReplaced(graph, removedLineIndexes, newLines) {
   for (const id of removedNodeIds) {
     const idPattern = new RegExp(`(?<!\\w)${id}(?!\\w)`);
     const isDeclaredAgain = newLines.some((line) => idPattern.test(line));
-    const isUsedByKeptEdge = graph.edges.some((edge) => !removedWithNotes.has(edge.lineIndex) && (edge.from === id || edge.to === id));
+    const isUsedByKeptEdge = graph.edges.some((edge) => !removedLineIndexes.has(edge.lineIndex) && (edge.from === id || edge.to === id));
     if (!isDeclaredAgain && !isUsedByKeptEdge)
       deletedNodeIds.add(id);
   }
   const kept = [];
   for (let lineIndex = 0;lineIndex < graph.lines.length; lineIndex++) {
-    const isRemoved = removedWithNotes.has(lineIndex);
+    const isRemoved = removedLineIndexes.has(lineIndex);
     if (isRemoved)
       continue;
-    const size = parseSizeLine(graph.lines[lineIndex]);
-    const isSizeOfRemovedNode = !!size && deletedNodeIds.has(size.id);
-    if (isSizeOfRemovedNode)
-      continue;
-    const align = parseAlignLine(graph.lines[lineIndex]);
-    const isAlignOfRemovedNode = !!align && deletedNodeIds.has(align.id);
-    if (isAlignOfRemovedNode)
+    const props = parsePropsLine(graph.lines[lineIndex]);
+    const isPropsOfRemovedNode = !!props && deletedNodeIds.has(props.blockId);
+    if (isPropsOfRemovedNode)
       continue;
     const classMatch = graph.lines[lineIndex].match(CLASS_LINE_RE);
     if (!classMatch) {
@@ -2578,11 +2657,11 @@ function findNodeIdAtMatch(graph, match) {
   const lineEnd = newlineAfter === -1 ? source.length : newlineAfter;
   const line = source.slice(lineStart, lineEnd);
   const matchOffset = match.start - lineStart;
-  const sizeLine = parseSizeLine(line);
-  if (sizeLine) {
-    const isNode = graph.nodes.has(sizeLine.id);
+  const propsLine = parsePropsLine(line);
+  if (propsLine) {
+    const isNode = graph.nodes.has(propsLine.blockId);
     if (isNode)
-      return sizeLine.id;
+      return propsLine.blockId;
   }
   const parts = [];
   let partStart = 0;
@@ -3371,13 +3450,13 @@ function applyEditorRedo() {
 
 // diagram-load.ts
 async function loadDiagram(name) {
+  const diagramResponse = await fetch("/api/diagrams/" + encodeURIComponent(name));
+  const text = buildSourceInCurrentFileFormat(await diagramResponse.text());
   if (state.watcher) {
     state.watcher.close();
     state.watcher = null;
   }
-  const diagramResponse = await fetch("/api/diagrams/" + encodeURIComponent(name));
   state.loadedPath = diagramResponse.headers.get("X-Diagram-Path");
-  const text = await diagramResponse.text();
   setLastSavedDiagramText(text);
   const { metadata } = splitEditorMetadata(text);
   applyTypeMetadata(metadata);
@@ -3423,6 +3502,7 @@ async function openFileFromDialog() {
   showOpenedFile(path, text);
 }
 async function showOpenedFile(path, text) {
+  text = buildSourceInCurrentFileFormat(text);
   if (state.watcher) {
     state.watcher.close();
     state.watcher = null;
@@ -3573,16 +3653,14 @@ function buildChosenPathSource(ids) {
     if (isDeclared)
       continue;
     declaredIds.add(id);
+    const size = graph.nodes.get(id).size;
+    if (size)
+      lines.push(`  ${buildPropsLine({ blockId: id, width: size.width, height: size.height })}`);
     lines.push(`  ${id}${getDeclarationSuffix(graph.nodes.get(id))}`);
   }
   for (let i = 0;i + 1 < ids.length; i++)
     lines.push(`  ${ids[i]} --> ${ids[i + 1]}`);
   lines.push(...buildClassLines(declaredIds));
-  for (const id of declaredIds) {
-    const size = graph.nodes.get(id).size;
-    if (size)
-      lines.push(buildSizeLine(id, size.width, size.height));
-  }
   return lines.join(`
 `) + `
 `;
@@ -3710,9 +3788,9 @@ function setNodeSize(id, width, height) {
 }
 function resetNodeSize(id) {
   async function applyAutomaticSize() {
-    const hasSizeLine = codeBox.value.split(`
-`).some((line) => parseSizeLine(line)?.id === id);
-    if (!hasSizeLine)
+    const hasSize = getNodeProps(codeBox.value.split(`
+`), id).width !== undefined;
+    if (!hasSize)
       return;
     await applyEditorSource(buildSourceWithoutNodeSize(codeBox.value, id));
   }
@@ -3927,14 +4005,9 @@ function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotesInput.v
     const node = graph.nodes.get(id);
     if (!node || decodeLabelLineBreaks(node.note) === text)
       return;
-    const oldCount = node.note ? node.note.split(`
-`).length : 0;
-    const lines = graph.lines.slice();
-    const indent = lines[node.lineIndex].match(/^\s*/)[0];
-    const newNoteLines = text ? [`${indent}${NOTE_PREFIX} ${encodeLabelLineBreaks(text, node.note)}`] : [];
-    lines.splice(node.lineIndex - oldCount, oldCount, ...newNoteLines);
-    await applyEditorSource(lines.join(`
-`));
+    const note = text ? encodeLabelLineBreaks(text, node.note) : undefined;
+    await applyEditorSource(buildSourceWithNodeProps(graph.lines.join(`
+`), node.id, { note }));
   }
   appendEditorAction(applyNodeNoteUpdate);
 }

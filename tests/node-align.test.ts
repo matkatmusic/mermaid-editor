@@ -32,7 +32,7 @@ async function readSourceLines(): Promise<string[]> {
 }
 
 async function readAlignLines(): Promise<string[]> {
-    return (await readSourceLines()).filter((line) => line.includes("==align=="));
+    return (await readSourceLines()).filter((line) => line.includes("==props=="));
 }
 
 async function clickAlignButtonWithMouse(attributeName: "justification" | "alignment", value: string) {
@@ -113,7 +113,7 @@ test("test_every_align_button_has_an_aria_label_and_an_svg_icon", async () => {
 });
 
 test("test_the_inspector_shows_the_stored_value_of_the_selected_block", async () => {
-    await loadSource(`${BODY}\n%% ==align==: B_START right bottom\n%% ==align==: B_END left top`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_START","alignment":"bottom","justification":"right"}\n%% ==props==: {"blockId":"B_END","alignment":"top","justification":"left"}`);
     await selectBlockWithMouse("B_START");
     assert.deepEqual((await readPressedButtons()).sort(), ["bottom", "right"]);
     await selectBlockWithMouse("B_END");
@@ -124,22 +124,22 @@ test("test_a_mouse_click_on_justify_left_writes_the_align_line_and_presses_the_b
     await loadSource(BODY);
     await selectBlockWithMouse("B_START");
     await clickAlignButtonWithMouse("justification", "left");
-    assert.deepEqual(await readAlignLines(), ["%% ==align==: B_START left center"]);
+    assert.deepEqual(await readAlignLines(), ['  %% ==props==: {"blockId":"B_START","alignment":"center","justification":"left"}']);
     assert.deepEqual((await readPressedButtons()).sort(), ["center", "left"]);
 });
 
 test("test_a_mouse_click_on_align_bottom_keeps_the_stored_justification", async () => {
-    await loadSource(`${BODY}\n%% ==align==: B_START right center`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_START","alignment":"center","justification":"right"}`);
     await selectBlockWithMouse("B_START");
     await clickAlignButtonWithMouse("alignment", "bottom");
-    assert.deepEqual(await readAlignLines(), ["%% ==align==: B_START right bottom"]);
+    assert.deepEqual(await readAlignLines(), ['  %% ==props==: {"blockId":"B_START","alignment":"bottom","justification":"right"}']);
 });
 
 test("test_clicking_centre_in_both_rows_removes_the_align_line", async () => {
-    await loadSource(`${BODY}\n%% ==align==: B_START right bottom`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_START","alignment":"bottom","justification":"right"}`);
     await selectBlockWithMouse("B_START");
     await clickAlignButtonWithMouse("justification", "center");
-    assert.deepEqual(await readAlignLines(), ["%% ==align==: B_START center bottom"]);
+    assert.deepEqual(await readAlignLines(), ['  %% ==props==: {"blockId":"B_START","alignment":"bottom","justification":"center"}']);
     await clickAlignButtonWithMouse("alignment", "center");
     assert.deepEqual(await readAlignLines(), []);
     assert.deepEqual((await readPressedButtons()).sort(), ["center", "center"]);
@@ -149,7 +149,7 @@ test("test_undo_and_redo_of_an_align_click_restore_the_line_and_the_pressed_butt
     await loadSource(BODY);
     await selectBlockWithMouse("B_START");
     await clickAlignButtonWithMouse("justification", "right");
-    assert.deepEqual(await readAlignLines(), ["%% ==align==: B_START right center"]);
+    assert.deepEqual(await readAlignLines(), ['  %% ==props==: {"blockId":"B_START","alignment":"center","justification":"right"}']);
     await executeExpression("window.applyEditorUndo(); window.editorActionPromise");
     await waitMilliseconds(500);
     assert.deepEqual(await readAlignLines(), []);
@@ -158,42 +158,42 @@ test("test_undo_and_redo_of_an_align_click_restore_the_line_and_the_pressed_butt
     assert.deepEqual((await readPressedButtons()).sort(), ["center", "center"]);
     await executeExpression("window.applyEditorRedo(); window.editorActionPromise");
     await waitMilliseconds(500);
-    assert.deepEqual(await readAlignLines(), ["%% ==align==: B_START right center"]);
+    assert.deepEqual(await readAlignLines(), ['  %% ==props==: {"blockId":"B_START","alignment":"center","justification":"right"}']);
     await selectBlockWithMouse("B_START");
     assert.deepEqual((await readPressedButtons()).sort(), ["center", "right"]);
 });
 
 test("test_a_sized_block_draws_its_text_left_or_right_or_centred", async () => {
     // Scenario: the block is 400 wide and the text is short, so the gaps show the justification.
-    await loadSource(`${BODY}\n%% ==size==: B_START 400 120\n%% ==align==: B_START left center`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_START","alignment":"center","justification":"left","width":400,"height":120}`);
     const left = await readTextGaps("B_START");
     assert.ok(left.left < 40 && left.right > 200, JSON.stringify(left));
-    await loadSource(`${BODY}\n%% ==size==: B_START 400 120\n%% ==align==: B_START right center`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_START","alignment":"center","justification":"right","width":400,"height":120}`);
     const right = await readTextGaps("B_START");
     assert.ok(right.right < 40 && right.left > 200, JSON.stringify(right));
-    await loadSource(`${BODY}\n%% ==size==: B_START 400 120`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_START","width":400,"height":120}`);
     const centre = await readTextGaps("B_START");
     assert.ok(Math.abs(centre.left - centre.right) < 3, JSON.stringify(centre));
 });
 
 test("test_a_sized_block_draws_its_text_at_the_top_or_the_bottom_or_the_middle", async () => {
-    await loadSource(`${BODY}\n%% ==size==: B_START 300 200\n%% ==align==: B_START center top`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_START","alignment":"top","justification":"center","width":300,"height":200}`);
     const top = await readTextGaps("B_START");
     assert.ok(top.top < 40 && top.bottom > 100, JSON.stringify(top));
-    await loadSource(`${BODY}\n%% ==size==: B_START 300 200\n%% ==align==: B_START center bottom`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_START","alignment":"bottom","justification":"center","width":300,"height":200}`);
     const bottom = await readTextGaps("B_START");
     assert.ok(bottom.bottom < 40 && bottom.top > 100, JSON.stringify(bottom));
-    await loadSource(`${BODY}\n%% ==size==: B_START 300 200`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_START","width":300,"height":200}`);
     const middle = await readTextGaps("B_START");
     assert.ok(Math.abs(middle.top - middle.bottom) < 3, JSON.stringify(middle));
 });
 
 test("test_a_sized_hexagon_decision_draws_its_text_left_and_top_or_right_and_bottom", async () => {
-    await loadSource(`${BODY}\n%% ==size==: Q_A 500 200\n%% ==align==: Q_A left top`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"Q_A","alignment":"top","justification":"left","width":500,"height":200}`);
     const leftTop = await readTextGaps("Q_A");
     assert.ok(leftTop.left < leftTop.right - 100, JSON.stringify(leftTop));
     assert.ok(leftTop.top < leftTop.bottom - 40, JSON.stringify(leftTop));
-    await loadSource(`${BODY}\n%% ==size==: Q_A 500 200\n%% ==align==: Q_A right bottom`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"Q_A","alignment":"bottom","justification":"right","width":500,"height":200}`);
     const rightBottom = await readTextGaps("Q_A");
     assert.ok(rightBottom.right < rightBottom.left - 100, JSON.stringify(rightBottom));
     assert.ok(rightBottom.bottom < rightBottom.top - 40, JSON.stringify(rightBottom));
@@ -202,10 +202,10 @@ test("test_a_sized_hexagon_decision_draws_its_text_left_and_top_or_right_and_bot
 test("test_an_unsized_block_with_two_lines_shows_the_justification", async () => {
     // Scenario: line 1 is long and line 2 is short; the left edge of line 2 shows where the justification put it.
     const twoLines = BODY.replace('B_START["Start"]', 'B_START["A much longer first line<br/>Hi"]');
-    await loadSource(`${twoLines}\n%% ==align==: B_START left center`);
+    await loadSource(`${twoLines}\n%% ==props==: {"blockId":"B_START","alignment":"center","justification":"left"}`);
     const left = await readLineLeftEdges("B_START");
     assert.ok(Math.abs(left.last - left.first) < 2, JSON.stringify(left));
-    await loadSource(`${twoLines}\n%% ==align==: B_START right center`);
+    await loadSource(`${twoLines}\n%% ==props==: {"blockId":"B_START","alignment":"center","justification":"right"}`);
     const right = await readLineLeftEdges("B_START");
     assert.ok(right.last - right.first > 50, JSON.stringify(right));
     await loadSource(twoLines);
@@ -214,16 +214,16 @@ test("test_an_unsized_block_with_two_lines_shows_the_justification", async () =>
 });
 
 test("test_removing_a_node_removes_its_align_line", async () => {
-    await loadSource(`${BODY}\n%% ==align==: B_END left top\n%% ==align==: B_START right bottom`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_END","alignment":"top","justification":"left"}\n%% ==props==: {"blockId":"B_START","alignment":"bottom","justification":"right"}`);
     await clickNodeWithMouse("B_END");
     await waitMilliseconds(300);
     await executeExpression("window.removeBlock(); window.editorActionPromise");
     await waitMilliseconds(500);
-    assert.deepEqual(await readAlignLines(), ["%% ==align==: B_START right bottom"]);
+    assert.deepEqual(await readAlignLines(), ['%% ==props==: {"blockId":"B_START","alignment":"bottom","justification":"right"}']);
 });
 
 test("test_renaming_a_node_renames_its_align_line", async () => {
-    await loadSource(`${BODY}\n%% ==align==: B_END left top`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_END","alignment":"top","justification":"left"}`);
     await clickNodeWithMouse("B_END");
     await waitMilliseconds(300);
     await executeExpression("(() => { const input = document.getElementById('nodeNameInput'); input.focus(); input.select(); })()");
@@ -232,5 +232,5 @@ test("test_renaming_a_node_renames_its_align_line", async () => {
     await pressKey(KeyName.Tab);
     await executeExpression("window.editorActionPromise");
     await waitMilliseconds(500);
-    assert.deepEqual(await readAlignLines(), ["%% ==align==: B_FINISH left top"]);
+    assert.deepEqual(await readAlignLines(), ['%% ==props==: {"blockId":"B_FINISH","alignment":"top","justification":"left"}']);
 });

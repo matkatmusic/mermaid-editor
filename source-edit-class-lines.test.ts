@@ -59,14 +59,14 @@ test("test_class_def_lines_are_never_changed_by_a_delete", () => {
 
 test("test_node_declared_inline_on_a_removed_edge_line_and_declared_again_keeps_its_size_line", () => {
   // Scenario: `B_A --> B_X["x"]` is removed and B_X is declared again, so B_X stays and so does its size line.
-  const { graph } = parseEditorGraph('flowchart TD\n  B_A["A"]\n  B_A --> B_X["x"]\n%% ==size==: B_X 300 100');
+  const { graph } = parseEditorGraph('flowchart TD\n  B_A["A"]\n  B_A --> B_X["x"]\n%% ==props==: {"blockId":"B_X","width":300,"height":100}');
   const result = buildSourceWithLinesReplaced(graph, new Set([2]), ['  B_X["x"]']);
-  assert.equal(result, 'flowchart TD\n  B_A["A"]\n%% ==size==: B_X 300 100\n  B_X["x"]');
+  assert.equal(result, 'flowchart TD\n  B_A["A"]\n%% ==props==: {"blockId":"B_X","width":300,"height":100}\n  B_X["x"]');
 });
 
 test("test_really_deleted_node_still_loses_its_size_line", () => {
-  const result = buildSourceWithNodesDeleted('flowchart TD\n  B_A["A"]\n  B_B["B"]\n%% ==size==: B_B 300 100\n%% ==size==: B_A 200 80', ["B_B"]);
-  assert.equal(result, 'flowchart TD\n  B_A["A"]\n%% ==size==: B_A 200 80');
+  const result = buildSourceWithNodesDeleted('flowchart TD\n  B_A["A"]\n  B_B["B"]\n%% ==props==: {"blockId":"B_B","width":300,"height":100}\n%% ==props==: {"blockId":"B_A","width":200,"height":80}', ["B_B"]);
+  assert.equal(result, 'flowchart TD\n  B_A["A"]\n%% ==props==: {"blockId":"B_A","width":200,"height":80}');
 });
 
 test("test_node_declared_inline_on_a_removed_edge_line_and_declared_again_keeps_its_class", () => {

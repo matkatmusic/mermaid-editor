@@ -1,6 +1,6 @@
-import { NOTE_PREFIX, SIZE_PREFIX } from './editor-types.ts';
+import { parsePropsLine } from './node-props.ts';
+import type { NodeProps } from './node-props.ts';
 import type { EditorEdge, EditorGraph, EditorNode, EditorNodeKind } from './editor-types.ts';
-import { buildSizeLine, parseSizeLine } from './node-size.ts';
 import { getDeclarationRequirement, parseEditorEdgeLine, parseEditorToken, validateDeclaration } from './editor-parse.ts';
 
 type DeclarationLine ={ shape: 'brace' | 'hexagon' | 'rect' | 'other'; label: string; lineIndex: number };
@@ -76,25 +76,49 @@ export function parseEditorGraph(source: string): { graph: EditorGraph; problems
     if (leadsToManyNodes)
       problems.push(`Line ${exit.firstEdgeLineIndex + 1}: block "${id}" leads to ${exit.nextIds.size} nodes (${[...exit.nextIds].join(', ')}); a block must lead to one node, so the phone view can follow one question at a time.`);
   }
-  const sizes = new Map<string, { width: number; height: number }>();
+  // const sizes = new Map<string, { width: number; height: number }>();
+  // for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+  //   const line = lines[lineIndex].trim();
+  //   if (!line.startsWith(SIZE_PREFIX))
+  //     continue;
+  //   const size = parseSizeLine(line);
+  //   if (!size) {
+  //     problems.push(`Line ${lineIndex + 1}: the size line must look like "${buildSizeLine('B_NAME', 352, 154)}": the node id, then the width and the height in whole px.`);
+  //     continue;
+  //   }
+  //   if (!declLines.has(size.id)) {
+  //     problems.push(`Line ${lineIndex + 1}: the size line names "${size.id}", which is not declared.`);
+  //     continue;
+  //   }
+  //   if (sizes.has(size.id)) {
+  //     problems.push(`Line ${lineIndex + 1}: "${size.id}" has two size lines; keep one.`);
+  //     continue;
+  //   }
+  //   sizes.set(size.id, { width: size.width, height: size.height });
+  // }
+  // const noteLinesById = new Map<string, string[]>();
+  // for (const line of lines) {
+  //   const note = parseNoteLine(line);
+  //   if (!note)
+  //     continue;
+  //   const noteLines = noteLinesById.get(note.id) ?? [];
+  //   noteLines.push(note.text);
+  //   noteLinesById.set(note.id, noteLines);
+  // }
+  const propsById = new Map<string, NodeProps>();
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-    const line = lines[lineIndex].trim();
-    if (!line.startsWith(SIZE_PREFIX))
+    const props = parsePropsLine(lines[lineIndex]);
+    if (!props)
       continue;
-    const size = parseSizeLine(line);
-    if (!size) {
-      problems.push(`Line ${lineIndex + 1}: the size line must look like "${buildSizeLine('B_NAME', 352, 154)}": the node id, then the width and the height in whole px.`);
-      continue;
-    }
-    if (!declLines.has(size.id)) {
-      problems.push(`Line ${lineIndex + 1}: the size line names "${size.id}", which is not declared.`);
+    if (!declLines.has(props.blockId)) {
+      problems.push(`Line ${lineIndex + 1}: the props line names "${props.blockId}", which is not declared.`);
       continue;
     }
-    if (sizes.has(size.id)) {
-      problems.push(`Line ${lineIndex + 1}: "${size.id}" has two size lines; keep one.`);
+    if (propsById.has(props.blockId)) {
+      problems.push(`Line ${lineIndex + 1}: "${props.blockId}" has two props lines; keep one.`);
       continue;
     }
-    sizes.set(size.id, { width: size.width, height: size.height });
+    propsById.set(props.blockId, props);
   }
   const uniqueProblems = [...new Set(problems)];
   const nodes = new Map<string, EditorNode>();
@@ -104,10 +128,17 @@ export function parseEditorGraph(source: string): { graph: EditorGraph; problems
       : id.startsWith('Q_')
         ? 'question'
         : 'block';
-    const noteLines: string[] = [];
-    for (let i = decl.lineIndex - 1; i >= 0 && lines[i].trim().startsWith(NOTE_PREFIX); i--)
-      noteLines.unshift(lines[i].trim().slice(NOTE_PREFIX.length).trim());
-    nodes.set(id, { id, kind, label: decl.label, note: noteLines.join('\n'), lineIndex: decl.lineIndex, isHexagon: decl.shape === 'hexagon', size: sizes.get(id) });
+    // const noteLines: string[] = [];
+    // for (let i = decl.lineIndex - 1; i >= 0 && lines[i].trim().startsWith(NOTE_PREFIX); i--)
+    //   noteLines.unshift(lines[i].trim().slice(NOTE_PREFIX.length).trim());
+    // const noteLines = noteLinesById.get(id) ?? [];
+    const props = propsById.get(id);
+    let size: EditorNode['size'];
+    if (props?.width !== undefined) {
+      if (props.height !== undefined)
+        size = { width: props.width, height: props.height };
+    }
+    nodes.set(id, { id, kind, label: decl.label, note: props?.note ?? '', lineIndex: decl.lineIndex, isHexagon: decl.shape === 'hexagon', size });
   }
   return { graph: { lines, nodes, edges }, problems: uniqueProblems };
 }

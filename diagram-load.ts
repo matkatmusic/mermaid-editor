@@ -3,20 +3,21 @@ import { phonePath, state } from './state.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import type { EditorGraph } from './editor-types.ts';
 import { getEditorGraph } from './editor-graph.ts';
-import { applyTypeMetadata, splitEditorMetadata } from './editor-metadata.ts';
+import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from './editor-metadata.ts';
 import { render } from './render.ts';
 import { applyMainZoom } from './zoom.ts';
 import { applyMainViewport, loadList, resetEditorHistory } from './diagram-io.ts';
 import { createDiagramWatcher, setLastSavedDiagramText } from './diagram-save.ts';
 
 export async function loadDiagram(name: string) {
+  const diagramResponse = await fetch('/api/diagrams/' + encodeURIComponent(name));
+  // First, so a file that cannot be read throws before the save target changes.
+  const text = buildSourceInCurrentFileFormat(await diagramResponse.text());
   if (state.watcher) {
     state.watcher.close();
     state.watcher = null;
   }
-  const diagramResponse = await fetch('/api/diagrams/' + encodeURIComponent(name));
   state.loadedPath = diagramResponse.headers.get('X-Diagram-Path');
-  const text = await diagramResponse.text();
   setLastSavedDiagramText(text);
   const { metadata } = splitEditorMetadata(text);
   applyTypeMetadata(metadata);

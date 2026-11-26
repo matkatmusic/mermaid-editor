@@ -13,7 +13,7 @@ function buildSource() {
     return [
         "flowchart TD",
         ...LINE_BREAK_FORMS.map(([, id, label]) => `  ${id}["${label}"]`),
-        ...LINE_BREAK_FORMS.map(([, , label]) => `  %% ==note==: ${label}`).map((noteLine, index) => noteLine + `\n  B_N${index}["Note ${index}"]`),
+        ...LINE_BREAK_FORMS.map(([, , label], index) => `  %% ==props==: {"blockId":"B_N${index}","note":"${label}"}\n  B_N${index}["Note ${index}"]`),
         "  B_A --> B_B --> B_C",
     ].join("\n");
 }
@@ -68,5 +68,5 @@ test("test_save_of_a_note_with_a_br_form_writes_br_slash", async () => {
     await executeExpression("window.editorActionPromise");
     await waitMilliseconds(500);
     const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
-    assert.ok(lines.includes("  %% ==note==: One<br/>Two!"), lines.join("|"));
+    assert.ok(lines.includes('  %% ==props==: {"blockId":"B_N0","note":"One<br/>Two!"}'), lines.join("|"));
 });

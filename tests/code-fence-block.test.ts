@@ -105,7 +105,7 @@ test("test_a_code_block_is_left_justified_when_the_block_text_is_centre_justifie
         assert.ok(Math.abs(lineLeft - firstLineLeft) < TOLERANCE_PX, JSON.stringify(measured));
 });
 test("test_a_code_block_is_left_justified_when_the_block_text_is_right_justified", async () => {
-    await loadSource(buildRectSource(CODE_LABEL, ["%% ==size==: B_ONE 500 200", "%% ==align==: B_ONE right center"]));
+    await loadSource(buildRectSource(CODE_LABEL, ['%% ==props==: {"blockId":"B_ONE","alignment":"center","justification":"right","width":500,"height":200}']));
     const measured = await measureMainNode("B_ONE", "rect");
     // The text box moves to the right with the size line; inside it the code lines stay on the left and the other text follows the right justification.
     assert.equal(measured.code!.textAlign, "left");
@@ -117,13 +117,13 @@ test("test_a_code_block_is_left_justified_when_the_block_text_is_right_justified
         assert.ok(Math.abs(lineLeft - firstLineLeft) < TOLERANCE_PX, JSON.stringify(measured));
 });
 test("test_a_code_block_fits_inside_a_rectangle_block_with_and_without_a_size_line", async () => {
-    for (const extraLines of [[], ["%% ==size==: B_ONE 160 60"]]) {
+    for (const extraLines of [[], ['%% ==props==: {"blockId":"B_ONE","width":160,"height":60}']]) {
         await loadSource(buildRectSource(CODE_LABEL, extraLines));
         assertTextInsideBox(await measureMainNode("B_ONE", "rect"));
     }
 });
 test("test_a_code_block_fits_inside_a_hexagon_decision_with_and_without_a_size_line", async () => {
-    for (const extraLines of [[], ["%% ==size==: Q_ONE 160 60"]]) {
+    for (const extraLines of [[], ['%% ==props==: {"blockId":"Q_ONE","width":160,"height":60}']]) {
         await loadSource(buildHexagonSource(CODE_LABEL, extraLines));
         assertTextInsideBox(await measureMainNode("Q_ONE", "polygon"));
     }

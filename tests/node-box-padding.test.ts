@@ -102,7 +102,7 @@ test("test_a_hexagon_decision_keeps_its_text_inside_the_polygon_with_the_same_wr
     assert.ok(topPadding + bottomPadding <= 48 + TOLERANCE_PX, `hexagon vertical padding ${topPadding + bottomPadding}px: ${JSON.stringify(measured)}`);
 });
 test("test_a_stored_size_line_still_sets_the_box_size", async () => {
-    await loadSource(buildSource(SIXTY_CHARACTERS, ["%% ==size==: B_ONE 500 150"]));
+    await loadSource(buildSource(SIXTY_CHARACTERS, ['%% ==props==: {"blockId":"B_ONE","width":500,"height":150}']));
     const measured = await measureNode("B_ONE", "rect");
     console.log(`MEASURED stored size: ${JSON.stringify(measured)}`);
     assert.ok(Math.abs(measured.box.width - 500) < 1.5, JSON.stringify(measured));

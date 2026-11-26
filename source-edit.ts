@@ -1,17 +1,15 @@
-import { NOTE_PREFIX } from './editor-types.ts';
+import { parsePropsLine } from './node-props.ts';
 import type { EditorEdge, EditorGraph } from './editor-types.ts';
 import { getDeclarationSuffix } from './editor-parse.ts';
-import { parseSizeLine } from './node-size.ts';
-import { parseAlignLine } from './node-align.ts';
 import { CLASS_LINE_RE } from './class-lines.ts';
 
 // New nodes go before the class block; mermaid drops classes stated before a node's declaration.
 export function buildSourceWithLinesReplaced(graph: EditorGraph, removedLineIndexes: Set<number>, newLines: string[]) {
-  const removedWithNotes = new Set(removedLineIndexes);
-  for (const removedIndex of removedLineIndexes) {
-    for (let i = removedIndex - 1; i >= 0 && graph.lines[i].trim().startsWith(NOTE_PREFIX); i--)
-      removedWithNotes.add(i);
-  }
+  // const removedWithNotes = new Set(removedLineIndexes);
+  // for (const removedIndex of removedLineIndexes) {
+  //   for (let i = removedIndex - 1; i >= 0 && graph.lines[i].trim().startsWith(NOTE_PREFIX); i--)
+  //     removedWithNotes.add(i);
+  // }
   const removedNodeIds = new Set<string>();
   for (const node of graph.nodes.values()) {
     if (removedLineIndexes.has(node.lineIndex))
@@ -22,22 +20,30 @@ export function buildSourceWithLinesReplaced(graph: EditorGraph, removedLineInde
   for (const id of removedNodeIds) {
     const idPattern = new RegExp(`(?<!\\w)${id}(?!\\w)`);
     const isDeclaredAgain = newLines.some((line) => idPattern.test(line));
-    const isUsedByKeptEdge = graph.edges.some((edge) => !removedWithNotes.has(edge.lineIndex) && (edge.from === id || edge.to === id));
+    const isUsedByKeptEdge = graph.edges.some((edge) => !removedLineIndexes.has(edge.lineIndex) && (edge.from === id || edge.to === id));
     if (!isDeclaredAgain && !isUsedByKeptEdge)
       deletedNodeIds.add(id);
   }
   const kept: string[] = [];
   for (let lineIndex = 0; lineIndex < graph.lines.length; lineIndex++) {
-    const isRemoved = removedWithNotes.has(lineIndex);
+    const isRemoved = removedLineIndexes.has(lineIndex);
     if (isRemoved)
       continue;
-    const size = parseSizeLine(graph.lines[lineIndex]);
-    const isSizeOfRemovedNode = !!size && deletedNodeIds.has(size.id);
-    if (isSizeOfRemovedNode)
-      continue;
-    const align = parseAlignLine(graph.lines[lineIndex]);
-    const isAlignOfRemovedNode = !!align && deletedNodeIds.has(align.id);
-    if (isAlignOfRemovedNode)
+    // const note = parseNoteLine(graph.lines[lineIndex]);
+    // const isNoteOfRemovedNode = !!note && deletedNodeIds.has(note.id);
+    // if (isNoteOfRemovedNode)
+    //   continue;
+    // const size = parseSizeLine(graph.lines[lineIndex]);
+    // const isSizeOfRemovedNode = !!size && deletedNodeIds.has(size.id);
+    // if (isSizeOfRemovedNode)
+    //   continue;
+    // const align = parseAlignLine(graph.lines[lineIndex]);
+    // const isAlignOfRemovedNode = !!align && deletedNodeIds.has(align.id);
+    // if (isAlignOfRemovedNode)
+    //   continue;
+    const props = parsePropsLine(graph.lines[lineIndex]);
+    const isPropsOfRemovedNode = !!props && deletedNodeIds.has(props.blockId);
+    if (isPropsOfRemovedNode)
       continue;
     const classMatch = graph.lines[lineIndex].match(CLASS_LINE_RE);
     if (!classMatch) {

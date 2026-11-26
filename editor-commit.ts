@@ -8,7 +8,7 @@ import { getEditorGraph } from './editor-graph.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { createDecisionAfter, createStaticAfter } from './editor-insert-after.ts';
 import { destinationSelect, diagramBox, nodeNotesInput, nodeTextInput, outputBox } from './dom.ts';
-import { NOTE_PREFIX } from './editor-types.ts';
+import { buildSourceWithNodeProps } from './node-props.ts';
 import { buildSourceWithoutNodeSize } from './node-size.ts';
 
 // Rewrites only this decision's declaration between Q_X{{"text"}} (hexagon) and Q_X{"text"} (diamond); the text, class lines and edges stay.
@@ -38,12 +38,23 @@ export function updateNodeNote(id = state.selectedEditorNodeId, text = nodeNotes
     const node = graph.nodes.get(id!);
     if (!node || decodeLabelLineBreaks(node.note) === text)
       return;
-    const oldCount = node.note ? node.note.split('\n').length : 0;
-    const lines = graph.lines.slice();
-    const indent = lines[node.lineIndex].match(/^\s*/)![0];
-    const newNoteLines = text ? [`${indent}${NOTE_PREFIX} ${encodeLabelLineBreaks(text, node.note)}`] : [];
-    lines.splice(node.lineIndex - oldCount, oldCount, ...newNoteLines);
-    await applyEditorSource(lines.join('\n'));
+    // const oldCount = node.note ? node.note.split('\n').length : 0;
+    // const lines = graph.lines.slice();
+    // const indent = lines[node.lineIndex].match(/^\s*/)![0];
+    // const newNoteLines = text ? [`${indent}${NOTE_PREFIX} ${encodeLabelLineBreaks(text, node.note)}`] : [];
+    // lines.splice(node.lineIndex - oldCount, oldCount, ...newNoteLines);
+    // const indent = graph.lines[node.lineIndex].match(/^\s*/)![0];
+    // const lines: string[] = [];
+    // for (let lineIndex = 0; lineIndex < graph.lines.length; lineIndex++) {
+    //   const isDeclarationLine = lineIndex === node.lineIndex;
+    //   if (isDeclarationLine && text)
+    //     lines.push(`${indent}${buildNoteLine(node.id, encodeLabelLineBreaks(text, node.note))}`);
+    //   const isOldNoteOfNode = parseNoteLine(graph.lines[lineIndex])?.id === node.id;
+    //   if (!isOldNoteOfNode)
+    //     lines.push(graph.lines[lineIndex]);
+    // }
+    const note = text ? encodeLabelLineBreaks(text, node.note) : undefined;
+    await applyEditorSource(buildSourceWithNodeProps(graph.lines.join('\n'), node.id, { note }));
   }
   appendEditorAction(applyNodeNoteUpdate);
 }

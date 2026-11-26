@@ -2,6 +2,7 @@ import { EDITOR_METADATA_FENCE, EDITOR_METADATA_WARNING } from './editor-types.t
 import type { EditorMetadata } from './editor-types.ts';
 import { state } from './state.ts';
 import { outputBox } from './dom.ts';
+import { buildSourceWithPropsLines, FILE_FORMAT_VERSION } from './file-format.ts';
 
 export function splitEditorMetadata(source: string) {
   const headerPattern = /(?:^|\r?\n)%%%%====\r?\n%% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE\r?\n%% (\{[^\r\n]*\})\r?\n%%%%====/g;
@@ -19,6 +20,7 @@ export function splitEditorMetadata(source: string) {
         ? parsed.lastSelectedNodeId
         : null;
       metadata = {
+        fileFormatVersion: typeof parsed.fileFormatVersion === 'number' ? parsed.fileFormatVersion : undefined,
         lastSelectedNodeId,
         outputScrollLeft: typeof parsed.outputScrollLeft === 'number' ? parsed.outputScrollLeft : undefined,
         outputScrollTop: typeof parsed.outputScrollTop === 'number' ? parsed.outputScrollTop : undefined,
@@ -37,6 +39,7 @@ export function splitEditorMetadata(source: string) {
 export function buildSourceWithMetadata(source: string) {
   const body = splitEditorMetadata(source).source;
   const metadata: EditorMetadata = {
+    fileFormatVersion: FILE_FORMAT_VERSION,
     lastSelectedNodeId: state.selectedEditorNodeId,
     outputScrollLeft: outputBox.scrollLeft,
     outputScrollTop: outputBox.scrollTop,
@@ -46,6 +49,14 @@ export function buildSourceWithMetadata(source: string) {
     // nodeTypes: state.nodeTypes,
   };
   return `${body}\n${EDITOR_METADATA_FENCE}\n%% ${EDITOR_METADATA_WARNING}\n%% ${JSON.stringify(metadata)}\n${EDITOR_METADATA_FENCE}`;
+}
+
+// A file with no version in its footer, or no footer, has the old size, align and note lines.
+export function buildSourceInCurrentFileFormat(text: string) {
+  const { metadata } = splitEditorMetadata(text);
+  if (metadata?.fileFormatVersion !== undefined)
+    return text;
+  return buildSourceWithPropsLines(text);
 }
 
 export function getStringRecord(value: unknown) {

@@ -1,5 +1,5 @@
 import { codeBox, inspectorNotice, nodeInspector, nodeNameCheck, nodeNameInput } from './dom.ts';
-import { NOTE_PREFIX } from './editor-types.ts';
+import { buildPropsLine, parsePropsLine } from './node-props.ts';
 import type { EditorGraph, EditorNode, EditorNodeKind } from './editor-types.ts';
 import { phonePath, state } from './state.ts';
 import { applyEditorSource, appendEditorAction } from './editor-actions.ts';
@@ -44,15 +44,28 @@ export function buildRenamePlan(graph: EditorGraph, oldId: string, newId: string
   return { renames };
 }
 
-// Whole words only, so renaming Q_MOOD leaves Q_MOODY alone. Note text is the user's own words, so note lines stay.
+// Whole words only, so renaming Q_MOOD leaves Q_MOODY alone. Note text is the user's own words, so a props line changes only its blockId.
 export function buildRenamedSource(source: string, renames: Map<string, string>) {
   const names = [...renames.keys()].map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const wordPattern = new RegExp(`(?<![A-Za-z0-9_])(?:${names.join('|')})(?![A-Za-z0-9_])`, 'g');
   const lines = source.split('\n');
   const renamedLines: string[] = [];
   for (const line of lines) {
-    const isNoteLine = line.trimStart().startsWith(NOTE_PREFIX);
-    renamedLines.push(isNoteLine ? line : line.replace(wordPattern, (word) => renames.get(word)!));
+    // const isNoteLine = line.trimStart().startsWith(NOTE_PREFIX);
+    // renamedLines.push(isNoteLine ? line : line.replace(wordPattern, (word) => renames.get(word)!));
+    // const note = parseNoteLine(line);
+    // if (note) {
+    //   renamedLines.push(line.replace(`[${note.id}]`, `[${renames.get(note.id) ?? note.id}]`));
+    //   continue;
+    // }
+    const props = parsePropsLine(line);
+    if (props) {
+      const indent = line.match(/^\s*/)![0];
+      const blockId = renames.get(props.blockId) ?? props.blockId;
+      renamedLines.push(`${indent}${buildPropsLine({ ...props, blockId })}`);
+      continue;
+    }
+    renamedLines.push(line.replace(wordPattern, (word) => renames.get(word)!));
   }
   return renamedLines.join('\n');
 }

@@ -1,4 +1,4 @@
-import { ALIGN_PREFIX } from './editor-types.ts';
+import { buildSourceWithNodeProps, getNodeProps } from './node-props.ts';
 
 export type Justification = 'left' | 'center' | 'right';
 export type Alignment = 'top' | 'center' | 'bottom';
@@ -14,35 +14,42 @@ export function parseAlignLine(line: string): NodeAlign | null {
 }
 
 export function getNodeAlign(lines: string[], id: string): NodeAlign {
-    for (const line of lines) {
-        const align = parseAlignLine(line);
-        if (align?.id === id)
-            return align;
-    }
-    return { id, justification: 'center', alignment: 'center' };
+    // for (const line of lines) {
+    //     const align = parseAlignLine(line);
+    //     if (align?.id === id)
+    //         return align;
+    // }
+    // return { id, justification: 'center', alignment: 'center' };
+    const props = getNodeProps(lines, id);
+    return { id, justification: props.justification ?? 'center', alignment: props.alignment ?? 'center' };
 }
 
-export function buildAlignLine(id: string, justification: Justification, alignment: Alignment) {
-    return `${ALIGN_PREFIX} ${id} ${justification} ${alignment}`;
-}
+// export function buildAlignLine(id: string, justification: Justification, alignment: Alignment) {
+//     return `${ALIGN_PREFIX} ${id} ${justification} ${alignment}`;
+// }
 
 export function buildSourceWithoutNodeAlign(source: string, id: string) {
-    const keptLines: string[] = [];
-    for (const line of source.split('\n')) {
-        const align = parseAlignLine(line);
-        const isOldLineOfNode = align?.id === id;
-        if (!isOldLineOfNode)
-            keptLines.push(line);
-    }
-    return keptLines.join('\n');
+    // const keptLines: string[] = [];
+    // for (const line of source.split('\n')) {
+    //     const align = parseAlignLine(line);
+    //     const isOldLineOfNode = align?.id === id;
+    //     if (!isOldLineOfNode)
+    //         keptLines.push(line);
+    // }
+    // return keptLines.join('\n');
+    return buildSourceWithNodeProps(source, id, { alignment: undefined, justification: undefined });
 }
 
-// The one function that sets a node's text alignment; centre and centre is the default, so it has no line.
+// The one function that sets a node's text alignment; centre and centre is the default, so it has no fields.
 export function buildSourceWithNodeAlign(source: string, id: string, justification: Justification, alignment: Alignment) {
-    const sourceWithoutOldLine = buildSourceWithoutNodeAlign(source, id);
+    // const sourceWithoutOldLine = buildSourceWithoutNodeAlign(source, id);
+    // const isDefault = justification === 'center' && alignment === 'center';
+    // if (isDefault)
+    //     return sourceWithoutOldLine;
+    // const body = sourceWithoutOldLine.replace(/\s+$/, '');
+    // return `${body}\n${buildAlignLine(id, justification, alignment)}`;
     const isDefault = justification === 'center' && alignment === 'center';
     if (isDefault)
-        return sourceWithoutOldLine;
-    const body = sourceWithoutOldLine.replace(/\s+$/, '');
-    return `${body}\n${buildAlignLine(id, justification, alignment)}`;
+        return buildSourceWithoutNodeAlign(source, id);
+    return buildSourceWithNodeProps(source, id, { justification, alignment });
 }

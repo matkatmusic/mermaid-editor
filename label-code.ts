@@ -9,7 +9,10 @@ export const CODE_BLOCK_STYLE = 'display:block;text-align:left;white-space:pre';
 // Mermaid sizes each node before the page can change its text, so the code tag goes into the source that Mermaid gets.
 // Only the render path uses this text; the file and the source editor keep the backticks.
 export function buildSourceWithCodeTags(source: string) {
-  return source.replace(/"[^"\n]*"/g, (quoted) => {
+  // The first alternative takes a whole comment line, so the JSON of a props line stays as it is.
+  return source.replace(/^[ \t]*%%.*$|"[^"\n]*"/gm, (quoted) => {
+    if (!quoted.startsWith('"'))
+      return quoted;
     const withBackticks = quoted.slice(1, -1).replace(/#96;/g, '`');
     const withCodeBlocks = withBackticks.replace(FENCED_CODE_BLOCK_PATTERN, (_block, codeText: string) => {
       const codeLines = codeText.split(CODE_LINE_BREAK_PATTERN).map((codeLine: string) => codeLine.replace(/&/g, '#amp;').replace(/</g, '#lt;').replace(/>/g, '#gt;').replace(/`/g, '#96;'));

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { registerBrowserHooks } from "./browser-harness.ts";
 import { executeExpression, waitMilliseconds } from "./cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "./editor-helpers.ts";
+import { buildSourceWithPropsLines } from "../file-format.ts";
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 const PUZZLE_SOURCE = readFileSync(join(process.cwd(), "tests", "puzzle-solver-rules-v2.fixture.mmd"), "utf8");
 const FENCE = "#96;#96;#96;";
@@ -69,7 +70,7 @@ function describeReports(reports: TextLineReport[]) {
     return reports.slice(0, 12).map((report) => `${report.nodeId} "${report.text}": ${report.problems.join(", ")}`).join("\n");
 }
 test("test_every_text_line_of_the_puzzle_solver_diagram_is_inside_its_block_and_drawn", async () => {
-    await loadSource(PUZZLE_SOURCE);
+    await loadSource(buildSourceWithPropsLines(PUZZLE_SOURCE));
     const result = await findTextLineProblems();
     console.log(`MEASURED puzzle diagram: ${result.nodeCount} blocks, ${result.lineCount} text lines, ${result.reports.length} problem lines`);
     assert.ok(result.lineCount > 100, `only ${result.lineCount} lines`);
@@ -88,11 +89,10 @@ test("test_text_lines_of_unsized_and_sized_rectangles_and_hexagons_with_code_are
         `  Q_SIZED{{"${codeLabel}"}}`,
         `  B_FENCED["${fencedLabel}"]`,
         "  B_UNSIZED --> B_SIZED --> B_LEFT --> B_SHORT --> Q_UNSIZED --> Q_SIZED --> B_FENCED",
-        "%% ==size==: B_SIZED 700 140",
-        "%% ==size==: B_LEFT 700 140",
-        "%% ==align==: B_LEFT left center",
-        "%% ==size==: B_SHORT 360 40",
-        "%% ==size==: Q_SIZED 800 160",
+        '%% ==props==: {"blockId":"B_SIZED","width":700,"height":140}',
+        '%% ==props==: {"blockId":"B_LEFT","alignment":"center","justification":"left","width":700,"height":140}',
+        '%% ==props==: {"blockId":"B_SHORT","width":360,"height":40}',
+        '%% ==props==: {"blockId":"Q_SIZED","width":800,"height":160}',
     ].join("\n");
     await loadSource(source);
     const result = await findTextLineProblems();

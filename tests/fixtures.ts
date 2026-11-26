@@ -4,7 +4,9 @@ import { join } from "node:path";
 export const EDITOR_FIXTURE_NAME = "say-something-or-let-it-go.mmd";
 // Saves no longer write the retired typeColors/nodeTypes metadata, so the fixture must not carry them either.
 export const editorFixtureSource = readFileSync(join(process.cwd(), "..", "diagrams", EDITOR_FIXTURE_NAME), "utf8")
-  .replace(/,"typeColors":\{[^}]*\},"nodeTypes":\{[^}]*\}/, "");
+  .replace(/,"typeColors":\{[^}]*\},"nodeTypes":\{[^}]*\}/, "")
+  // Every save writes the file format version, so an undo back to the first state has it too.
+  .replace('%% {"lastSelectedNodeId"', '%% {"fileFormatVersion":2,"lastSelectedNodeId"');
 
 export const SCROLL_FIXTURE_NAME = "accountability.mmd";
 export const scrollFixtureSource = readFileSync(join(process.cwd(), "..", "diagrams", SCROLL_FIXTURE_NAME), "utf8");

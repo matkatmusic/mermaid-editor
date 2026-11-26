@@ -20,8 +20,8 @@ const SOURCE = [
     "  Q_A --> Q_CHOICE_A_N --> B_END",
     "  Q_D --> B_END",
     // Both sized blocks start above the minimum, so a drag changes only the dragged dimension.
-    "%% ==size==: B_START 300 100",
-    "%% ==size==: Q_CHOICE_A_Y 280 90",
+    '%% ==props==: {"blockId":"B_START","width":300,"height":100}',
+    '%% ==props==: {"blockId":"Q_CHOICE_A_Y","width":280,"height":90}',
 ].join("\n");
 
 // 25 "0" characters measured in the page font is 209.77 px; the node box adds 8 px of padding to the text area.
@@ -70,7 +70,7 @@ async function readSourceLines(): Promise<string[]> {
 
 // The size line of one node, or undefined when the node has none.
 async function readSizeLine(id: string): Promise<string | undefined> {
-    const sizeLines = (await readSourceLines()).filter((line) => line.startsWith(`%% ==size==: ${id} `));
+    const sizeLines = (await readSourceLines()).map((line) => line.trim()).filter((line) => line.startsWith(`%% ==props==: {"blockId":"${id}",`));
     assert.ok(sizeLines.length <= 1, sizeLines.join("|"));
     return sizeLines[0];
 }
@@ -150,7 +150,7 @@ test("test_dragging_the_right_edge_changes_only_the_width_by_the_mouse_movement"
     const after = await readNodeSize("B_START");
     assert.ok(Math.abs(after.width - (before.width + 80)) < 1.5, JSON.stringify({ before, after }));
     assert.ok(Math.abs(after.height - before.height) < 1.5, JSON.stringify({ before, after }));
-    assert.equal(await readSizeLine("B_START"), "%% ==size==: B_START 380 100");
+    assert.equal(await readSizeLine("B_START"), '%% ==props==: {"blockId":"B_START","width":380,"height":100}');
 });
 
 test("test_a_block_with_no_size_line_snaps_to_the_minimum_in_the_other_dimension_on_its_first_resize", async () => {
@@ -199,7 +199,7 @@ test("test_a_live_outline_follows_the_mouse_during_the_drag_and_goes_away_on_rel
     assert.ok(outline, "the outline exists during the drag");
     assert.ok(Math.abs(outline.left - box.left) < 1.5, JSON.stringify({ outline, box }));
     assert.ok(Math.abs(outline.width - (box.right - box.left + 90)) < 1.5, JSON.stringify({ outline, box }));
-    assert.equal(await readSizeLine("B_START"), "%% ==size==: B_START 300 100", "nothing is written while the mouse moves");
+    assert.equal(await readSizeLine("B_START"), '%% ==props==: {"blockId":"B_START","width":300,"height":100}', "nothing is written while the mouse moves");
     await releaseMouse(box.right - 2 + 90, middleY);
     assert.equal(await executeExpression("document.getElementById('nodeResizeOutline')"), null);
 });
@@ -210,10 +210,10 @@ test("test_one_drag_is_one_history_entry_and_undo_restores_the_old_size", async 
     const box = await getNodeScreenBox("B_START");
     const middleY = (box.top + box.bottom) / 2;
     await dragMouse({ x: box.right - 2, y: middleY }, { x: box.right - 2 + 80, y: middleY });
-    assert.equal(await readSizeLine("B_START"), "%% ==size==: B_START 380 100");
+    assert.equal(await readSizeLine("B_START"), '%% ==props==: {"blockId":"B_START","width":380,"height":100}');
     await executeExpression("window.applyEditorUndo(); window.editorActionPromise");
     await waitMilliseconds(500);
-    assert.equal(await readSizeLine("B_START"), "%% ==size==: B_START 300 100");
+    assert.equal(await readSizeLine("B_START"), '%% ==props==: {"blockId":"B_START","width":300,"height":100}');
     const restored = await readNodeSize("B_START");
     assert.ok(Math.abs(restored.width - before.width) < 1.5, JSON.stringify({ before, restored }));
 });
@@ -227,8 +227,8 @@ test("test_a_drag_cannot_make_the_node_smaller_than_25_zero_characters_and_2_row
     const after = await readNodeSize("B_START");
     assert.ok(Math.abs(after.width - MINIMUM_NODE_WIDTH) < 1.5, JSON.stringify(after));
     assert.ok(Math.abs(after.height - MINIMUM_NODE_HEIGHT) < 1.5, JSON.stringify(after));
-    const sizeLine = (await readSourceLines()).find((line) => line.includes("==size==: B_START"))!;
-    const [, width, height] = sizeLine.match(/B_START (\d+) (\d+)/)!;
+    const sizeLine = (await readSizeLine("B_START"))!;
+    const [, width, height] = sizeLine.match(/"width":(\d+),"height":(\d+)/)!;
     assert.ok(Math.abs(Number(width) - MINIMUM_NODE_WIDTH) < 1.5, sizeLine);
     assert.ok(Math.abs(Number(height) - MINIMUM_NODE_HEIGHT) < 1.5, sizeLine);
     assert.ok(middleX > 0 && middleY > 0);
@@ -292,13 +292,13 @@ test("test_a_drag_that_starts_in_the_middle_of_a_node_does_not_resize", async ()
     const middleX = (box.left + box.right) / 2;
     const middleY = (box.top + box.bottom) / 2;
     await dragMouse({ x: middleX, y: middleY }, { x: middleX + 80, y: middleY + 40 });
-    assert.equal(await readSizeLine("B_START"), "%% ==size==: B_START 300 100");
+    assert.equal(await readSizeLine("B_START"), '%% ==props==: {"blockId":"B_START","width":300,"height":100}');
 });
 
 test("test_the_off_screen_arrow_heads_are_drawn_again_after_a_resize", async () => {
     const ids = Array.from({ length: 14 }, (_, index) => `B_N${index}`);
     const chain = ["flowchart TD", ...ids.map((id) => `  ${id}["Block ${id}"]`), `  ${ids.join(" --> ")}`, `  ${ids[13]} --> ${ids[0]}`].join("\n");
-    await loadSource(`${chain}\n%% ==size==: B_N5 200 80`);
+    await loadSource(`${chain}\n%% ==props==: {"blockId":"B_N5","width":200,"height":80}`);
     // Scroll so the middle of the line from B_N5 to B_N6 sits on the bottom edge of the pane: that line then ends off screen.
     await executeExpression(`(() => {
         const output = document.getElementById('output');

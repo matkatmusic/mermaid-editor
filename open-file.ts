@@ -1,5 +1,5 @@
 import { state } from './state.ts';
-import { applyTypeMetadata, splitEditorMetadata } from './editor-metadata.ts';
+import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from './editor-metadata.ts';
 import { codeBox, selectBox, statusBox } from './dom.ts';
 import { applyMainViewport, loadList, resetEditorHistory, setDrawerOpen } from './diagram-io.ts';
 import { render } from './render.ts';
@@ -33,6 +33,8 @@ export async function openFileFromDialog() {
 }
 
 export async function showOpenedFile(path: string, text: string) {
+  // First, so a file that cannot be read throws before the save target changes.
+  text = buildSourceInCurrentFileFormat(text);
   if (state.watcher) {
     state.watcher.close();
     state.watcher = null;

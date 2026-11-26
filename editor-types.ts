@@ -14,9 +14,10 @@ export interface EditorNode {
   size?: { width: number; height: number };
 }
 
-export const NOTE_PREFIX = '%% ==note==:';
-export const SIZE_PREFIX = '%% ==size==:';
-export const ALIGN_PREFIX = '%% ==align==:';
+// export const NOTE_PREFIX = '%% ==note==:';
+// export const SIZE_PREFIX = '%% ==size==:';
+// export const ALIGN_PREFIX = '%% ==align==:';
+export const PROPS_PREFIX = '%% ==props==:';
 
 export interface EditorEdge {
   from: string;
@@ -47,6 +48,7 @@ export interface PendingRemoval {
 }
 
 export interface EditorMetadata {
+  fileFormatVersion?: number;
   lastSelectedNodeId: string | null;
   outputScrollLeft?: number;
   outputScrollTop?: number;

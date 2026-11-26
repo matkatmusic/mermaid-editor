@@ -14,9 +14,9 @@ const SOURCE = [
     "  Q_ONE --> Q_CHOICE_ONE_Y",
     "  Q_ONE --> Q_CHOICE_ONE_N",
 ].join("\n");
-const SIZE_LINE_B_ONE = "%% ==size==: B_ONE 500 150";
-const SIZE_LINE_Q_ONE = "%% ==size==: Q_ONE 600 160";
-const ALIGN_LINE_Q_ONE = "%% ==align==: Q_ONE left center";
+const SIZE_LINE_B_ONE = '%% ==props==: {"blockId":"B_ONE","width":500,"height":150}';
+const SIZE_AND_ALIGN_LINE_Q_ONE = '%% ==props==: {"blockId":"Q_ONE","alignment":"center","justification":"left","width":600,"height":160}';
+const ALIGN_LINE_Q_ONE = '%% ==props==: {"blockId":"Q_ONE","alignment":"center","justification":"left"}';
 // The automatic box is the text box plus 4 px on each side.
 const AUTOMATIC_PADDING_PX = 8;
 const TOLERANCE_PX = 1.5;
@@ -65,7 +65,7 @@ test("test_double_click_outside_the_text_of_a_sized_block_removes_its_size_line_
     await loadSource([SIZE_LINE_B_ONE]);
     await doubleClickWithMouse(await findClickPoint("B_ONE", "empty"));
     const lines = await readSourceLines();
-    assert.ok(!lines.includes(SIZE_LINE_B_ONE), lines.join("|"));
+    assert.ok(!lines.some((line) => line.includes('"blockId":"B_ONE"')), lines.join("|"));
     const measured = await readBoxAndTextBox("B_ONE", "rect");
     console.log(`MEASURED after reset: ${JSON.stringify(measured)}`);
     assert.ok(Math.abs(measured.width - (measured.textWidth + AUTOMATIC_PADDING_PX)) < TOLERANCE_PX, JSON.stringify(measured));
@@ -84,7 +84,7 @@ test("test_undo_restores_the_size_line_after_the_reset_and_redo_removes_it_again
     assert.ok((await readSourceLines()).includes(SIZE_LINE_B_ONE));
     await executeExpression("window.applyEditorRedo(); window.editorActionPromise");
     await waitMilliseconds(600);
-    assert.ok(!(await readSourceLines()).includes(SIZE_LINE_B_ONE));
+    assert.ok(!(await readSourceLines()).some((line) => line.includes('"blockId":"B_ONE"')));
 });
 test("test_double_click_on_the_text_keeps_the_size_line_and_opens_the_node_text_editor", async () => {
     await loadSource([SIZE_LINE_B_ONE]);
@@ -103,10 +103,10 @@ test("test_double_click_outside_the_text_of_a_block_without_a_size_line_changes_
     assert.notEqual(await executeExpression("document.activeElement.id"), "nodeTextInput");
 });
 test("test_double_click_outside_the_text_of_a_hexagon_decision_removes_its_size_line_and_keeps_its_align_line", async () => {
-    await loadSource([SIZE_LINE_Q_ONE, ALIGN_LINE_Q_ONE]);
+    await loadSource([SIZE_AND_ALIGN_LINE_Q_ONE]);
     await doubleClickWithMouse(await findClickPoint("Q_ONE", "empty"));
     const lines = await readSourceLines();
-    assert.ok(!lines.includes(SIZE_LINE_Q_ONE), lines.join("|"));
-    assert.ok(lines.includes(ALIGN_LINE_Q_ONE), lines.join("|"));
+    assert.ok(!lines.some((line) => line.includes('"width"')), lines.join("|"));
+    assert.equal(lines[lines.indexOf('  Q_ONE{{"Does it work?"}}') - 1], `  ${ALIGN_LINE_Q_ONE}`, lines.join("|"));
     assert.notEqual(await executeExpression("document.activeElement.id"), "nodeTextInput");
 });

@@ -20,7 +20,7 @@ const BODY = [
     "  Q_A --> Q_CHOICE_A_N --> B_END",
     "  Q_D --> B_END",
 ].join("\n");
-const SOURCE = `${BODY}\n%% ==size==: Q_A 400 120`;
+const SOURCE = `${BODY}\n%% ==props==: {"blockId":"Q_A","width":400,"height":120}`;
 
 interface Box {
     left: number;
@@ -57,8 +57,8 @@ async function readCursor(): Promise<string> {
 }
 
 async function readSizeLine(id: string): Promise<string | undefined> {
-    const lines = (await executeExpression("codeBox.value")).split("\n");
-    const sizeLines = lines.filter((line: string) => line.startsWith(`%% ==size==: ${id} `));
+    const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    const sizeLines = lines.map((line) => line.trim()).filter((line) => line.startsWith(`%% ==props==: {"blockId":"${id}",`));
     assert.ok(sizeLines.length <= 1, sizeLines.join("|"));
     return sizeLines[0];
 }
@@ -81,7 +81,7 @@ async function dragMouse(from: { x: number; y: number }, to: { x: number; y: num
 test("test_a_sized_hexagon_renders_with_the_stored_size_as_its_outer_box", async () => {
     // Scenario: the numbers of the size line are the width and height of the whole hexagon, points included.
     for (const [width, height] of [[400, 120], [350, 130], [500, 160]]) {
-        await loadSource(`${BODY}\n%% ==size==: Q_A ${width} ${height}`);
+        await loadSource(`${BODY}\n%% ==props==: {"blockId":"Q_A","width":${width},"height":${height}}`);
         const box = await readHexagonSize("Q_A");
         assert.ok(Math.abs(box.width - width) < 1.5, JSON.stringify({ width, height, box }));
         assert.ok(Math.abs(box.height - height) < 1.5, JSON.stringify({ width, height, box }));
@@ -89,7 +89,7 @@ test("test_a_sized_hexagon_renders_with_the_stored_size_as_its_outer_box", async
 });
 
 test("test_a_sized_hexagon_never_gets_smaller_than_25_zero_characters_of_text_and_2_rows", async () => {
-    await loadSource(`${BODY}\n%% ==size==: Q_A 50 20`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"Q_A","width":50,"height":20}`);
     const box = await readHexagonSize("Q_A");
     // The text area is 209.77 px wide and 48 px high; the outer box adds 48 px of height, 8 px of width and the two points (4/7 of the outer height).
     assert.ok(Math.abs(box.height - 96) < 1.5, JSON.stringify(box));
@@ -143,7 +143,7 @@ test("test_dragging_the_top_flat_edge_changes_only_the_height", async () => {
     const after = await readHexagonSize("Q_A");
     assert.ok(Math.abs(after.height - (before.height + 40)) < 1.5, JSON.stringify({ before, after }));
     assert.ok(Math.abs(after.width - before.width) < 1.5, JSON.stringify({ before, after }));
-    assert.equal(await readSizeLine("Q_A"), "%% ==size==: Q_A 400 160");
+    assert.equal(await readSizeLine("Q_A"), '%% ==props==: {"blockId":"Q_A","width":400,"height":160}');
 });
 
 test("test_dragging_the_right_point_changes_only_the_width", async () => {
@@ -155,7 +155,7 @@ test("test_dragging_the_right_point_changes_only_the_width", async () => {
     const after = await readHexagonSize("Q_A");
     assert.ok(Math.abs(after.width - (before.width + 60)) < 1.5, JSON.stringify({ before, after }));
     assert.ok(Math.abs(after.height - before.height) < 1.5, JSON.stringify({ before, after }));
-    assert.equal(await readSizeLine("Q_A"), "%% ==size==: Q_A 460 120");
+    assert.equal(await readSizeLine("Q_A"), '%% ==props==: {"blockId":"Q_A","width":460,"height":120}');
 });
 
 test("test_dragging_the_left_point_to_the_left_makes_the_hexagon_wider", async () => {
@@ -163,7 +163,7 @@ test("test_dragging_the_left_point_to_the_left_makes_the_hexagon_wider", async (
     const box = await getHexagonScreenBox("Q_A");
     const middleY = (box.top + box.bottom) / 2;
     await dragMouse({ x: box.left + 2, y: middleY }, { x: box.left + 2 - 50, y: middleY });
-    assert.equal(await readSizeLine("Q_A"), "%% ==size==: Q_A 450 120");
+    assert.equal(await readSizeLine("Q_A"), '%% ==props==: {"blockId":"Q_A","width":450,"height":120}');
 });
 
 test("test_a_hexagon_drag_cannot_go_below_the_minimum_and_undo_restores_the_size", async () => {
@@ -175,7 +175,7 @@ test("test_a_hexagon_drag_cannot_go_below_the_minimum_and_undo_restores_the_size
     assert.ok(Math.abs(after.height - 96) < 1.5, JSON.stringify(after));
     await executeExpression("window.applyEditorUndo(); window.editorActionPromise");
     await waitMilliseconds(500);
-    assert.equal(await readSizeLine("Q_A"), "%% ==size==: Q_A 400 120");
+    assert.equal(await readSizeLine("Q_A"), '%% ==props==: {"blockId":"Q_A","width":400,"height":120}');
 });
 
 test("test_switching_a_hexagon_to_a_diamond_removes_its_size_line_in_one_history_entry", async () => {
@@ -190,16 +190,16 @@ test("test_switching_a_hexagon_to_a_diamond_removes_its_size_line_in_one_history
     await waitMilliseconds(500);
     const restored: string = await executeExpression("codeBox.value");
     assert.ok(restored.includes('  Q_A{{"Does it work?"}}'), restored);
-    assert.equal(await readSizeLine("Q_A"), "%% ==size==: Q_A 400 120");
+    assert.equal(await readSizeLine("Q_A"), '%% ==props==: {"blockId":"Q_A","width":400,"height":120}');
 });
 
 test("test_switching_a_diamond_to_a_hexagon_keeps_the_size_lines_of_other_nodes", async () => {
-    await loadSource(`${BODY}\n%% ==size==: Q_A 400 120\n%% ==size==: B_START 300 100`);
+    await loadSource(`${BODY}\n%% ==props==: {"blockId":"Q_A","width":400,"height":120}\n%% ==props==: {"blockId":"B_START","width":300,"height":100}`);
     await clickNodeWithMouse("Q_D");
     await executeExpression("document.getElementById('decisionShapeSwitch').click(); window.editorActionPromise");
     await waitMilliseconds(600);
-    assert.equal(await readSizeLine("Q_A"), "%% ==size==: Q_A 400 120");
-    assert.equal(await readSizeLine("B_START"), "%% ==size==: B_START 300 100");
+    assert.equal(await readSizeLine("Q_A"), '%% ==props==: {"blockId":"Q_A","width":400,"height":120}');
+    assert.equal(await readSizeLine("B_START"), '%% ==props==: {"blockId":"B_START","width":300,"height":100}');
 });
 
 test("test_a_cmd_press_on_a_hexagon_point_does_not_resize", async () => {
@@ -211,5 +211,5 @@ test("test_a_cmd_press_on_a_hexagon_point_does_not_resize", async () => {
     await moveMouse(box.right - 2 + 60, middleY, 1);
     await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: box.right - 2 + 60, y: middleY, button: "left", buttons: 0, clickCount: 1, modifiers: Modifier.Meta });
     await waitMilliseconds(400);
-    assert.equal(await readSizeLine("Q_A"), "%% ==size==: Q_A 400 120");
+    assert.equal(await readSizeLine("Q_A"), '%% ==props==: {"blockId":"Q_A","width":400,"height":120}');
 });

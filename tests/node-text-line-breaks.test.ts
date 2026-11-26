@@ -83,7 +83,7 @@ test("test_shift_enter_in_notes_adds_a_line_break_and_does_not_write", async () 
     await pressShiftEnter();
     await send("Input.insertText", { text: "Two" });
     assert.equal(await executeExpression("document.getElementById('nodeNotesInput').value"), "One\nTwo");
-    assert.ok(!(await getSourceLines()).some((line) => line.includes("==note==")));
+    assert.ok(!(await getSourceLines()).some((line) => line.includes("==props==")));
 });
 
 test("test_enter_in_notes_writes_the_note_as_one_line_with_br", async () => {
@@ -93,8 +93,8 @@ test("test_enter_in_notes_writes_the_note_as_one_line_with_br", async () => {
     await send("Input.insertText", { text: "Two" });
     await pressEnterAndWaitForWrite();
     const lines = await getSourceLines();
-    const noteLines = lines.filter((line) => line.includes("==note=="));
-    assert.deepEqual(noteLines, ["  %% ==note==: One<br/>Two"]);
+    const noteLines = lines.filter((line) => line.includes("==props=="));
+    assert.deepEqual(noteLines, ['  %% ==props==: {"blockId":"B_A","note":"One<br/>Two"}']);
     assert.equal(lines[lines.indexOf(noteLines[0]) + 1], '  B_A["Alpha"]');
     assert.equal(await executeExpression("document.getElementById('nodeNotesInput').value"), "One\nTwo");
 });
@@ -112,16 +112,16 @@ test("test_notes_box_shows_br_as_a_line_break_after_reselecting_and_a_second_edi
     await executeExpression("(() => { const box = document.getElementById('nodeNotesInput'); box.focus(); box.setSelectionRange(box.value.length, box.value.length); })()");
     await send("Input.insertText", { text: "!" });
     await pressEnterAndWaitForWrite();
-    const noteLines = (await getSourceLines()).filter((line) => line.includes("==note=="));
-    assert.deepEqual(noteLines, ["  %% ==note==: One<br/>Two!"]);
+    const noteLines = (await getSourceLines()).filter((line) => line.includes("==props=="));
+    assert.deepEqual(noteLines, ['  %% ==props==: {"blockId":"B_A","note":"One<br/>Two!"}']);
 });
 
 test("test_pasted_text_with_line_breaks_in_notes_is_written_with_br", async () => {
     await selectNodeAndFocusBox("B_A", "nodeNotesInput");
     await send("Input.insertText", { text: "Red\nBlue" });
     await pressEnterAndWaitForWrite();
-    const noteLines = (await getSourceLines()).filter((line) => line.includes("==note=="));
-    assert.deepEqual(noteLines, ["  %% ==note==: Red<br/>Blue"]);
+    const noteLines = (await getSourceLines()).filter((line) => line.includes("==props=="));
+    assert.deepEqual(noteLines, ['  %% ==props==: {"blockId":"B_A","note":"Red<br/>Blue"}']);
 });
 
 test("test_each_text_box_has_one_tiny_helper_line_below_it", async () => {

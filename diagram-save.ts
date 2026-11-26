@@ -1,6 +1,6 @@
 import { codeBox } from './dom.ts';
 import { state } from './state.ts';
-import { applyTypeMetadata, splitEditorMetadata } from './editor-metadata.ts';
+import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from './editor-metadata.ts';
 import { render } from './render.ts';
 import { loadList, resetEditorHistory, setStatus } from './diagram-io.ts';
 // import { rewriteDecisionsAsHexagons } from './editor-actions.ts';
@@ -26,7 +26,7 @@ export function createDiagramWatcher(name: string, watchUrl = '/api/watch/' + en
     const versionAtFetchStart = saveVersion;
     const saveInFlightAtFetchStart = pendingSaveCount > 0;
     const diagramResponse = await fetch(diskUrl);
-    const text = await diagramResponse.text();
+    const text = buildSourceInCurrentFileFormat(await diagramResponse.text());
     const isStaleWatcher = state.watcher !== source;
     if (isStaleWatcher)
       return;

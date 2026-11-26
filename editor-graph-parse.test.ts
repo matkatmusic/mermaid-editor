@@ -39,11 +39,31 @@ test("test_parse_editor_graph_reports_a_block_that_leads_to_more_than_one_node",
   assert.deepEqual(problems, ['Line 5: block "B_A" leads to 2 nodes (B_B, B_C); a block must lead to one node, so the phone view can follow one question at a time.']);
 });
 
-test("test_parse_editor_graph_reads_the_note_lines_above_a_declaration", () => {
-  const source = 'flowchart TD\n  %% ==note==: a\n  %% ==note==: b\n  B_A["A"]\n  %% hi\n  B_B["B"]';
-  const { graph } = parseEditorGraph(source);
-  assert.equal(graph.nodes.get("B_A")!.note, "a\nb");
-  assert.equal(graph.nodes.get("B_B")!.note, "");
+// Obsolete: a note is now linked to a block by the id in the note line, not by its position.
+// test("test_parse_editor_graph_reads_the_note_lines_above_a_declaration", () => {
+//   const source = 'flowchart TD\n  %% ==note==: a\n  %% ==note==: b\n  B_A["A"]\n  %% hi\n  B_B["B"]';
+//   const { graph } = parseEditorGraph(source);
+//   assert.equal(graph.nodes.get("B_A")!.note, "a\nb");
+//   assert.equal(graph.nodes.get("B_B")!.note, "");
+// });
+
+test("test_parse_editor_graph_reads_the_props_line_that_names_a_block_anywhere_in_the_file", () => {
+  const source = 'flowchart TD\n  %% ==props==: {"blockId":"B_B","note":"for b"}\n  B_A["A"]\n  B_B["B"]\n  %% ==props==: {"blockId":"B_A","width":240,"height":80,"note":"a"}';
+  const { graph, problems } = parseEditorGraph(source);
+  assert.deepEqual(problems, []);
+  assert.equal(graph.nodes.get("B_A")!.note, "a");
+  assert.deepEqual(graph.nodes.get("B_A")!.size, { width: 240, height: 80 });
+  assert.equal(graph.nodes.get("B_B")!.note, "for b");
+});
+
+test("test_parse_editor_graph_reports_a_props_line_for_an_undeclared_block", () => {
+  const { problems } = parseEditorGraph('flowchart TD\n  B_A["A"]\n  %% ==props==: {"blockId":"B_GONE","note":"a"}');
+  assert.deepEqual(problems, ['Line 3: the props line names "B_GONE", which is not declared.']);
+});
+
+test("test_parse_editor_graph_reports_two_props_lines_for_one_block", () => {
+  const { problems } = parseEditorGraph('flowchart TD\n  B_A["A"]\n  %% ==props==: {"blockId":"B_A","note":"a"}\n  %% ==props==: {"blockId":"B_A","note":"b"}');
+  assert.deepEqual(problems, ['Line 4: "B_A" has two props lines; keep one.']);
 });
 
 test("test_parse_editor_graph_reports_a_definition_that_spans_more_than_one_line_and_nothing_else", () => {
