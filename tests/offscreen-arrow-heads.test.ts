@@ -194,6 +194,60 @@ test("test_clicking_an_arrow_head_of_a_line_that_goes_down_centers_the_end_block
     assert.ok(distance <= CENTERED_WITHIN_PX, `B_N4 is ${distance}px from the middle, was ${distanceBeforeClick}px before the click`);
 });
 
+// Command is modifier 4 in the browser protocol.
+const COMMAND_MODIFIER = 4;
+
+async function commandClickWithMouse(x: number, y: number) {
+    await send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1, modifiers: COMMAND_MODIFIER });
+    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1, modifiers: COMMAND_MODIFIER });
+}
+
+test("test_command_clicking_the_visible_part_of_a_line_centers_the_start_block", async () => {
+    // Step: scroll so the start block B_N8 is above the visible area and the lower half of its line to B_N9 shows.
+    await loadChainWithBackEdge(24, 8);
+    await executeExpression(`(() => {
+        const output = document.getElementById('output');
+        const visibleTop = output.getBoundingClientRect().top + output.clientTop;
+        const rect = document.querySelector('#diagram path.flowchart-link[data-id="L_B_N8_B_N9_0"]').getBoundingClientRect();
+        output.scrollTop += rect.top + rect.height / 2 - visibleTop;
+    })()`);
+    await waitMilliseconds(300);
+    assert.equal(await executeExpression(`document.querySelector('#diagram [id*="flowchart-B_N8-"]').getBoundingClientRect().bottom < document.getElementById('output').getBoundingClientRect().top`), true);
+    // Step: find a point on the line that the mouse can hit.
+    const point = JSON.parse(await executeExpression(`JSON.stringify((() => {
+        const path = document.querySelector('#diagram path.flowchart-link[data-id="L_B_N8_B_N9_0"]');
+        for (let step = 0; step <= 200; step++) {
+            const point = path.getPointAtLength(path.getTotalLength() * step / 200).matrixTransform(path.getScreenCTM());
+            if (document.elementFromPoint(point.x, point.y) === path)
+                return { x: point.x, y: point.y };
+        }
+        return null;
+    })())`));
+    assert.ok(point, "no point of the line can be clicked");
+    // Step: Command-click that point; the start block B_N8 is in the middle of the visible area.
+    await commandClickWithMouse(point.x, point.y);
+    await waitMilliseconds(1500);
+    const distance = await measureBlockDistanceFromCenter("B_N8");
+    assert.ok(distance <= CENTERED_WITHIN_PX, `B_N8 is ${distance}px from the middle`);
+});
+
+test("test_command_clicking_an_extra_arrow_head_centers_the_start_block", async () => {
+    // Step: scroll so the line B_N3 --> B_N4 runs off the bottom edge.
+    await loadChainWithBackEdge(24, 8);
+    await scrollEdgeMiddleToBottomEdge("L_B_N3_B_N4_0");
+    // The horizontal overlay scrollbar covers the bottom 16 px of the output box and takes the mouse click, so it is hidden for this click.
+    await executeExpression("document.getElementById('output').style.overflowX = 'hidden'");
+    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+        const rect = document.querySelector('#diagram .offscreen-arrow-head[data-edge-id="L_B_N3_B_N4_0"]').getBoundingClientRect();
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })())`));
+    // Step: Command-click the extra arrow head; the start block B_N3 is in the middle of the visible area.
+    await commandClickWithMouse(center.x, center.y);
+    await waitMilliseconds(1500);
+    const distance = await measureBlockDistanceFromCenter("B_N3");
+    assert.ok(distance <= CENTERED_WITHIN_PX, `B_N3 is ${distance}px from the middle`);
+});
+
 test("test_after_a_zoom_out_the_extra_arrow_head_tip_is_inside_the_visible_area", async () => {
     await loadChain(14);
     await setOutputScrollTop("max");

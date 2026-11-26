@@ -1237,7 +1237,24 @@ function updateOffscreenArrowHeads() {
     path.after(buildArrowHead(path, lastVisibleLength, marker));
   }
 }
+function scrollToStartBlockOfCmdClickedArrow(event) {
+  if (!event.metaKey)
+    return;
+  const target = event.target;
+  let path = target.closest("path.flowchart-link");
+  if (!path) {
+    const head = target.closest(".offscreen-arrow-head");
+    if (!head)
+      return;
+    path = diagramBox.querySelector(`path.flowchart-link[data-id="${head.getAttribute("data-edge-id")}"]`);
+  }
+  event.stopPropagation();
+  const [startBlockId] = getEdgeEnds(path, parseEdges(codeBox.value));
+  diagramBox.querySelector(`[id*="flowchart-${startBlockId}-"]`).scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+}
 function scrollToEndBlockOfClickedArrowHead(event) {
+  if (event.metaKey)
+    return;
   const head = event.target.closest(".offscreen-arrow-head");
   if (!head)
     return;
@@ -1246,6 +1263,7 @@ function scrollToEndBlockOfClickedArrowHead(event) {
   const [, endBlockId] = getEdgeEnds(path, parseEdges(codeBox.value));
   diagramBox.querySelector(`[id*="flowchart-${endBlockId}-"]`).scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
 }
+outputBox.addEventListener("click", scrollToStartBlockOfCmdClickedArrow, true);
 outputBox.addEventListener("click", scrollToEndBlockOfClickedArrowHead, true);
 outputBox.addEventListener("scroll", updateOffscreenArrowHeads);
 window.addEventListener("resize", updateOffscreenArrowHeads);
