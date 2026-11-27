@@ -7,7 +7,7 @@ import { render } from '../../../render.ts';
 import { saveDiagram } from '../file/diagram-save.ts';
 // import { buildSourceWithHexagonDecisions } from './editor-parse.ts';
 import { renderNodeInspector } from '../../../node-inspector.ts';
-import { renderSourceLines } from '../../../source-lines.ts';
+import { renderSourceLines } from '../../views/editor-drawer/source-lines.ts';
 import { refreshSearchMatches } from '../navigation/node-search.ts';
 
 export async function applyEditorSource(source: string, options?: { recordHistory?: boolean }) {

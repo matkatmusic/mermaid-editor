@@ -4,7 +4,7 @@ import { codeBox, diagramBox, drawer, drawerToggle, outputBox, searchClearBtn, s
 import { selectEditorNode } from '../edit/editor-actions.ts';
 import { render } from '../../../render.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
-import { measureSourceLines } from '../../../source-lines.ts';
+import { measureSourceLines } from '../../views/editor-drawer/source-lines.ts';
 import { parsePropsLine } from '../../model/node-props.ts';
 import { isNodeDrawn } from './path-view.ts';
 

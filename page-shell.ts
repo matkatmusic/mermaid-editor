@@ -1,5 +1,5 @@
 import { insertHeaderBar } from "./source/views/header-bar/header-bar-markup.ts";
-import { insertEditorDrawer } from "./editor-drawer-markup.ts";
+import { insertEditorDrawer } from "./source/views/editor-drawer/editor-drawer-markup.ts";
 import { insertNodeActionsBar } from "./node-actions-bar-markup.ts";
 import { insertMainDiagram } from "./main-diagram-markup.ts";
 import { insertInspector, insertInspectorRetiredTemplate } from "./inspector-markup.ts";

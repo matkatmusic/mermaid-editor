@@ -14,7 +14,7 @@ import { applyPathHighlight, reportEditorValidationError } from './render-helper
 import { /* baseScale, */ viewBoxOf } from './zoom.ts';
 import { renderPhone } from './phone-html.ts';
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
-import { renderSourceLines } from './source-lines.ts';
+import { renderSourceLines } from './source/views/editor-drawer/source-lines.ts';
 import { buildSourceWithCodeTags } from './source/model/label-code.ts';
 import { buildSourceWithSizeWrappers } from './source/model/node-size.ts';
 import { updateOffscreenArrowHeads } from './offscreen-arrow-heads.ts';

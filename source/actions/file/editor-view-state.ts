@@ -2,7 +2,7 @@ import { codeBox } from '../../../dom.ts';
 import { state } from '../../../state.ts';
 import { buildSourceWithMetadata } from '../../model/editor-metadata.ts';
 import { saveDiagram } from './diagram-save.ts';
-import { renderSourceLines } from '../../../source-lines.ts';
+import { renderSourceLines } from '../../views/editor-drawer/source-lines.ts';
 
 export async function saveEditorViewState() {
   const hasSaveTarget = !!state.currentName || !!state.openedFileHandle || !!state.loadedPath;
