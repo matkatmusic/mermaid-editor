@@ -1,4 +1,5 @@
 import { getNodeAlign } from './node-align.ts';
+import { CODE_BLOCK_STYLE } from './label-code.ts';
 import { buildSourceWithNodeProps, parsePropsLine } from './node-props.ts';
 import type { Alignment, Justification, NodeAlign } from './node-align.ts';
 
@@ -76,11 +77,13 @@ export function buildSourceWithSizeWrappers(source: string) {
     //     if (align)
     //         aligns.set(align.id, align);
     // }
+    const storedJustifications = new Map<string, Justification | undefined>();
     for (const line of lines) {
         const props = parsePropsLine(line);
         if (!props)
             continue;
         const id = props.blockId;
+        storedJustifications.set(id, props.justification);
         if (props.width !== undefined) {
             if (props.height !== undefined)
                 sizes.set(id, { id, width: props.width, height: props.height });
@@ -101,13 +104,18 @@ export function buildSourceWithSizeWrappers(source: string) {
         const [, indent, id, open, label, close] = declaration;
         const isHexagon = open === '{{';
         const labelMargin = isHexagon ? HEXAGON_LABEL_MARGIN : RECT_LABEL_MARGIN;
+        // This label comes after buildSourceWithCodeTags, so a code fence is a code tag here.
+        const hasCodeBlock = label.includes(CODE_BLOCK_STYLE);
+        const justification = storedJustifications.get(id) ?? (hasCodeBlock ? 'left' : 'center');
         if (!size) {
             // Without a size line the label is as big as its text, so only the justification of its lines can show.
             let style = `margin:${labelMargin}`;
-            if (align) {
-                if (align.justification !== 'center')
-                    style += `;text-align:${align.justification}`;
-            }
+            // if (align) {
+            //     if (align.justification !== 'center')
+            //         style += `;text-align:${align.justification}`;
+            // }
+            if (justification !== 'center')
+                style += `;text-align:${justification}`;
             wrappedLines.push(`${indent}${id}${open}"<div style='${style}'>${label}</div>"${close}`);
             continue;
         }
@@ -117,7 +125,7 @@ export function buildSourceWithSizeWrappers(source: string) {
             wrapperWidth = Number((size.width - NODE_PADDING_WIDTH - HEXAGON_POINTS_WIDTH_RATIO * size.height).toFixed(2));
             wrapperHeight = size.height - HEXAGON_PADDING_HEIGHT;
         }
-        const justification = align?.justification ?? 'center';
+        // const justification = align?.justification ?? 'center';
         const alignment = align?.alignment ?? 'center';
         const style = `display:flex;align-items:${FLEX_ALIGN_ITEMS[alignment]};justify-content:${FLEX_JUSTIFY_CONTENT[justification]};width:max(${wrapperWidth}px,25ch);min-height:max(${wrapperHeight}px,2lh);white-space:normal;margin:${labelMargin}`;
         const labelOpen = justification === 'center' ? '<div>' : `<div style='text-align:${justification}'>`;

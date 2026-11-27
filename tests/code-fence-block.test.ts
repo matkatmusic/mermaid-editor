@@ -94,7 +94,7 @@ test("test_lines_between_two_fences_are_drawn_as_one_monospace_code_block_withou
     assert.ok(!measured.nodeText.includes("`"), measured.nodeText);
     assert.ok(measured.nodeText.includes(LONG_INTRO) && measured.nodeText.includes("Outro"), measured.nodeText);
 });
-test("test_a_code_block_is_left_justified_when_the_block_text_is_centre_justified", async () => {
+test("test_a_code_block_is_left_justified_when_no_justification_is_set", async () => {
     await loadSource(buildRectSource(CODE_LABEL));
     const measured = await measureMainNode("B_ONE", "rect");
     assert.equal(measured.code!.textAlign, "left");

@@ -58,6 +58,150 @@ function buildSourceWithNodeProps(source, id, changes) {
 `);
 }
 
+// editor-parse.ts
+function trimEditorQuotes(text) {
+  return text.replace(/^"(.*)"$/, "$1");
+}
+function encodeLabelQuotes(text) {
+  return text.replace(/"/g, "#quot;").replace(/`/g, "#96;");
+}
+function decodeLabelQuotes(label) {
+  return label.replace(/#quot;/g, '"').replace(/#96;/g, "`");
+}
+function encodeLabelLineBreaks(text, previousLabel = "") {
+  const usesBackslashN = previousLabel.includes("\\n") && !/<br\s*\/?>/i.test(previousLabel);
+  return text.replace(/\n/g, usesBackslashN ? "\\n" : "<br/>");
+}
+function decodeLabelLineBreaks(label) {
+  return label.replace(/<br\s*\/?>/gi, `
+`).replace(/\\n/g, `
+`);
+}
+function getOneLineLabel(label) {
+  return decodeLabelQuotes(label).replace(/<br\s*\/?>/gi, " ").replace(/\\n/g, " ");
+}
+function parseEditorToken(token) {
+  const match = token.match(/^([A-Za-z0-9_]+)([\s\S]*)$/);
+  if (!match)
+    return { id: token, shape: null, label: "" };
+  const id = match[1];
+  const rest = match[2].trim();
+  const startsHexagon = rest.startsWith("{{");
+  const endsHexagon = rest.endsWith("}}");
+  const isHexagon = startsHexagon && endsHexagon;
+  if (isHexagon)
+    return { id, shape: "hexagon", label: trimEditorQuotes(rest.slice(2, -2)) };
+  const startsBrace = rest.startsWith("{");
+  const endsBrace = rest.endsWith("}");
+  const isBrace = startsBrace && endsBrace;
+  if (isBrace)
+    return { id, shape: "brace", label: trimEditorQuotes(rest.slice(1, -1)) };
+  const startsRound = rest.startsWith("([");
+  const endsRound = rest.endsWith("])");
+  const isRound = startsRound && endsRound;
+  if (isRound)
+    return { id, shape: "other", label: trimEditorQuotes(rest.slice(2, -2)) };
+  const startsBracket = rest.startsWith("[");
+  const endsBracket = rest.endsWith("]");
+  const isBracket = startsBracket && endsBracket;
+  if (isBracket)
+    return { id, shape: "rect", label: trimEditorQuotes(rest.slice(1, -1)) };
+  return { id, shape: null, label: "" };
+}
+function getDeclarationRequirement(id) {
+  const isChoice = id.startsWith("Q_CHOICE");
+  if (isChoice)
+    return 'start with "Q_CHOICE" and use bracket shape []';
+  const isQuestion = id.startsWith("Q_");
+  if (isQuestion)
+    return 'start with "Q_" and use diamond shape {} or hexagon shape {{}}';
+  const isBlock = id.startsWith("B_");
+  if (isBlock)
+    return 'start with "B_" and use bracket shape []';
+  return 'use "Q_" with diamond shape {} or hexagon shape {{}} for a decision, "Q_CHOICE" with bracket shape [] for a choice, or "B_" with bracket shape [] for a static block';
+}
+function validateDeclaration(id, shape, lineNumber, problems) {
+  const subject = `Line ${lineNumber}: id "${id}"`;
+  if (shape === "other") {
+    problems.push(`${subject} uses unsupported rounded/stadium shape; it must ${getDeclarationRequirement(id)}.`);
+    return;
+  }
+  const isChoice = id.startsWith("Q_CHOICE");
+  if (isChoice) {
+    if (shape !== "rect")
+      problems.push(`${subject} is a choice and must use bracket shape [] (for example, ${id}["Choice"]).`);
+    return;
+  }
+  const isQuestion = id.startsWith("Q_");
+  if (isQuestion) {
+    const isDecisionShape = shape === "brace" || shape === "hexagon";
+    if (!isDecisionShape)
+      problems.push(`${subject} is a decision and must use diamond shape {} or hexagon shape {{}} (for example, ${id}{{"Decision"}}).`);
+    return;
+  }
+  const isBlock = id.startsWith("B_");
+  if (isBlock) {
+    if (shape !== "rect")
+      problems.push(`${subject} is a static block and must use bracket shape [] (for example, ${id}["Block"]).`);
+    return;
+  }
+  problems.push(`${subject} has a non-compliant prefix; it must ${getDeclarationRequirement(id)}.`);
+}
+function parseEditorEdgeLine(line) {
+  const separator = /\s--\s(?:"([^"]*)"|(.+?))\s-->\s|\s-->/g;
+  const tokens = [];
+  const labels = [];
+  let tokenStart = 0;
+  for (let match;match = separator.exec(line); ) {
+    tokens.push(line.slice(tokenStart, match.index).trim());
+    labels.push(match[1] ?? match[2]?.trim());
+    tokenStart = match.index + match[0].length;
+  }
+  if (tokens.length === 0)
+    return null;
+  tokens.push(line.slice(tokenStart).trim());
+  let hasEmptyToken = false;
+  for (const token of tokens) {
+    const isEmpty = !token;
+    if (isEmpty) {
+      hasEmptyToken = true;
+      break;
+    }
+  }
+  if (hasEmptyToken)
+    return null;
+  const segments = [];
+  for (let index = 0;index < tokens.length - 1; index++)
+    segments.push({ fromToken: tokens[index], label: labels[index], toToken: tokens[index + 1] });
+  return segments;
+}
+function getDeclarationSuffix(node) {
+  if (node.kind === "question")
+    return node.isHexagon ? `{{"${node.label}"}}` : `{"${node.label}"}`;
+  if (node.kind === "choice")
+    return `["${node.label}"]`;
+  return `["${node.label}"]`;
+}
+
+// label-code.ts
+var LABEL_LINE_BREAK = String.raw`(?:<br\s*\/?>|\\n)`;
+var FENCED_CODE_BLOCK_PATTERN = new RegExp("(?:^|" + LABEL_LINE_BREAK + ")```" + LABEL_LINE_BREAK + "([\\s\\S]*?)" + LABEL_LINE_BREAK + "```(?:" + LABEL_LINE_BREAK + "|$)", "gi");
+var CODE_LINE_BREAK_PATTERN = new RegExp(LABEL_LINE_BREAK, "i");
+var CODE_BLOCK_STYLE = "display:block;text-align:left;white-space:pre";
+function buildSourceWithCodeTags(source) {
+  return source.replace(/^[ \t]*%%.*$|"[^"\n]*"/gm, (quoted) => {
+    if (!quoted.startsWith('"'))
+      return quoted;
+    const withBackticks = quoted.slice(1, -1).replace(/#96;/g, "`");
+    const withCodeBlocks = withBackticks.replace(FENCED_CODE_BLOCK_PATTERN, (_block, codeText) => {
+      const codeLines = codeText.split(CODE_LINE_BREAK_PATTERN).map((codeLine) => codeLine.replace(/&/g, "#amp;").replace(/</g, "#lt;").replace(/>/g, "#gt;").replace(/`/g, "#96;"));
+      return `<code style='${CODE_BLOCK_STYLE}'>${codeLines.join("<br/>")}</code>`;
+    });
+    const withCodeTags = withCodeBlocks.replace(/`([^`]+)`/g, (_span, codeText) => "<code>" + codeText.replace(/&/g, "#amp;").replace(/</g, "#lt;").replace(/>/g, "#gt;") + "</code>");
+    return '"' + withCodeTags.replace(/`/g, "#96;") + '"';
+  });
+}
+
 // node-align.ts
 var ALIGN_LINE_PATTERN = /^%% ==align==: ([A-Za-z0-9_]+) (left|center|right) (top|center|bottom)$/;
 function parseAlignLine(line) {
@@ -68,12 +212,32 @@ function parseAlignLine(line) {
 }
 function getNodeAlign(lines, id) {
   const props = getNodeProps(lines, id);
-  return { id, justification: props.justification ?? "center", alignment: props.alignment ?? "center" };
+  return { id, justification: props.justification ?? getDefaultJustification(lines, id), alignment: props.alignment ?? "center" };
+}
+function getDefaultJustification(lines, id) {
+  const labelPattern = new RegExp(`(?<![A-Za-z0-9_])${id}(?:\\[|\\{\\{)"([^"]*)"`);
+  for (const line of lines) {
+    if (line.trim().startsWith("%%"))
+      continue;
+    const declaration = line.match(labelPattern);
+    if (!declaration)
+      continue;
+    const hasCodeFence = decodeLabelQuotes(declaration[1]).search(FENCED_CODE_BLOCK_PATTERN) !== -1;
+    return hasCodeFence ? "left" : "center";
+  }
+  return "center";
 }
 function buildSourceWithoutNodeAlign(source, id) {
   return buildSourceWithNodeProps(source, id, { alignment: undefined, justification: undefined });
 }
 function buildSourceWithNodeAlign(source, id, justification, alignment) {
+  const isCodeFenceBlock = getDefaultJustification(source.split(`
+`), id) === "left";
+  if (isCodeFenceBlock) {
+    const writtenJustification = justification === "left" ? undefined : justification;
+    const writtenAlignment = alignment === "center" ? undefined : alignment;
+    return buildSourceWithNodeProps(source, id, { justification: writtenJustification, alignment: writtenAlignment });
+  }
   const isDefault = justification === "center" && alignment === "center";
   if (isDefault)
     return buildSourceWithoutNodeAlign(source, id);
@@ -114,11 +278,13 @@ function buildSourceWithSizeWrappers(source) {
 `);
   const sizes = new Map;
   const aligns = new Map;
+  const storedJustifications = new Map;
   for (const line of lines) {
     const props = parsePropsLine(line);
     if (!props)
       continue;
     const id = props.blockId;
+    storedJustifications.set(id, props.justification);
     if (props.width !== undefined) {
       if (props.height !== undefined)
         sizes.set(id, { id, width: props.width, height: props.height });
@@ -137,12 +303,12 @@ function buildSourceWithSizeWrappers(source) {
     const [, indent, id, open, label, close] = declaration;
     const isHexagon = open === "{{";
     const labelMargin = isHexagon ? HEXAGON_LABEL_MARGIN : RECT_LABEL_MARGIN;
+    const hasCodeBlock = label.includes(CODE_BLOCK_STYLE);
+    const justification = storedJustifications.get(id) ?? (hasCodeBlock ? "left" : "center");
     if (!size) {
       let style = `margin:${labelMargin}`;
-      if (align) {
-        if (align.justification !== "center")
-          style += `;text-align:${align.justification}`;
-      }
+      if (justification !== "center")
+        style += `;text-align:${justification}`;
       wrappedLines.push(`${indent}${id}${open}"<div style='${style}'>${label}</div>"${close}`);
       continue;
     }
@@ -152,7 +318,6 @@ function buildSourceWithSizeWrappers(source) {
       wrapperWidth = Number((size.width - NODE_PADDING_WIDTH - HEXAGON_POINTS_WIDTH_RATIO * size.height).toFixed(2));
       wrapperHeight = size.height - HEXAGON_PADDING_HEIGHT;
     }
-    const justification = align?.justification ?? "center";
     const alignment = align?.alignment ?? "center";
     const style = `display:flex;align-items:${FLEX_ALIGN_ITEMS[alignment]};justify-content:${FLEX_JUSTIFY_CONTENT[justification]};width:max(${wrapperWidth}px,25ch);min-height:max(${wrapperHeight}px,2lh);white-space:normal;margin:${labelMargin}`;
     const labelOpen = justification === "center" ? "<div>" : `<div style='text-align:${justification}'>`;
@@ -316,131 +481,6 @@ for (const key of Object.keys(state)) {
     },
     configurable: true
   });
-}
-
-// editor-parse.ts
-function trimEditorQuotes(text) {
-  return text.replace(/^"(.*)"$/, "$1");
-}
-function encodeLabelQuotes(text) {
-  return text.replace(/"/g, "#quot;").replace(/`/g, "#96;");
-}
-function decodeLabelQuotes(label) {
-  return label.replace(/#quot;/g, '"').replace(/#96;/g, "`");
-}
-function encodeLabelLineBreaks(text, previousLabel = "") {
-  const usesBackslashN = previousLabel.includes("\\n") && !/<br\s*\/?>/i.test(previousLabel);
-  return text.replace(/\n/g, usesBackslashN ? "\\n" : "<br/>");
-}
-function decodeLabelLineBreaks(label) {
-  return label.replace(/<br\s*\/?>/gi, `
-`).replace(/\\n/g, `
-`);
-}
-function getOneLineLabel(label) {
-  return decodeLabelQuotes(label).replace(/<br\s*\/?>/gi, " ").replace(/\\n/g, " ");
-}
-function parseEditorToken(token) {
-  const match = token.match(/^([A-Za-z0-9_]+)([\s\S]*)$/);
-  if (!match)
-    return { id: token, shape: null, label: "" };
-  const id = match[1];
-  const rest = match[2].trim();
-  const startsHexagon = rest.startsWith("{{");
-  const endsHexagon = rest.endsWith("}}");
-  const isHexagon = startsHexagon && endsHexagon;
-  if (isHexagon)
-    return { id, shape: "hexagon", label: trimEditorQuotes(rest.slice(2, -2)) };
-  const startsBrace = rest.startsWith("{");
-  const endsBrace = rest.endsWith("}");
-  const isBrace = startsBrace && endsBrace;
-  if (isBrace)
-    return { id, shape: "brace", label: trimEditorQuotes(rest.slice(1, -1)) };
-  const startsRound = rest.startsWith("([");
-  const endsRound = rest.endsWith("])");
-  const isRound = startsRound && endsRound;
-  if (isRound)
-    return { id, shape: "other", label: trimEditorQuotes(rest.slice(2, -2)) };
-  const startsBracket = rest.startsWith("[");
-  const endsBracket = rest.endsWith("]");
-  const isBracket = startsBracket && endsBracket;
-  if (isBracket)
-    return { id, shape: "rect", label: trimEditorQuotes(rest.slice(1, -1)) };
-  return { id, shape: null, label: "" };
-}
-function getDeclarationRequirement(id) {
-  const isChoice = id.startsWith("Q_CHOICE");
-  if (isChoice)
-    return 'start with "Q_CHOICE" and use bracket shape []';
-  const isQuestion = id.startsWith("Q_");
-  if (isQuestion)
-    return 'start with "Q_" and use diamond shape {} or hexagon shape {{}}';
-  const isBlock = id.startsWith("B_");
-  if (isBlock)
-    return 'start with "B_" and use bracket shape []';
-  return 'use "Q_" with diamond shape {} or hexagon shape {{}} for a decision, "Q_CHOICE" with bracket shape [] for a choice, or "B_" with bracket shape [] for a static block';
-}
-function validateDeclaration(id, shape, lineNumber, problems) {
-  const subject = `Line ${lineNumber}: id "${id}"`;
-  if (shape === "other") {
-    problems.push(`${subject} uses unsupported rounded/stadium shape; it must ${getDeclarationRequirement(id)}.`);
-    return;
-  }
-  const isChoice = id.startsWith("Q_CHOICE");
-  if (isChoice) {
-    if (shape !== "rect")
-      problems.push(`${subject} is a choice and must use bracket shape [] (for example, ${id}["Choice"]).`);
-    return;
-  }
-  const isQuestion = id.startsWith("Q_");
-  if (isQuestion) {
-    const isDecisionShape = shape === "brace" || shape === "hexagon";
-    if (!isDecisionShape)
-      problems.push(`${subject} is a decision and must use diamond shape {} or hexagon shape {{}} (for example, ${id}{{"Decision"}}).`);
-    return;
-  }
-  const isBlock = id.startsWith("B_");
-  if (isBlock) {
-    if (shape !== "rect")
-      problems.push(`${subject} is a static block and must use bracket shape [] (for example, ${id}["Block"]).`);
-    return;
-  }
-  problems.push(`${subject} has a non-compliant prefix; it must ${getDeclarationRequirement(id)}.`);
-}
-function parseEditorEdgeLine(line) {
-  const separator = /\s--\s(?:"([^"]*)"|(.+?))\s-->\s|\s-->/g;
-  const tokens = [];
-  const labels = [];
-  let tokenStart = 0;
-  for (let match;match = separator.exec(line); ) {
-    tokens.push(line.slice(tokenStart, match.index).trim());
-    labels.push(match[1] ?? match[2]?.trim());
-    tokenStart = match.index + match[0].length;
-  }
-  if (tokens.length === 0)
-    return null;
-  tokens.push(line.slice(tokenStart).trim());
-  let hasEmptyToken = false;
-  for (const token of tokens) {
-    const isEmpty = !token;
-    if (isEmpty) {
-      hasEmptyToken = true;
-      break;
-    }
-  }
-  if (hasEmptyToken)
-    return null;
-  const segments = [];
-  for (let index = 0;index < tokens.length - 1; index++)
-    segments.push({ fromToken: tokens[index], label: labels[index], toToken: tokens[index + 1] });
-  return segments;
-}
-function getDeclarationSuffix(node) {
-  if (node.kind === "question")
-    return node.isHexagon ? `{{"${node.label}"}}` : `{"${node.label}"}`;
-  if (node.kind === "choice")
-    return `["${node.label}"]`;
-  return `["${node.label}"]`;
 }
 
 // editor-graph-parse.ts
@@ -1626,25 +1666,6 @@ function buildRows(edges, graph) {
   if (hasPreviewChoice)
     return buildPreviewRows(edges, graph);
   return buildHistoryRows(edges, graph);
-}
-
-// label-code.ts
-var LABEL_LINE_BREAK = String.raw`(?:<br\s*\/?>|\\n)`;
-var FENCED_CODE_BLOCK_PATTERN = new RegExp("(?:^|" + LABEL_LINE_BREAK + ")```" + LABEL_LINE_BREAK + "([\\s\\S]*?)" + LABEL_LINE_BREAK + "```(?:" + LABEL_LINE_BREAK + "|$)", "gi");
-var CODE_LINE_BREAK_PATTERN = new RegExp(LABEL_LINE_BREAK, "i");
-var CODE_BLOCK_STYLE = "display:block;text-align:left;white-space:pre";
-function buildSourceWithCodeTags(source) {
-  return source.replace(/^[ \t]*%%.*$|"[^"\n]*"/gm, (quoted) => {
-    if (!quoted.startsWith('"'))
-      return quoted;
-    const withBackticks = quoted.slice(1, -1).replace(/#96;/g, "`");
-    const withCodeBlocks = withBackticks.replace(FENCED_CODE_BLOCK_PATTERN, (_block, codeText) => {
-      const codeLines = codeText.split(CODE_LINE_BREAK_PATTERN).map((codeLine) => codeLine.replace(/&/g, "#amp;").replace(/</g, "#lt;").replace(/>/g, "#gt;").replace(/`/g, "#96;"));
-      return `<code style='${CODE_BLOCK_STYLE}'>${codeLines.join("<br/>")}</code>`;
-    });
-    const withCodeTags = withCodeBlocks.replace(/`([^`]+)`/g, (_span, codeText) => "<code>" + codeText.replace(/&/g, "#amp;").replace(/</g, "#lt;").replace(/>/g, "#gt;") + "</code>");
-    return '"' + withCodeTags.replace(/`/g, "#96;") + '"';
-  });
 }
 
 // phone-html.ts
