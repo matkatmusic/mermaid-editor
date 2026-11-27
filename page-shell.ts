@@ -2,13 +2,13 @@ import { insertHeaderBar } from "./source/views/header-bar/header-bar-markup.ts"
 import { insertEditorDrawer } from "./source/views/editor-drawer/editor-drawer-markup.ts";
 import { insertNodeActionsBar } from "./node-actions-bar-markup.ts";
 import { insertMainDiagram } from "./source/views/main-diagram/main-diagram-markup.ts";
-import { insertInspector, insertInspectorRetiredTemplate } from "./inspector-markup.ts";
+import { insertInspector, insertInspectorRetiredTemplate } from "./source/views/inspector/inspector-markup.ts";
 import { insertPhone } from "./source/views/phone/phone-markup.ts";
-import { insertInspectorNotice } from "./inspector-notice-markup.ts";
+import { insertInspectorNotice } from "./source/views/inspector/inspector-notice-markup.ts";
 import { insertViewportMenu } from "./source/views/main-diagram/viewport-menu-markup.ts";
 import { insertClassEditorDialog } from "./class-editor-dialog-markup.ts";
 import { insertClassesWindow } from "./classes-window-markup.ts";
-import { insertWalkBackDialog } from "./walk-back-dialog-markup.ts";
+import { insertWalkBackDialog } from "./source/views/inspector/walk-back-dialog-markup.ts";
 
 const sharedStyle = `  :root { --bg: #fff; --bg-light: #f5f5f5; --bg-card: #fafafa; --text: #000; --text-quiet: #666; --line: #ccc; --line-soft: #ddd; --border-strong: #333; --border-input: #555; --border-mid: #888; --error: red; --select-stroke: #1565c0; --preview-stroke: #ef6c00; --mask: rgba(0,0,0,0.55); }
   body.dark { color-scheme: dark; --bg: #1e1e1e; --bg-light: #2b2b2b; --bg-card: #2b2b2b; --text: #e6e6e6; --text-quiet: #a0a0a0; --line: #555; --line-soft: #555; --border-strong: #999; --border-input: #999; --border-mid: #999; --error: #ff6b6b; --select-stroke: #64b5f6; --preview-stroke: #ffb74d; --mask: rgba(255,255,255,0.55); }

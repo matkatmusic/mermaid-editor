@@ -2,7 +2,7 @@ import type { EditorEdge, EditorGraph } from '../../model/editor-types.ts';
 import { buildChoiceId, buildSourceWithLinesReplaced, findOutgoingDestination, getNextEditorId, replaceOutgoing } from '../../model/source-edit.ts';
 import { applyEditorSource, selectEditorNode } from './editor-actions.ts';
 import { state } from '../../../state.ts';
-import { setInspectorTextFocus } from '../../../node-inspector-focus.ts';
+import { setInspectorTextFocus } from '../../views/inspector/node-inspector-focus.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { getDeclarationSuffix } from '../../model/editor-parse.ts';
 import { setEditorActionPromise } from '../../model/editor-metadata.ts';

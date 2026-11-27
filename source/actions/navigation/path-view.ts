@@ -6,7 +6,7 @@ import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { filterToFunctions } from '../../model/function-routing.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { showInspectorNotice } from '../edit/editor-rename.ts';
-import { renderNodeInspector } from '../../../node-inspector.ts';
+import { renderNodeInspector } from '../../views/inspector/node-inspector.ts';
 // import { buildPathEdges, findPathByNumber } from './path-view-model.ts';
 // import { buildPathEdges, findPathByNumber, findViewEditRefusal } from './path-view-model.ts';
 // import type { ViewEdit } from './path-view-model.ts';

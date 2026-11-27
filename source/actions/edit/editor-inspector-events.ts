@@ -12,7 +12,7 @@ import { applyQuestionRemoval, clearQuestionRemoval, moveRemovalPreview, removeQ
 import { applyEditorRedo, applyEditorUndo } from './editor-history.ts';
 import { applyDestination, applyDestinationSelection, updateDecisionShape, updateNodeNote, updateNodeText } from './editor-commit.ts';
 import { addChoiceOnDecision, insertDecisionAfterNode, insertStaticAfterNode } from './editor-insert-after.ts';
-import { updateNodeInspectorPosition } from '../../../node-inspector-focus.ts';
+import { updateNodeInspectorPosition } from '../../views/inspector/node-inspector-focus.ts';
 import { getOneLineLabel } from '../../model/editor-parse.ts';
 import { setNodeAlignment, setNodeJustification } from './editor-node-align.ts';
 import { resetNodeSize } from './editor-node-size.ts';

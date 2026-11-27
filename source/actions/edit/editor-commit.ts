@@ -1,9 +1,9 @@
 import { findOutgoingDestination, removeOutgoing, replaceOutgoing } from '../../model/source-edit.ts';
 import { applyEditorSource, appendEditorAction, selectEditorNode } from './editor-actions.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from '../../../state.ts';
-import { replaceDeclarationInLine } from '../../../node-inspector.ts';
+import { replaceDeclarationInLine } from '../../views/inspector/node-inspector.ts';
 import { decodeLabelLineBreaks, encodeLabelLineBreaks, encodeLabelQuotes } from '../../model/editor-parse.ts';
-import { setInspectorDestinationFocus } from '../../../node-inspector-focus.ts';
+import { setInspectorDestinationFocus } from '../../views/inspector/node-inspector-focus.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { moveNodeToViewportCenter } from '../navigation/decision-nav.ts';
 import { createDecisionAfter, createStaticAfter } from './editor-insert-after.ts';

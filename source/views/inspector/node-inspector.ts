@@ -1,18 +1,18 @@
-import { INSPECTOR_TITLES } from './source/model/editor-types.ts';
-import type { EditorGraph } from './source/model/editor-types.ts';
-import { getEditorGraph } from './source/model/editor-graph.ts';
-import { getNodeNamePart, getParentQuestionId, showNameCheck } from './source/actions/edit/editor-rename.ts';
-import { decisionShapeRow, decisionShapeSwitch, nodeKindChoiceBox, nodeKindQuestionBox, nodeKindStaticBox, nodeNameInput, nodeParentLabel, destinationRow, destinationSelect, nodeAlignRow, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from './dom.ts';
-import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
-import { findOutgoingDestination } from './source/model/source-edit.ts';
-import { decodeLabelLineBreaks, decodeLabelQuotes, getOneLineLabel } from './source/model/editor-parse.ts';
+import { INSPECTOR_TITLES } from '../../model/editor-types.ts';
+import type { EditorGraph } from '../../model/editor-types.ts';
+import { getEditorGraph } from '../../model/editor-graph.ts';
+import { getNodeNamePart, getParentQuestionId, showNameCheck } from '../../actions/edit/editor-rename.ts';
+import { decisionShapeRow, decisionShapeSwitch, nodeKindChoiceBox, nodeKindQuestionBox, nodeKindStaticBox, nodeNameInput, nodeParentLabel, destinationRow, destinationSelect, nodeAlignRow, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from '../../../dom.ts';
+import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from '../../../state.ts';
+import { findOutgoingDestination } from '../../model/source-edit.ts';
+import { decodeLabelLineBreaks, decodeLabelQuotes, getOneLineLabel } from '../../model/editor-parse.ts';
 import { renderClassPicker } from './node-inspector-class.ts';
-import { getNodeAlign } from './source/model/node-align.ts';
+import { getNodeAlign } from '../../model/node-align.ts';
 import { clearInspectorFocus, updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { applyInspectorExtraHeight } from './inspector-resize.ts';
 import { showDestinationInInput } from './destination-picker.ts';
-import { disableRefusedButtons } from './source/actions/navigation/path-view.ts';
-import { isViewLimitingEdits } from './source/model/path-view-model.ts';
+import { disableRefusedButtons } from '../../actions/navigation/path-view.ts';
+import { isViewLimitingEdits } from '../../model/path-view-model.ts';
 
 export function replaceDeclarationInLine(line: string, id: string, newToken: string) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -6,7 +6,7 @@ import { state } from '../../../state.ts';
 import { render } from '../../views/main-diagram/render.ts';
 import { saveDiagram } from '../file/diagram-save.ts';
 // import { buildSourceWithHexagonDecisions } from './editor-parse.ts';
-import { renderNodeInspector } from '../../../node-inspector.ts';
+import { renderNodeInspector } from '../../views/inspector/node-inspector.ts';
 import { renderSourceLines } from '../../views/editor-drawer/source-lines.ts';
 import { refreshSearchMatches } from '../navigation/node-search.ts';
 

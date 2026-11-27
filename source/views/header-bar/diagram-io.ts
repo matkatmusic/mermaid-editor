@@ -1,5 +1,5 @@
 import { currentFileName, diagramBox, drawer, outputBox, selectBox, statusBox } from '../../../dom.ts';
-import { updateNodeInspectorPosition } from '../../../node-inspector-focus.ts';
+import { updateNodeInspectorPosition } from '../inspector/node-inspector-focus.ts';
 import { state } from '../../../state.ts';
 import { selectEditorNode } from '../../actions/edit/editor-actions.ts';
 import type { EditorGraph, EditorMetadata, EditorNode } from '../../model/editor-types.ts';
