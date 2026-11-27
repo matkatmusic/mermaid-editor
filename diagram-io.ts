@@ -21,7 +21,8 @@ export function setDrawerOpen(open: boolean) {
 export async function loadList() {
   currentFileName.textContent = state.currentName ?? '';
   const listResponse = await fetch('/api/diagrams');
-  const names = await listResponse.json();
+  // const names = await listResponse.json();
+  const names: string[] = await listResponse.json();
   selectBox.innerHTML = '<option value="" disabled ' + (state.currentName ? '' : 'selected') + '>Diagrams</option>';
   for (const name of names) {
     const option = document.createElement('option');
