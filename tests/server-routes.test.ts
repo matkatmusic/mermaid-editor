@@ -33,6 +33,16 @@ test("rejects a name with a path in it", () => {
     assert.equal(isValidName("../secret.mmd"), false);
 });
 
+test("test_server_sends_the_page_shell", async () => {
+    const { baseUrl } = getSharedServer();
+    // Step: ask the server for the root page.
+    const pageText = await (await fetch(`${baseUrl}/`)).text();
+    // Step: the page is the shell, which loads the viewer script.
+    assert.ok(pageText.includes(`<script src="viewer.js"></script>`));
+    // Step: the page is not index.html, which has its own header.
+    assert.ok(!pageText.includes(`id="header"`));
+});
+
 test("last-opened returns the name of the diagram fetched last", async () => {
     const { baseUrl, diagramsDir, lastOpenedFile } = getSharedServer();
     const name = "route-last-opened.mmd";

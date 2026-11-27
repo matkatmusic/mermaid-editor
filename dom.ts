@@ -1,3 +1,4 @@
+import './page-shell.ts';
 import { LABEL_MARGIN_X } from './node-size.ts';
 // declare const mermaid: any;
 declare const mermaid: import('mermaid').Mermaid;

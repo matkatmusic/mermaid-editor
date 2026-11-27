@@ -49,7 +49,8 @@ const server = import.meta.main && Bun.serve({
     const url = new URL(req.url);
 
     if (url.pathname === "/") {
-      return new Response(Bun.file(resolve(EDITOR_DIR, "index.html")), { headers: { "Cache-Control": "no-cache" } });
+      // return new Response(Bun.file(resolve(EDITOR_DIR, "index.html")), { headers: { "Cache-Control": "no-cache" } });
+      return new Response('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Mermaid Viewer</title><script src="/mermaid.min.js"></script></head><body class="dark"><script src="viewer.js"></script></body></html>', { headers: { 'Content-Type': 'text/html; charset=utf-8', "Cache-Control": "no-cache" } });
     }
 
     if (url.pathname === "/viewer.js") {
