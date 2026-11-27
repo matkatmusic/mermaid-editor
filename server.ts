@@ -1,13 +1,15 @@
 // import { watch } from "node:fs";
 import { watch, type FSWatcher } from "node:fs";
 import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 
 // export function isValidName(name) {
 export function isValidName(name: string) {
   return /^[a-zA-Z0-9_-]+\.mmd$/.test(name);
 }
 
-const EDITOR_DIR = import.meta.dir;
+// const EDITOR_DIR = import.meta.dir;
+const EDITOR_DIR = import.meta.dirname;
 const DIAGRAMS_DIR = process.env.DIAGRAMS_DIR ?? resolve(EDITOR_DIR, "..", "diagrams");
 const LAST_OPENED_FILE = process.env.LAST_OPENED_FILE ?? resolve(EDITOR_DIR, ".last-opened.json");
 
@@ -28,6 +30,15 @@ function getRequestedOpenedPath(url: URL) {
   if (!allowedOpenedPaths.has(requestedPath)) return null;
   return requestedPath;
 }
+
+// stdout is ignored: the first server output must be the 'Mermaid viewer running at' line.
+export function buildViewerBundle() {
+    const build = spawnSync("bun", ["build", "viewer.ts", "--outfile", "viewer.js"], { cwd: EDITOR_DIR, stdio: ["ignore", "ignore", "inherit"] });
+    if (build.status !== 0)
+        throw new Error("viewer.js build failed");
+}
+if (import.meta.main)
+    buildViewerBundle();
 
 const server = import.meta.main && Bun.serve({
   port: PORT,
