@@ -20,9 +20,27 @@ async function loadFixture() {
 // Fraction of a pixel that the browser may round away.
 const TOLERANCE_PX = 1;
 
+type MainDiagramMeasurement = {
+    box: { left: number; right: number; top: number; bottom: number };
+    textRects: { left: number; right: number; top: number; bottom: number }[];
+    codeCount: number;
+    text: string;
+    labelScrollWidth: number;
+    labelClientWidth: number;
+};
+
+type PhoneBlockMeasurement = {
+    box: { left: number; right: number };
+    textRects: { left: number; right: number }[];
+    scrollWidth: number;
+    clientWidth: number;
+    codeCount: number;
+};
+
 test("test_main_diagram_label_text_sits_inside_the_node_box_with_code_spans", async () => {
     await loadFixture();
-    const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const measured: MainDiagramMeasurement = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const node = document.querySelector('#diagram [id*="flowchart-B_PUZZLE_ADD_GIT_COMMITS-"]');
         const box = node.querySelector('rect').getBoundingClientRect();
         const walker = document.createTreeWalker(node.querySelector('.nodeLabel'), NodeFilter.SHOW_TEXT);
@@ -38,7 +56,8 @@ test("test_main_diagram_label_text_sits_inside_the_node_box_with_code_spans", as
         const label = node.querySelector('.nodeLabel');
         return { box: { left: box.left, right: box.right, top: box.top, bottom: box.bottom }, textRects, codeCount: node.querySelectorAll('code').length, text: node.textContent.trim(), labelScrollWidth: label.scrollWidth, labelClientWidth: label.clientWidth };
     })())`));
-    console.log(`MEASURED main diagram fit: ${JSON.stringify({ box: measured.box, rectCount: measured.textRects.length, maxRight: Math.max(...measured.textRects.map((rect: any) => rect.right)), minLeft: Math.min(...measured.textRects.map((rect: any) => rect.left)), maxBottom: Math.max(...measured.textRects.map((rect: any) => rect.bottom)), minTop: Math.min(...measured.textRects.map((rect: any) => rect.top)), labelScrollWidth: measured.labelScrollWidth, labelClientWidth: measured.labelClientWidth })}`);
+    // console.log(`MEASURED main diagram fit: ${JSON.stringify({ box: measured.box, rectCount: measured.textRects.length, maxRight: Math.max(...measured.textRects.map((rect: any) => rect.right)), minLeft: Math.min(...measured.textRects.map((rect: any) => rect.left)), maxBottom: Math.max(...measured.textRects.map((rect: any) => rect.bottom)), minTop: Math.min(...measured.textRects.map((rect: any) => rect.top)), labelScrollWidth: measured.labelScrollWidth, labelClientWidth: measured.labelClientWidth })}`);
+    console.log(`MEASURED main diagram fit: ${JSON.stringify({ box: measured.box, rectCount: measured.textRects.length, maxRight: Math.max(...measured.textRects.map((rect: { left: number; right: number; top: number; bottom: number }) => rect.right)), minLeft: Math.min(...measured.textRects.map((rect: { left: number; right: number; top: number; bottom: number }) => rect.left)), maxBottom: Math.max(...measured.textRects.map((rect: { left: number; right: number; top: number; bottom: number }) => rect.bottom)), minTop: Math.min(...measured.textRects.map((rect: { left: number; right: number; top: number; bottom: number }) => rect.top)), labelScrollWidth: measured.labelScrollWidth, labelClientWidth: measured.labelClientWidth })}`);
     assert.equal(measured.codeCount, 2);
     assert.ok(!measured.text.includes("`"));
     assert.ok(measured.textRects.length > 2);
@@ -55,7 +74,8 @@ test("test_phone_block_text_sits_inside_the_block_with_code_spans", async () => 
     await loadFixture();
     await clickNodeWithMouse("B_PUZZLE_ADD_GIT_COMMITS");
     await waitMilliseconds(500);
-    const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const measured: PhoneBlockMeasurement = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const block = document.querySelector('#phoneDiagram [data-node-id="B_PUZZLE_ADD_GIT_COMMITS"]');
         const box = block.getBoundingClientRect();
         const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
@@ -70,7 +90,8 @@ test("test_phone_block_text_sits_inside_the_block_with_code_spans", async () => 
         }
         return { box: { left: box.left, right: box.right }, textRects, scrollWidth: block.scrollWidth, clientWidth: block.clientWidth, codeCount: block.querySelectorAll('code').length };
     })())`));
-    console.log(`MEASURED phone fit: ${JSON.stringify({ box: measured.box, maxRight: Math.max(...measured.textRects.map((rect: any) => rect.right)), minLeft: Math.min(...measured.textRects.map((rect: any) => rect.left)), scrollWidth: measured.scrollWidth, clientWidth: measured.clientWidth })}`);
+    // console.log(`MEASURED phone fit: ${JSON.stringify({ box: measured.box, maxRight: Math.max(...measured.textRects.map((rect: any) => rect.right)), minLeft: Math.min(...measured.textRects.map((rect: any) => rect.left)), scrollWidth: measured.scrollWidth, clientWidth: measured.clientWidth })}`);
+    console.log(`MEASURED phone fit: ${JSON.stringify({ box: measured.box, maxRight: Math.max(...measured.textRects.map((rect: { left: number; right: number }) => rect.right)), minLeft: Math.min(...measured.textRects.map((rect: { left: number; right: number }) => rect.left)), scrollWidth: measured.scrollWidth, clientWidth: measured.clientWidth })}`);
     assert.equal(measured.codeCount, 2);
     for (const rect of measured.textRects) {
         assert.ok(rect.right <= measured.box.right + TOLERANCE_PX, `text right ${rect.right}px, block right ${measured.box.right}px`);
