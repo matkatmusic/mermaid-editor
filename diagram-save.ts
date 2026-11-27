@@ -5,6 +5,12 @@ import { render } from './render.ts';
 import { loadList, resetEditorHistory, setStatus } from './diagram-io.ts';
 // import { rewriteDecisionsAsHexagons } from './editor-actions.ts';
 
+declare global {
+  interface Window {
+    showSaveFilePicker(options: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }): Promise<FileSystemFileHandle>;
+  }
+}
+
 let lastSavedDiagramText: string | null = null;
 let declinedDiskText: string | null = null;
 let watchedDiagramName: string | null = null;
@@ -70,7 +76,8 @@ export async function saveDiagram() {
   const needsSaveAsDialog = !state.currentName && !state.openedFileHandle && !state.loadedPath;
   if (needsSaveAsDialog) {
     try {
-      state.openedFileHandle = await (window as any).showSaveFilePicker({ suggestedName: 'diagram.mmd', types: MMD_FILE_TYPES });
+      // state.openedFileHandle = await (window as any).showSaveFilePicker({ suggestedName: 'diagram.mmd', types: MMD_FILE_TYPES });
+      state.openedFileHandle = await window.showSaveFilePicker({ suggestedName: 'diagram.mmd', types: MMD_FILE_TYPES });
     }
     catch (error) {
       const isUserCancel = (error as DOMException).name === 'AbortError';
