@@ -5,7 +5,8 @@ import type { PathView } from './path-view-model.ts';
 export const MAIN_ZOOM_STEP = 10;
 export const MIN_MAIN_ZOOM = 20;
 export const MAX_MAIN_ZOOM = 400;
-export const chosenAnswers = new Set();
+// export const chosenAnswers = new Set();
+export const chosenAnswers = new Set<string>();
 export const phonePath: string[] = []; // decision node ids clicked in phone view, in order
 export const PHONE_INNER = { width: 327, height: 514 };
 export const NEW_STATIC_DESTINATION = 'new-static';
@@ -46,7 +47,8 @@ export const state = {
   // connectFromNodeId: null as string | null,
   editorHistory: [codeBox.value] as string[],
   editorHistoryIndex: 0,
-  editorActionPromise: undefined as unknown as Promise<void>,
+  // editorActionPromise: undefined as unknown as Promise<void>,
+  editorActionPromise: Promise.resolve(),
   // Retired: node color now comes only from mermaid classDef/class lines (see class-defs.ts).
   // typeColors: { ...DEFAULT_TYPE_COLORS } as Record<string, string>,
   // nodeTypes: {} as Record<string, string>,
@@ -55,9 +57,12 @@ export const state = {
 // These were bare globals before the split; mirror each state field onto globalThis so old test evals still work.
 for (const key of Object.keys(state)) {
   Object.defineProperty(globalThis, key, {
-    get: () => (state as any)[key],
-    set: (value) => {
-      (state as any)[key] = value;
+    // get: () => (state as any)[key],
+    get: () => state[key as keyof typeof state],
+    // set: (value) => {
+    set: (value: unknown) => {
+      // (state as any)[key] = value;
+      Object.assign(state, { [key]: value });
     },
     configurable: true,
   });
