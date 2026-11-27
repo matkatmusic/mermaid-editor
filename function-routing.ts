@@ -35,7 +35,9 @@ function parseDeclaration(line: string, lineIndex: number): EditorNode | null {
     return null;
   const label = rest.slice(1, -1).replace(/^"(.*)"$/, '$1');
   const kind = id.startsWith('Q_CHOICE') ? 'choice' : id.startsWith('Q_') ? 'question' : 'block';
-  return { id, kind, label, note: '', lineIndex };
+  const isHexagon = rest.startsWith('{{') && rest.endsWith('}}');
+  // return { id, kind, label, note: '', lineIndex };
+  return { id, kind, label, note: '', lineIndex, isHexagon };
 }
 
 export function parseRoutingGraph(source: string): RoutingGraph {

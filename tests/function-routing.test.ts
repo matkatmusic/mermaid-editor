@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filterToFunctions, isFunctionLabel } from "../function-routing.ts";
+import { filterToFunctions, isFunctionLabel, parseRoutingGraph } from "../function-routing.ts";
 
 const SAMPLE = [
   "flowchart TD",
@@ -48,4 +48,11 @@ test("test_filterToFunctions_does_not_bridge_through_a_callee", () => {
   // A caller links only to the function it directly reaches, not to functions its callee reaches.
   const output = filterToFunctions(SAMPLE);
   assert.equal(output.includes("B_CALLER --> B_HELPER"), false);
+});
+
+test("test_parseRoutingGraph_marks_double_brace_decision_as_hexagon", () => {
+  // A decision written with double braces is a hexagon.
+  assert.equal(parseRoutingGraph('flowchart TD\n  Q_A{{"x"}}').nodes.get('Q_A')!.isHexagon, true);
+  // A decision written with single braces is not a hexagon.
+  assert.equal(parseRoutingGraph('flowchart TD\n  Q_B{"x"}').nodes.get('Q_B')!.isHexagon, false);
 });
