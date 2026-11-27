@@ -4,6 +4,9 @@ import assert from "node:assert/strict";
 import { findFreePort } from "./browser-harness.ts";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 // import { createServer, type AddressInfo } from "node:net";
 import { createServer } from "node:net";
 import { createInterface } from "node:readline";
@@ -23,14 +26,17 @@ test("test_findFreePort_returns_a_port_that_can_be_opened", async () => {
 });
 
 test("test_registerBrowserHooks_fails_with_the_full_command_without_global_setup", { timeout: 60_000 }, async () => {
-    // Step 1: build the environment of a run that has no global setup. NODE_TEST_CONTEXT would stop the child run.
+    // Step 1: build the environment of a run that has no shared start: no SHARED values and an empty Bun settings file.
     const childEnvironment = { ...process.env };
-    delete childEnvironment.NODE_TEST_CONTEXT;
+    // delete childEnvironment.NODE_TEST_CONTEXT;
     delete childEnvironment.SHARED_SERVER_PORT;
     delete childEnvironment.SHARED_CDP_PORT;
     delete childEnvironment.SHARED_DIAGRAMS_DIR;
-    // Step 2: run one small browser test file without --test-global-setup and collect its output.
-    const child = spawn("node", ["--test", "tests/multi-line-definition-error.test.ts"], { env: childEnvironment });
+    const emptySettingsPath = join(mkdtempSync(join(tmpdir(), "empty-bunfig-")), "bunfig.toml");
+    writeFileSync(emptySettingsPath, "");
+    // Step 2: run one small browser test file with those settings and collect its output.
+    // const child = spawn("node", ["--test", "tests/multi-line-definition-error.test.ts"], { env: childEnvironment });
+    const child = spawn("bun", [`--config=${emptySettingsPath}`, "test", "./tests/multi-line-definition-error.test.ts"], { env: childEnvironment });
     let output = "";
     child.stdout.on("data", (chunk) => {
         output += chunk;
@@ -55,7 +61,8 @@ test("test_registerBrowserHooks_fails_with_the_full_command_without_global_setup
     const [exitCode] = await childClose;
     assert.notEqual(exitCode, 0);
     // Step 5: the output holds the command that works.
-    assert.ok(output.includes("--test-global-setup=tests/global-browser-setup.ts"), output);
+    // assert.ok(output.includes("--test-global-setup=tests/global-browser-setup.ts"), output);
+    assert.ok(output.includes("bun test <file>"), output);
     // Step 6: no server and no Chrome started.
     assert.deepEqual(startedCommands, []);
 });

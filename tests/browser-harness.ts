@@ -1,4 +1,5 @@
 import { before, after } from "node:test";
+import { setDefaultTimeout } from "bun:test";
 import assert from "node:assert/strict";
 // import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -102,7 +103,7 @@ async function initSetup(fileName: string) {
   // Only the global setup starts the server and Chrome: this file resets the diagrams and opens a page.
   const sharedDiagramsDir = process.env.SHARED_DIAGRAMS_DIR;
   if (!sharedDiagramsDir) {
-    throw new Error(`${fileName} needs the global setup. Run: node --test --test-global-setup=tests/global-browser-setup.ts <file>`);
+    throw new Error(`${fileName} needs the shared server and Chrome. Run it with: bun test <file>, from the mermaid-editor folder (bunfig.toml starts them).`);
   }
   SERVER_PORT = Number(process.env.SHARED_SERVER_PORT);
   CDP_PORT = Number(process.env.SHARED_CDP_PORT);
@@ -150,6 +151,8 @@ function clearSetupFailure() {}
 // Each test file calls this once to open its own page in the server and Chrome of the run.
 export function registerBrowserHooks(testFileUrl: string, afterSetup?: () => Promise<void>) {
   const fileName = basename(testFileUrl);
+  // Bun stops a test after 5 seconds. The call covers only the test file that loads now, so each browser file must make it.
+  setDefaultTimeout(120_000);
   let setupDone: Promise<void> = Promise.resolve();
   const executeSetupAndExtra = async () => {
     await initSetup(fileName);

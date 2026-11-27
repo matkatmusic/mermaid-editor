@@ -5,8 +5,7 @@
   "scripts": {
     "build": "bun build viewer.ts --outfile viewer.js",
     "dev": "bash -c 'trap \"kill \\$(jobs -p)\" EXIT; bun build viewer.ts --outfile viewer.js --watch & bun --watch server.ts \"$@\" & wait' dev",
-    "test:file": "node --test --test-global-setup=tests/global-browser-setup.ts --test-timeout=120000",
-    "test": "node --test --test-global-setup=tests/global-browser-setup.ts --test-concurrency=1 --test-timeout=120000 \"tests/**/*.test.ts\" \"*.test.ts\" \"scripts/**/*.test.ts\""
+    "test": "bun test --timeout=120000"
   },
   "devDependencies": {
     "@types/bun": "^1.4.5",

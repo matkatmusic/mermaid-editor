@@ -1,0 +1,3 @@
+[test]
+# Every "bun test" run starts exactly 1 server and 1 Chrome. Do not set isolate or parallel: each file then starts its own.
+preload = ["./tests/global-browser-setup.ts"]

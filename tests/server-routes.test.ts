@@ -14,7 +14,7 @@ interface LastOpenedDiagram {
 function getSharedServer() {
     const diagramsDir = process.env.SHARED_DIAGRAMS_DIR;
     if (!diagramsDir) {
-        throw new Error("server-routes.test.ts needs the global setup. Run: node --test --test-global-setup=tests/global-browser-setup.ts <file>");
+        throw new Error("server-routes.test.ts needs the shared server. Run it with: bun test <file>, from the mermaid-editor folder (bunfig.toml starts it).");
     }
     const baseUrl = `http://localhost:${process.env.SHARED_SERVER_PORT}`;
     const lastOpenedFile = join(diagramsDir, ".last-opened.json");
