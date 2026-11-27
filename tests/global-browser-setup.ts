@@ -8,6 +8,24 @@ import { type TestProcesses } from "./test-process-count.ts";
 let session: BrowserSession;
 let sampler: Worker;
 
+// The samples run in tests/test-process-sampler.ts now. The old code, from when node ran the tests:
+// import { execFile } from "node:child_process";
+// import { promisify } from "node:util";
+// import { countTestProcesses } from "./test-process-count.ts";
+// const executeFile = promisify(execFile);
+// const foundProcesses: TestProcesses = { servers: new Map(), chromes: new Map() };
+// let sampleTimer: NodeJS.Timeout;
+// async function collectTestProcesses() {
+//     const { stdout } = await executeFile("ps", ["-Awwo", "pid,ppid,command"], { maxBuffer: 16 * 1024 * 1024 });
+//     const sampledProcesses = countTestProcesses(stdout, process.pid);
+//     for (const [processId, command] of sampledProcesses.servers) {
+//         foundProcesses.servers.set(processId, command);
+//     }
+//     for (const [processId, command] of sampledProcesses.chromes) {
+//         foundProcesses.chromes.set(processId, command);
+//     }
+// }
+
 function receiveSamplerMessage(): Promise<TestProcesses> {
     return new Promise<TestProcesses>((resolve) => {
         sampler.onmessage = (event: MessageEvent<TestProcesses>) => resolve(event.data);
