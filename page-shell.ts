@@ -1,6 +1,6 @@
 import { insertHeaderBar } from "./source/views/header-bar/header-bar-markup.ts";
 import { insertEditorDrawer } from "./source/views/editor-drawer/editor-drawer-markup.ts";
-import { insertNodeActionsBar } from "./node-actions-bar-markup.ts";
+import { insertNodeActionsBar } from "./source/views/node-actions-bar/node-actions-bar-markup.ts";
 import { insertMainDiagram } from "./source/views/main-diagram/main-diagram-markup.ts";
 import { insertInspector, insertInspectorRetiredTemplate } from "./source/views/inspector/inspector-markup.ts";
 import { insertPhone } from "./source/views/phone/phone-markup.ts";
