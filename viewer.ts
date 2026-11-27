@@ -25,7 +25,8 @@ applyMainZoom(false);
 // loadDiagram(sessionStorage.getItem('loadedDiagram') ?? 'accountability.mmd');
 async function loadLastOpened() {
   // A reloaded tab keeps the file it had; only a tab with no history asks the server for the last opened file.
-  const tabOpenedFile = JSON.parse(sessionStorage.getItem('tabOpenedFile') ?? 'null');
+  // const tabOpenedFile = JSON.parse(sessionStorage.getItem('tabOpenedFile') ?? 'null');
+  const tabOpenedFile: { name?: string; path?: string } | null = JSON.parse(sessionStorage.getItem('tabOpenedFile') ?? 'null');
   if (tabOpenedFile?.name)
     return loadDiagram(tabOpenedFile.name);
   if (tabOpenedFile?.path) {
@@ -36,7 +37,8 @@ async function loadLastOpened() {
   const response = await fetch('/api/last-opened');
   if (response.status === 204)
     return loadDiagram('accountability.mmd');
-  const saved = await response.json();
+  // const saved = await response.json();
+  const saved: { name?: string; path: string; text: string } = await response.json();
   if (saved.name)
     return loadDiagram(saved.name);
   showOpenedFile(saved.path, saved.text);
