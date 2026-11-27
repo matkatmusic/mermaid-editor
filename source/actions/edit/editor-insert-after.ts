@@ -1,14 +1,14 @@
-import type { EditorEdge, EditorGraph } from './source/model/editor-types.ts';
-import { buildChoiceId, buildSourceWithLinesReplaced, findOutgoingDestination, getNextEditorId, replaceOutgoing } from './source/model/source-edit.ts';
+import type { EditorEdge, EditorGraph } from '../../model/editor-types.ts';
+import { buildChoiceId, buildSourceWithLinesReplaced, findOutgoingDestination, getNextEditorId, replaceOutgoing } from '../../model/source-edit.ts';
 import { applyEditorSource, selectEditorNode } from './editor-actions.ts';
-import { state } from './state.ts';
-import { setInspectorTextFocus } from './node-inspector-focus.ts';
-import { getEditorGraph } from './source/model/editor-graph.ts';
-import { getDeclarationSuffix } from './source/model/editor-parse.ts';
-import { setEditorActionPromise } from './source/model/editor-metadata.ts';
-import { diagramBox, outputBox } from './dom.ts';
-import { moveNodeToViewportCenter } from './decision-nav.ts';
-import { isViewLimitingEdits } from './source/model/path-view-model.ts';
+import { state } from '../../../state.ts';
+import { setInspectorTextFocus } from '../../../node-inspector-focus.ts';
+import { getEditorGraph } from '../../model/editor-graph.ts';
+import { getDeclarationSuffix } from '../../model/editor-parse.ts';
+import { setEditorActionPromise } from '../../model/editor-metadata.ts';
+import { diagramBox, outputBox } from '../../../dom.ts';
+import { moveNodeToViewportCenter } from '../../../decision-nav.ts';
+import { isViewLimitingEdits } from '../../model/path-view-model.ts';
 
 export async function createStaticAfter(sourceId: string, graph: EditorGraph) {
   const staticId = getNextEditorId('B_NEW', graph);

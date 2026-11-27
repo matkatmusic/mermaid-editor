@@ -1,7 +1,7 @@
 import type { EditorGraph } from './source/model/editor-types.ts';
 import { parseEditorGraph } from './source/model/editor-graph-parse.ts';
 import { codeBox, diagramBox, drawer, drawerToggle, outputBox, searchClearBtn, searchCounter, searchInput, searchNextBtn, searchPreviousBtn } from './dom.ts';
-import { selectEditorNode } from './editor-actions.ts';
+import { selectEditorNode } from './source/actions/edit/editor-actions.ts';
 import { render } from './render.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { measureSourceLines } from './source-lines.ts';

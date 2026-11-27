@@ -1,13 +1,13 @@
-import { state } from './state.ts';
-import { getEditorGraph } from './source/model/editor-graph.ts';
-import { getDeclarationSuffix } from './source/model/editor-parse.ts';
-import { setEditorActionPromise } from './source/model/editor-metadata.ts';
-import { appendInlineDecl, buildChoiceId, buildSourceWithLinesReplaced, getNextEditorId } from './source/model/source-edit.ts';
+import { state } from '../../../state.ts';
+import { getEditorGraph } from '../../model/editor-graph.ts';
+import { getDeclarationSuffix } from '../../model/editor-parse.ts';
+import { setEditorActionPromise } from '../../model/editor-metadata.ts';
+import { appendInlineDecl, buildChoiceId, buildSourceWithLinesReplaced, getNextEditorId } from '../../model/source-edit.ts';
 import { applyEditorSource } from './editor-actions.ts';
 import { appendInlineDeclaration } from './editor-insert-after.ts';
-import type { EditorEdge } from './source/model/editor-types.ts';
-import { diagramBox, outputBox } from './dom.ts';
-import { moveNodeToViewportCenter } from './decision-nav.ts';
+import type { EditorEdge } from '../../model/editor-types.ts';
+import { diagramBox, outputBox } from '../../../dom.ts';
+import { moveNodeToViewportCenter } from '../../../decision-nav.ts';
 
 export function insertStaticBefore() {
   if (!state.selectedEditorNodeId)

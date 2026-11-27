@@ -1,8 +1,8 @@
-import { state } from './state.ts';
-import type { EditorGraph } from './source/model/editor-types.ts';
-import { getEditorGraph } from './source/model/editor-graph.ts';
-import { setEditorActionPromise } from './source/model/editor-metadata.ts';
-import { appendInlineDecl, buildSourceWithLinesReplaced } from './source/model/source-edit.ts';
+import { state } from '../../../state.ts';
+import type { EditorGraph } from '../../model/editor-types.ts';
+import { getEditorGraph } from '../../model/editor-graph.ts';
+import { setEditorActionPromise } from '../../model/editor-metadata.ts';
+import { appendInlineDecl, buildSourceWithLinesReplaced } from '../../model/source-edit.ts';
 import { applyEditorSource, selectEditorNode } from './editor-actions.ts';
 
 export function removeChoice() {

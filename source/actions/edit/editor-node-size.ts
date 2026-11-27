@@ -1,7 +1,7 @@
-import { codeBox } from './dom.ts';
+import { codeBox } from '../../../dom.ts';
 import { appendEditorAction, applyEditorSource } from './editor-actions.ts';
-import { buildSourceWithNodeSize, buildSourceWithoutNodeSize } from './source/model/node-size.ts';
-import { getNodeProps } from './source/model/node-props.ts';
+import { buildSourceWithNodeSize, buildSourceWithoutNodeSize } from '../../model/node-size.ts';
+import { getNodeProps } from '../../model/node-props.ts';
 export function setNodeSize(id: string, width: number, height: number) {
     async function applyNodeSize() {
         await applyEditorSource(buildSourceWithNodeSize(codeBox.value, id, width, height));

@@ -1,10 +1,10 @@
 import { checkTypedNodeName, commitNodeName, isNodeNameBoxInvalid, refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
-import { decisionShapeSwitch, destinationSelect, nodeAlignRow, nodeInspectorActions, nodeNameInput, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from './dom.ts';
-import { getNodeId } from './render-helpers.ts';
+import { decisionShapeSwitch, destinationSelect, nodeAlignRow, nodeInspectorActions, nodeNameInput, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from '../../../dom.ts';
+import { getNodeId } from '../../../render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
-import { getEditorGraph } from './source/model/editor-graph.ts';
-import { setEditorActionPromise } from './source/model/editor-metadata.ts';
-import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
+import { getEditorGraph } from '../../model/editor-graph.ts';
+import { setEditorActionPromise } from '../../model/editor-metadata.ts';
+import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from '../../../state.ts';
 import { addBlockAfter, addChoice, addQuestionAfter } from './editor-add.ts';
 import { insertDecisionBefore, insertStaticBefore } from './editor-insert-before.ts';
 import { removeBlock, removeChoice, removeChoices } from './editor-remove.ts';
@@ -12,13 +12,13 @@ import { applyQuestionRemoval, clearQuestionRemoval, moveRemovalPreview, removeQ
 import { applyEditorRedo, applyEditorUndo } from './editor-history.ts';
 import { applyDestination, applyDestinationSelection, updateDecisionShape, updateNodeNote, updateNodeText } from './editor-commit.ts';
 import { addChoiceOnDecision, insertDecisionAfterNode, insertStaticAfterNode } from './editor-insert-after.ts';
-import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
-import { getOneLineLabel } from './source/model/editor-parse.ts';
+import { updateNodeInspectorPosition } from '../../../node-inspector-focus.ts';
+import { getOneLineLabel } from '../../model/editor-parse.ts';
 import { setNodeAlignment, setNodeJustification } from './editor-node-align.ts';
 import { resetNodeSize } from './editor-node-size.ts';
-import type { Alignment, Justification } from './source/model/node-align.ts';
-import { isViewLimitingEdits } from './source/model/path-view-model.ts';
-import { isNodeDrawn } from './path-view.ts';
+import type { Alignment, Justification } from '../../model/node-align.ts';
+import { isViewLimitingEdits } from '../../model/path-view-model.ts';
+import { isNodeDrawn } from '../../../path-view.ts';
 
 // The bounding box of all text lines of the label; the size wrapper that fills a sized block is not text.
 function isPointInsideLabelText(nodeEl: Element, x: number, y: number) {

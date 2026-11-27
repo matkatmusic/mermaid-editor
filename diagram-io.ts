@@ -1,7 +1,7 @@
 import { currentFileName, diagramBox, drawer, outputBox, selectBox, statusBox } from './dom.ts';
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { state } from './state.ts';
-import { selectEditorNode } from './editor-actions.ts';
+import { selectEditorNode } from './source/actions/edit/editor-actions.ts';
 import type { EditorGraph, EditorMetadata, EditorNode } from './source/model/editor-types.ts';
 
 export function setStatus(text: string) {

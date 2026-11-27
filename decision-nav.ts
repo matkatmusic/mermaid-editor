@@ -4,7 +4,7 @@ import { state } from './state.ts';
 import { decisionCounter, diagramBox, outputBox } from './dom.ts';
 import { reportEditorValidationError } from './render-helpers.ts';
 import { setStatus } from './diagram-io.ts';
-import { selectEditorNode } from './editor-actions.ts';
+import { selectEditorNode } from './source/actions/edit/editor-actions.ts';
 import { render } from './render.ts';
 import { findNearestFeedingChoice } from './source/model/decision-search.ts';
 import { isNodeDrawn } from './path-view.ts';

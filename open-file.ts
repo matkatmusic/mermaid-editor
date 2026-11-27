@@ -3,7 +3,7 @@ import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata 
 import { codeBox, selectBox, statusBox } from './dom.ts';
 import { applyMainViewport, loadList, resetEditorHistory, setDrawerOpen } from './diagram-io.ts';
 import { render } from './render.ts';
-import { selectEditorNode } from './editor-actions.ts';
+import { selectEditorNode } from './source/actions/edit/editor-actions.ts';
 import { getEditorGraph } from './source/model/editor-graph.ts';
 import { applyMainZoom } from './zoom.ts';
 import { createDiagramWatcher, setLastSavedDiagramText } from './diagram-save.ts';

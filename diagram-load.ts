@@ -1,6 +1,6 @@
 import { codeBox, statusBox } from './dom.ts';
 import { phonePath, state } from './state.ts';
-import { selectEditorNode } from './editor-actions.ts';
+import { selectEditorNode } from './source/actions/edit/editor-actions.ts';
 import type { EditorGraph } from './source/model/editor-types.ts';
 import { getEditorGraph } from './source/model/editor-graph.ts';
 import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from './source/model/editor-metadata.ts';

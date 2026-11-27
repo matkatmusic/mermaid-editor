@@ -9,7 +9,7 @@ import { moveClassLinesToEnd } from './source/model/class-lines.ts';
 import { sliceIds } from './source/model/graph-slice.ts';
 import { phonePath, state } from './state.ts';
 import { applyNodeTypeColors, applyNoteDots } from './node-type-colors.ts';
-import { renderEditorSelection } from './editor-actions.ts';
+import { renderEditorSelection } from './source/actions/edit/editor-actions.ts';
 import { applyPathHighlight, reportEditorValidationError } from './render-helpers.ts';
 import { /* baseScale, */ viewBoxOf } from './zoom.ts';
 import { renderPhone } from './phone-html.ts';

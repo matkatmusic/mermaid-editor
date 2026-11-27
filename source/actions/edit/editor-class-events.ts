@@ -1,8 +1,8 @@
-import { classEditorCancelBtn, classEditorCreateBtn, classEditorDialog, classEditorError, classEditorFill, classEditorName, classEditorStroke, classPickerBtn, classPickerList, classesDialog, codeBox } from './dom.ts';
-import { setEditorActionPromise } from './source/model/editor-metadata.ts';
+import { classEditorCancelBtn, classEditorCreateBtn, classEditorDialog, classEditorError, classEditorFill, classEditorName, classEditorStroke, classPickerBtn, classPickerList, classesDialog, codeBox } from '../../../dom.ts';
+import { setEditorActionPromise } from '../../model/editor-metadata.ts';
 import { createClass, setNodeClass } from './class-defs.ts';
-import { findClassDef } from './source/model/class-lines.ts';
-import { renderClassesDialog } from './editor-classes-render.ts';
+import { findClassDef } from '../../model/class-lines.ts';
+import { renderClassesDialog } from '../../../editor-classes-render.ts';
 
 // Class picker (node inspector "Class" row)
 function placeClassPickerListInsideWindow() {

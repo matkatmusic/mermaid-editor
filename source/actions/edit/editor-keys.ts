@@ -1,16 +1,16 @@
-import { codeBox, diagramBox, nextDecisionBtn, outputBox, previousDecisionBtn, searchInput, zoomInBtn, zoomOutBtn } from './dom.ts';
-import { moveNodeToViewportCenter } from './decision-nav.ts';
-import { state } from './state.ts';
-import { saveEditorViewState } from './editor-view-state.ts';
+import { codeBox, diagramBox, nextDecisionBtn, outputBox, previousDecisionBtn, searchInput, zoomInBtn, zoomOutBtn } from '../../../dom.ts';
+import { moveNodeToViewportCenter } from '../../../decision-nav.ts';
+import { state } from '../../../state.ts';
+import { saveEditorViewState } from '../../../editor-view-state.ts';
 import { applyEditorSource, executeEditorAction, selectEditorNode } from './editor-actions.ts';
-import { parseEditorGraph } from './source/model/editor-graph-parse.ts';
+import { parseEditorGraph } from '../../model/editor-graph-parse.ts';
 import { applyEditorRedo, applyEditorUndo } from './editor-history.ts';
 import { getSelectedNodeIds } from './editor-multiselect.ts';
 import { refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
 import { buildBlockRemovedSource, buildChoiceRemovedSource } from './editor-remove.ts';
 import { buildQuestionRemovedSource } from './editor-remove-question.ts';
 // import { refuseEditInPathView } from './path-view.ts';
-import { isNodeDrawn, refuseEditInPathView } from './path-view.ts';
+import { isNodeDrawn, refuseEditInPathView } from '../../../path-view.ts';
 
 function isTextBoxTarget(target: EventTarget | null) {
   const element = target as HTMLElement;

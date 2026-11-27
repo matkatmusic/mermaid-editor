@@ -1,4 +1,4 @@
-import { state } from './state.ts';
+import { state } from '../../../state.ts';
 import { applyEditorSource, executeEditorAction, selectEditorNode } from './editor-actions.ts';
 
 function applyHistoryEntry() {

@@ -1,6 +1,6 @@
 import { addDecisionBlockMenuBtn, addStaticBlockMenuBtn, outputBox, viewportMenu } from './dom.ts';
-import { appendEditorAction } from './editor-actions.ts';
-import { addStandaloneDecisionBlock, addStandaloneStaticBlock } from './editor-add-standalone.ts';
+import { appendEditorAction } from './source/actions/edit/editor-actions.ts';
+import { addStandaloneDecisionBlock, addStandaloneStaticBlock } from './source/actions/edit/editor-add-standalone.ts';
 import { refuseEditInPathView } from './path-view.ts';
 
 function openViewportMenu(event: MouseEvent) {

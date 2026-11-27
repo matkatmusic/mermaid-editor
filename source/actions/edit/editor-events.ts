@@ -1,15 +1,15 @@
-import { codeBox, diagramBox, drawer, outputBox, phoneDiagramBox } from './dom.ts';
-import { getNodeId } from './render-helpers.ts';
+import { codeBox, diagramBox, drawer, outputBox, phoneDiagramBox } from '../../../dom.ts';
+import { getNodeId } from '../../../render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
-import { getEditorGraph } from './source/model/editor-graph.ts';
-import { phonePath, state } from './state.ts';
-import { render } from './render.ts';
-import { findAnswersLeadingTo, isPhoneShowingHistory, selectPhonePathToNode } from './source/model/phone-render.ts';
-import { parseEdges } from './source/model/diagram-source.ts';
-import { parentOf } from './source/model/graph-slice.ts';
-import { writeChosenPath } from './source/model/path-export.ts';
-import { measureSourceLines } from './source-lines.ts';
-import { saveEditorViewState } from './editor-view-state.ts';
+import { getEditorGraph } from '../../model/editor-graph.ts';
+import { phonePath, state } from '../../../state.ts';
+import { render } from '../../../render.ts';
+import { findAnswersLeadingTo, isPhoneShowingHistory, selectPhonePathToNode } from '../../model/phone-render.ts';
+import { parseEdges } from '../../model/diagram-source.ts';
+import { parentOf } from '../../model/graph-slice.ts';
+import { writeChosenPath } from '../../model/path-export.ts';
+import { measureSourceLines } from '../../../source-lines.ts';
+import { saveEditorViewState } from '../../../editor-view-state.ts';
 import { connectNodesWithShiftClick } from './editor-connect.ts';
 import { toggleNodeInSelection } from './editor-multiselect.ts';
 import { refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
@@ -18,7 +18,7 @@ import './editor-inspector-events.ts';
 import './editor-class-events.ts';
 import './editor-classes-dialog.ts';
 // import { filterDownstreamView } from './path-view.ts';
-import { filterDownstreamView, handlePhoneTapInPathView, isNodeDrawn } from './path-view.ts';
+import { filterDownstreamView, handlePhoneTapInPathView, isNodeDrawn } from '../../../path-view.ts';
 
 function setCodeBoxScrollToLine(lineNum: number) {
   const { tops } = measureSourceLines();

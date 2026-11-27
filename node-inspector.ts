@@ -1,7 +1,7 @@
 import { INSPECTOR_TITLES } from './source/model/editor-types.ts';
 import type { EditorGraph } from './source/model/editor-types.ts';
 import { getEditorGraph } from './source/model/editor-graph.ts';
-import { getNodeNamePart, getParentQuestionId, showNameCheck } from './editor-rename.ts';
+import { getNodeNamePart, getParentQuestionId, showNameCheck } from './source/actions/edit/editor-rename.ts';
 import { decisionShapeRow, decisionShapeSwitch, nodeKindChoiceBox, nodeKindQuestionBox, nodeKindStaticBox, nodeNameInput, nodeParentLabel, destinationRow, destinationSelect, nodeAlignRow, nodeClassRow, nodeInspector, nodeInspectorActions, nodeInspectorControls, nodeInspectorDismissBtn, nodeInspectorRemovalPreview, nodeInspectorTitle, nodeNotesInput, nodeNotesRow, nodeTextInput, walkBackBtn } from './dom.ts';
 import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
 import { findOutgoingDestination } from './source/model/source-edit.ts';

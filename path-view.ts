@@ -5,7 +5,7 @@ import type { Edge } from './dom.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { filterToFunctions } from './source/model/function-routing.ts';
 import { getEditorGraph } from './source/model/editor-graph.ts';
-import { showInspectorNotice } from './editor-rename.ts';
+import { showInspectorNotice } from './source/actions/edit/editor-rename.ts';
 import { renderNodeInspector } from './node-inspector.ts';
 // import { buildPathEdges, findPathByNumber } from './path-view-model.ts';
 // import { buildPathEdges, findPathByNumber, findViewEditRefusal } from './path-view-model.ts';
@@ -25,7 +25,7 @@ import { saveEditorViewState } from './editor-view-state.ts';
 // import { buildSubsetSource } from './subset-source.ts';
 // import { buildPathSource } from './subset-source.ts';
 import { buildPathSource, buildSubsetSource } from './source/model/subset-source.ts';
-import { selectEditorNode } from './editor-actions.ts';
+import { selectEditorNode } from './source/actions/edit/editor-actions.ts';
 import type { EditorGraph } from './source/model/editor-types.ts';
 
 // function renderPathViewControls(hasNextPath: boolean) {

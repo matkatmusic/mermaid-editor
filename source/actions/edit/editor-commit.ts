@@ -1,16 +1,16 @@
-import { findOutgoingDestination, removeOutgoing, replaceOutgoing } from './source/model/source-edit.ts';
+import { findOutgoingDestination, removeOutgoing, replaceOutgoing } from '../../model/source-edit.ts';
 import { applyEditorSource, appendEditorAction, selectEditorNode } from './editor-actions.ts';
-import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from './state.ts';
-import { replaceDeclarationInLine } from './node-inspector.ts';
-import { decodeLabelLineBreaks, encodeLabelLineBreaks, encodeLabelQuotes } from './source/model/editor-parse.ts';
-import { setInspectorDestinationFocus } from './node-inspector-focus.ts';
-import { getEditorGraph } from './source/model/editor-graph.ts';
-import { moveNodeToViewportCenter } from './decision-nav.ts';
+import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from '../../../state.ts';
+import { replaceDeclarationInLine } from '../../../node-inspector.ts';
+import { decodeLabelLineBreaks, encodeLabelLineBreaks, encodeLabelQuotes } from '../../model/editor-parse.ts';
+import { setInspectorDestinationFocus } from '../../../node-inspector-focus.ts';
+import { getEditorGraph } from '../../model/editor-graph.ts';
+import { moveNodeToViewportCenter } from '../../../decision-nav.ts';
 import { createDecisionAfter, createStaticAfter } from './editor-insert-after.ts';
-import { destinationSelect, diagramBox, nodeNotesInput, nodeTextInput, outputBox } from './dom.ts';
-import { buildSourceWithNodeProps } from './source/model/node-props.ts';
-import { buildSourceWithoutNodeSize } from './source/model/node-size.ts';
-import { refuseEditInPathView } from './path-view.ts';
+import { destinationSelect, diagramBox, nodeNotesInput, nodeTextInput, outputBox } from '../../../dom.ts';
+import { buildSourceWithNodeProps } from '../../model/node-props.ts';
+import { buildSourceWithoutNodeSize } from '../../model/node-size.ts';
+import { refuseEditInPathView } from '../../../path-view.ts';
 
 // Rewrites only this decision's declaration between Q_X{{"text"}} (hexagon) and Q_X{"text"} (diamond); the text, class lines and edges stay.
 export function updateDecisionShape(id: string | null, isHexagon: boolean) {

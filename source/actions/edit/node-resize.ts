@@ -1,6 +1,6 @@
-import { diagramBox, outputBox } from './dom.ts';
-import { getNodeId } from './render-helpers.ts';
-import { HEXAGON_PADDING_HEIGHT, HEXAGON_POINTS_WIDTH_RATIO, NODE_PADDING_HEIGHT, NODE_PADDING_WIDTH } from './source/model/node-size.ts';
+import { diagramBox, outputBox } from '../../../dom.ts';
+import { getNodeId } from '../../../render-helpers.ts';
+import { HEXAGON_PADDING_HEIGHT, HEXAGON_POINTS_WIDTH_RATIO, NODE_PADDING_HEIGHT, NODE_PADDING_WIDTH } from '../../model/node-size.ts';
 import { setNodeSize } from './editor-node-size.ts';
 
 // ponytail: every mouse move tests the shape of every block and decision; a diagram with thousands of nodes needs a spatial index.
