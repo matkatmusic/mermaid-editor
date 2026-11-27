@@ -12,7 +12,8 @@ export async function typeSearch(query: string) {
 
 export async function searchState() {
   // Scenario: read the selection, the inspector, and every search control in one round trip.
-  const json = await executeExpression(`JSON.stringify({
+  // const json = await executeExpression(`JSON.stringify({
+  const json = await executeExpression<string>(`JSON.stringify({
     selected: document.getElementById('selectedNode').textContent,
     inspectorHidden: document.getElementById('nodeInspector').hidden,
     value: document.getElementById('searchInput').value,
@@ -22,7 +23,17 @@ export async function searchState() {
     counter: document.getElementById('searchCounter').textContent,
     counterHidden: document.getElementById('searchCounter').hidden,
   })`);
-  return JSON.parse(json);
+  // return JSON.parse(json);
+  return JSON.parse(json) as {
+    selected: string;
+    inspectorHidden: boolean;
+    value: string;
+    clearHidden: boolean;
+    previousHidden: boolean;
+    nextHidden: boolean;
+    counter: string;
+    counterHidden: boolean;
+  };
 }
 
 export async function startSearchTest() {

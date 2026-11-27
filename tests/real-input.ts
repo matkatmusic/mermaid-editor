@@ -46,7 +46,8 @@ export async function pressShiftEnter() {
 
 // Presses and releases the left mouse button at the center of the node.
 export async function clickNodeWithMouse(id: string, modifiers: number = Modifier.None) {
-    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const center: { x: number; y: number } = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const node = document.querySelector('#diagram [id*="flowchart-${id}-"]');
         node.scrollIntoView({ block: 'center', inline: 'center' });
         const rect = node.getBoundingClientRect();
@@ -58,6 +59,8 @@ export async function clickNodeWithMouse(id: string, modifiers: number = Modifie
 }
 
 export async function getHighlightedNodeIds(): Promise<string[]> {
-    const json = await executeExpression(`JSON.stringify([...document.querySelectorAll('#diagram .editor-selected')].map((el) => el.id.match(/flowchart-(.+)-\\d+$/)[1]).sort())`);
-    return JSON.parse(json);
+    // const json = await executeExpression(`JSON.stringify([...document.querySelectorAll('#diagram .editor-selected')].map((el) => el.id.match(/flowchart-(.+)-\\d+$/)[1]).sort())`);
+    const json = await executeExpression<string>(`JSON.stringify([...document.querySelectorAll('#diagram .editor-selected')].map((el) => el.id.match(/flowchart-(.+)-\\d+$/)[1]).sort())`);
+    // return JSON.parse(json);
+    return JSON.parse(json) as string[];
 }

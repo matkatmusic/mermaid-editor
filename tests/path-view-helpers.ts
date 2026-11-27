@@ -28,11 +28,13 @@ export async function loadPathViewSource(source: string = PATH_VIEW_SOURCE) {
 }
 
 export async function readShownNodeIds(): Promise<string[]> {
-    return executeExpression("JSON.stringify([...document.querySelectorAll('#diagram g.node')].map((el) => el.id.match(/flowchart-(.+)-\\d+$/)[1]).sort())").then(JSON.parse);
+    // return executeExpression("JSON.stringify([...document.querySelectorAll('#diagram g.node')].map((el) => el.id.match(/flowchart-(.+)-\\d+$/)[1]).sort())").then(JSON.parse);
+    return executeExpression<string>("JSON.stringify([...document.querySelectorAll('#diagram g.node')].map((el) => el.id.match(/flowchart-(.+)-\\d+$/)[1]).sort())").then(JSON.parse);
 }
 
 export async function readShownEdgeIds(): Promise<string[]> {
-    return executeExpression("JSON.stringify([...document.querySelectorAll('#diagram path.flowchart-link')].map((el) => el.dataset.id).sort())").then(JSON.parse);
+    // return executeExpression("JSON.stringify([...document.querySelectorAll('#diagram path.flowchart-link')].map((el) => el.dataset.id).sort())").then(JSON.parse);
+    return executeExpression<string>("JSON.stringify([...document.querySelectorAll('#diagram path.flowchart-link')].map((el) => el.dataset.id).sort())").then(JSON.parse);
 }
 
 export async function readErrorLog(): Promise<string> {
@@ -41,7 +43,8 @@ export async function readErrorLog(): Promise<string> {
 
 // Presses and releases the left mouse button at the center of the element.
 export async function clickButtonWithMouse(selector: string) {
-    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const center: { x: number; y: number } = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const element = document.querySelector(${JSON.stringify(selector)});
         element.scrollIntoView({ block: 'center', inline: 'center' });
         const rect = element.getBoundingClientRect();

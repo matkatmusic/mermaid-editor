@@ -2,17 +2,20 @@ import { executeExpression } from "./cdp.ts";
 
 export async function inspectorState() {
   // Scenario: read the inspector's visibility, title, and Text value in one round trip.
-  const json = await executeExpression(`JSON.stringify({
+  // const json = await executeExpression(`JSON.stringify({
+  const json = await executeExpression<string>(`JSON.stringify({
     hidden: document.getElementById('nodeInspector').hidden,
     title: document.getElementById('nodeInspectorTitle').textContent,
     text: document.getElementById('nodeTextInput').value,
   })`);
-  return JSON.parse(json);
+  // return JSON.parse(json);
+  return JSON.parse(json) as { hidden: boolean; title: string; text: string };
 }
 
 export async function inspectorPlacement() {
   // Scenario: where the card sits relative to the editor drawer and main content area.
-  const json = await executeExpression(`JSON.stringify((() => {
+  // const json = await executeExpression(`JSON.stringify((() => {
+  const json = await executeExpression<string>(`JSON.stringify((() => {
     const card = document.getElementById('nodeInspector').getBoundingClientRect();
     const drawer = document.getElementById('drawer').getBoundingClientRect();
     const main = document.getElementById('main').getBoundingClientRect();
@@ -26,15 +29,18 @@ export async function inspectorPlacement() {
       width: card.width,
     };
   })())`);
-  return JSON.parse(json);
+  // return JSON.parse(json);
+  return JSON.parse(json) as { atDrawerEdge: boolean; atContentTop: boolean; left: number; top: number; drawerRight: number; mainTop: number; width: number };
 }
 
 export async function destinationState() {
-  return executeExpression(`JSON.stringify((() => {
+  // return executeExpression(`JSON.stringify((() => {
+  // })())`).then(JSON.parse);
+  return executeExpression<string>(`JSON.stringify((() => {
     const row = document.getElementById('destinationRow');
     const select = document.getElementById('destinationSelect');
     return { hidden: row.hidden, value: select.value, dismiss: document.getElementById('nodeInspectorDismissBtn').textContent, options: Array.from(select.options).map(option => ({ value: option.value, text: option.textContent })) };
-  })())`).then(JSON.parse);
+  })())`).then((json): { hidden: boolean; value: string; dismiss: string; options: { value: string; text: string }[] } => JSON.parse(json));
 }
 
 export async function chooseDestination(value: string) {
@@ -48,18 +54,22 @@ export async function clickInspectorAction(action: string) {
 }
 
 export async function inspectorActions() {
-  return executeExpression(`JSON.stringify(Array.from(document.querySelectorAll('#nodeInspectorActions button')).map(button => ({ action: button.dataset.action, text: button.textContent, spanTwoColumns: button.classList.contains('span-2') })))`).then(JSON.parse);
+  // return executeExpression(`JSON.stringify(Array.from(document.querySelectorAll('#nodeInspectorActions button')).map(button => ({ action: button.dataset.action, text: button.textContent, spanTwoColumns: button.classList.contains('span-2') })))`).then(JSON.parse);
+  return executeExpression<string>(`JSON.stringify(Array.from(document.querySelectorAll('#nodeInspectorActions button')).map(button => ({ action: button.dataset.action, text: button.textContent, spanTwoColumns: button.classList.contains('span-2') })))`).then((json): { action?: string; text: string; spanTwoColumns: boolean }[] => JSON.parse(json));
 }
 
 export async function inspectorFocus() {
-  return executeExpression(`JSON.stringify({ activeId: document.activeElement?.id, selectedId: document.getElementById('selectedNode').textContent })`).then(JSON.parse);
+  // return executeExpression(`JSON.stringify({ activeId: document.activeElement?.id, selectedId: document.getElementById('selectedNode').textContent })`).then(JSON.parse);
+  return executeExpression<string>(`JSON.stringify({ activeId: document.activeElement?.id, selectedId: document.getElementById('selectedNode').textContent })`).then((json): { activeId?: string; selectedId: string } => JSON.parse(json));
 }
 
 export async function destinationRender() {
   // Reads the destination row's rendered display, label text, and option count.
-  return executeExpression(`JSON.stringify((() => {
+  // return executeExpression(`JSON.stringify((() => {
+  // })())`).then(JSON.parse);
+  return executeExpression<string>(`JSON.stringify((() => {
     const row = document.getElementById('destinationRow');
     const select = document.getElementById('destinationSelect');
     return { display: getComputedStyle(row).display, labelText: row.querySelector('span').textContent, optionCount: select.options.length };
-  })())`).then(JSON.parse);
+  })())`).then((json): { display: string; labelText: string; optionCount: number } => JSON.parse(json));
 }

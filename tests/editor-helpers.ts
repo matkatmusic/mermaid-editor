@@ -12,10 +12,12 @@ export async function openEditorDrawer() {
 }
 
 export async function getNodeIds() {
-  const json = await executeExpression(
+  // const json = await executeExpression(
+  const json = await executeExpression<string>(
     "JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram [data-node-id]')).map(el => el.dataset.nodeId).sort())"
   );
-  return JSON.parse(json);
+  // return JSON.parse(json);
+  return JSON.parse(json) as string[];
 }
 
 export async function resetEditorFixture() {
@@ -70,9 +72,11 @@ export async function getOutputScrollTop() {
   return executeExpression("document.getElementById('output').scrollTop");
 }
 
-export async function measureSourceLineBounds(lineIndex: number) {
+// export async function measureSourceLineBounds(lineIndex: number) {
+export async function measureSourceLineBounds(lineIndex: number): Promise<{ top: number; bottom: number; lineHeight: number }> {
   // Measure one soft-wrapped source line with a hidden copy of the textarea text.
-  return executeExpression(`JSON.stringify((() => {
+  // return executeExpression(`JSON.stringify((() => {
+  return executeExpression<string>(`JSON.stringify((() => {
     const style = getComputedStyle(codeBox);
     const mirror = document.createElement('div');
     for (const name of ['fontFamily', 'fontSize', 'lineHeight', 'letterSpacing', 'tabSize', 'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight', 'borderLeftWidth', 'borderRightWidth', 'boxSizing'])
@@ -97,5 +101,6 @@ export async function measureSourceLineBounds(lineIndex: number) {
 
 export async function findNodeLineIndex(id: string) {
   // The declaration line is the first line that starts with the id followed by [, { or (.
-  return executeExpression(`codeBox.value.split('\\n').findIndex((line) => { const trimmed = line.trim(); return trimmed.startsWith(${JSON.stringify(id)}) && '[{('.includes(trimmed.charAt(${id.length})); })`);
+  // return executeExpression(`codeBox.value.split('\\n').findIndex((line) => { const trimmed = line.trim(); return trimmed.startsWith(${JSON.stringify(id)}) && '[{('.includes(trimmed.charAt(${id.length})); })`);
+  return executeExpression<number>(`codeBox.value.split('\\n').findIndex((line) => { const trimmed = line.trim(); return trimmed.startsWith(${JSON.stringify(id)}) && '[{('.includes(trimmed.charAt(${id.length})); })`);
 }
