@@ -12,6 +12,7 @@ import { clearInspectorFocus, updateNodeInspectorPosition } from './node-inspect
 import { applyInspectorExtraHeight } from './inspector-resize.ts';
 import { showDestinationInInput } from './destination-picker.ts';
 import { disableRefusedButtons } from './path-view.ts';
+import { isViewLimitingEdits } from './path-view-model.ts';
 
 export function replaceDeclarationInLine(line: string, id: string, newToken: string) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -150,7 +151,8 @@ export function renderNodeInspector() {
   const hasDestination = node.kind !== 'question';
   destinationRow.hidden = !hasDestination;
   // A path view does not allow a new destination.
-  if (state.pathView)
+  // if (state.pathView)
+  if (isViewLimitingEdits(state.pathView))
     destinationRow.hidden = true;
   destinationSelect.replaceChildren();
   if (hasDestination) {

@@ -80,6 +80,12 @@ function renameStateIds(renames: Map<string, string>) {
   state.phoneFocusNodeId = rename(state.phoneFocusNodeId);
   state.phonePreviewChoiceId = rename(state.phonePreviewChoiceId);
   state.currentDecisionId = rename(state.currentDecisionId);
+  const view = state.pathView;
+  if (view) {
+    view.clickedIds = view.clickedIds.map((id) => rename(id)!);
+    view.clickHistory = view.clickHistory.map((ids) => ids.map((id) => rename(id)!));
+    view.decisionDigits = Object.fromEntries(Object.entries(view.decisionDigits).map(([id, digit]) => [rename(id)!, digit]));
+  }
 }
 
 export function getParentQuestionId(graph: EditorGraph, choiceId: string) {

@@ -6,6 +6,9 @@ import { applyEditorSource, selectEditorNode } from './editor-actions.ts';
 import { refuseEditInPathView } from './path-view.ts';
 
 export function connectNodesWithShiftClick(clickedId: string) {
+  // A view blocks both shift-clicks, also the first one that only selects.
+  if (refuseEditInPathView('connectNodes', null))
+    return;
   const fromId = state.selectedEditorNodeId;
   if (!fromId) {
     selectEditorNode(clickedId);
@@ -13,8 +16,8 @@ export function connectNodesWithShiftClick(clickedId: string) {
   }
   if (fromId === clickedId)
     return;
-  if (refuseEditInPathView('connectNodes', null))
-    return;
+  // if (refuseEditInPathView('connectNodes', null))
+  //   return;
   // state.connectFromNodeId = null;
   const graph = getEditorGraph();
   const newLines = [`  ${fromId} --> ${clickedId}`];

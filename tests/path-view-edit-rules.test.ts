@@ -219,3 +219,11 @@ test('test_right_click_opens_no_add_block_menu_in_a_view', async () => {
     await rightClickViewport();
     assert.equal(await executeExpression("document.getElementById('viewportMenu').hidden"), true);
 });
+
+test('test_first_shift_click_selects_nothing_in_a_view', async () => {
+    await turnViewOn();
+    await executeExpression('selectEditorNode(null)');
+    await dispatchShiftClick('B_YES');
+    assert.equal(await executeExpression('selectedEditorNodeId'), null);
+    assert.equal(await readNotice(), 'Show the full diagram to make this change.');
+});

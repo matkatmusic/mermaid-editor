@@ -7,6 +7,7 @@ import { setStatus } from './diagram-io.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { render } from './render.ts';
 import { findNearestFeedingChoice } from './decision-search.ts';
+import { isNodeDrawn } from './path-view.ts';
 
 function compareLineIndex(a: EditorNode, b: EditorNode) {
   return a.lineIndex - b.lineIndex;
@@ -114,8 +115,18 @@ export async function moveToDecision(step: 1 | -1) {
       break;
     }
   }
-  const nextIndex = (currentIndex + step + decisions.length) % decisions.length;
+  // const nextIndex = (currentIndex + step + decisions.length) % decisions.length;
+  // const decision = decisions[nextIndex];
+  // A view leaves some decisions out; the buttons skip them.
+  let nextIndex = currentIndex;
+  for (let tried = 0; tried < decisions.length; tried++) {
+    nextIndex = (nextIndex + step + decisions.length) % decisions.length;
+    if (isNodeDrawn(decisions[nextIndex].id))
+      break;
+  }
   const decision = decisions[nextIndex];
+  if (!isNodeDrawn(decision.id))
+    return;
   state.currentDecisionId = decision.id;
   state.phoneFocusNodeId = decision.id;
   state.phoneFocusUsesDecisionContext = true;

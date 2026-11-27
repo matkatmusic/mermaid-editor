@@ -59,6 +59,8 @@ export async function render() {
     }
     if (phonePathIsStale)
       phonePath.length = 0;
+    // A view sets the phone path here, so this runs before sliceIds reads it.
+    const viewSource = buildMainViewSource(graph);
     // state.currentBottomQ is kept for the main-view decision-focus/preview integration (decision-nav.ts, editor-events.ts); the phone pane itself no longer needs it.
     const ids = edges.length > 0 ? sliceIds(edges) : [];
     const reversedIds = [...ids].reverse();
@@ -81,7 +83,8 @@ export async function render() {
     }
     state.currentBottomQ = bottomQ;
     // const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value)));
-    const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(buildMainViewSource(graph))));
+    // const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(buildMainViewSource(graph))));
+    const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(viewSource)));
     const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const myRenderId = state.renderId;

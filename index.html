@@ -8,7 +8,9 @@
   :root { --bg: #fff; --bg-light: #f5f5f5; --bg-card: #fafafa; --text: #000; --text-quiet: #666; --line: #ccc; --line-soft: #ddd; --border-strong: #333; --border-input: #555; --border-mid: #888; --error: red; --select-stroke: #1565c0; --preview-stroke: #ef6c00; --mask: rgba(0,0,0,0.55); }
   body.dark { color-scheme: dark; --bg: #1e1e1e; --bg-light: #2b2b2b; --bg-card: #2b2b2b; --text: #e6e6e6; --text-quiet: #a0a0a0; --line: #555; --line-soft: #555; --border-strong: #999; --border-input: #999; --border-mid: #999; --error: #ff6b6b; --select-stroke: #64b5f6; --preview-stroke: #ffb74d; --mask: rgba(255,255,255,0.55); }
   body { margin: 0; display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; background: var(--bg); color: var(--text); }
-  #header { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  /* #header { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); } */
+  /* The toolbar wraps to a second line instead of making the page wider than the window. */
+  #header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
   #header button, #header select { padding: 6px 10px; }
   #fileMenu { position: relative; }
   #fileMenu > summary { cursor: pointer; padding: 6px 10px; list-style: none; }
@@ -61,6 +63,7 @@
   .phone-choice-declined:not(:disabled) { cursor: pointer; }
   #phoneTopBar { flex: 0 0 10%; display: flex; gap: 8px; align-items: center; justify-content: center; border-bottom: 1px solid var(--border-mid); }
   .phone-undo { border: none; border-radius: 8px; background: #eee; color: #000; padding: 8px 14px; font: 13px/1.3 system-ui, sans-serif; cursor: pointer; }
+  .phone-undo:disabled { opacity: 0.45; cursor: default; }
   #phoneDiagram.writing-all-paths [data-write-path] { pointer-events: none; opacity: 0.5; }
   #nodeActions[inert], #nodeInspector [inert] { opacity: 0.5; }
   #phoneDiagram button { transition: transform 80ms, box-shadow 80ms; }
@@ -238,6 +241,11 @@
     <output id="viewPathLabel" aria-live="polite"></output>
     <button id="nextViewPathBtn" type="button" aria-label="Next path">&gt;</button>
     <button id="fullDiagramBtn" type="button">Show full diagram</button>
+  </span>
+  <button id="downstreamViewBtn" type="button" aria-pressed="false">Downstream</button>
+  <span id="downstreamViewControls" hidden>
+    <button id="backDownstreamViewBtn" type="button">Back</button>
+    <button id="resetDownstreamViewBtn" type="button">Reset</button>
   </span>
   <!-- <select id="diagramSelect">
     <option value="" disabled selected>Diagrams</option>

@@ -369,6 +369,10 @@ var previousViewPathBtn = document.getElementById("previousViewPathBtn");
 var viewPathLabel = document.getElementById("viewPathLabel");
 var nextViewPathBtn = document.getElementById("nextViewPathBtn");
 var fullDiagramBtn = document.getElementById("fullDiagramBtn");
+var downstreamViewBtn = document.getElementById("downstreamViewBtn");
+var downstreamViewControls = document.getElementById("downstreamViewControls");
+var backDownstreamViewBtn = document.getElementById("backDownstreamViewBtn");
+var resetDownstreamViewBtn = document.getElementById("resetDownstreamViewBtn");
 var nodeActions = document.getElementById("nodeActions");
 var selectedNodeBox = document.getElementById("selectedNode");
 var nodeInspector = document.getElementById("nodeInspector");
@@ -781,140 +785,6 @@ function findNearestFeedingChoice(id, graph) {
   return null;
 }
 
-// decision-nav.ts
-function compareLineIndex(a, b) {
-  return a.lineIndex - b.lineIndex;
-}
-function listDecisionNodes(graph) {
-  const decisions = [];
-  for (const node of graph.nodes.values()) {
-    const isQuestion = node.kind === "question";
-    if (isQuestion)
-      decisions.push(node);
-  }
-  decisions.sort(compareLineIndex);
-  return decisions;
-}
-function clearInvalidPhonePreview(graph) {
-  const hasFocus = !!state.phoneFocusNodeId;
-  const isFocusNotQuestion = graph.nodes.get(state.phoneFocusNodeId ?? "")?.kind !== "question";
-  const isFocusInvalid = hasFocus && isFocusNotQuestion;
-  if (isFocusInvalid) {
-    state.phoneFocusNodeId = null;
-    state.phoneFocusUsesDecisionContext = false;
-  }
-  const hasPreview = !!state.phonePreviewChoiceId;
-  if (!hasPreview)
-    return;
-  const feedingChoice = findNearestFeedingChoice(state.phonePreviewChoiceId, graph);
-  const isPreviewInvalid = feedingChoice !== state.phonePreviewChoiceId;
-  if (isPreviewInvalid)
-    state.phonePreviewChoiceId = null;
-}
-function updateDecisionCounter(graph) {
-  const decisions = listDecisionNodes(graph);
-  if (decisions.length === 0) {
-    state.currentDecisionId = null;
-    decisionCounter.textContent = "0 / 0";
-    return decisions;
-  }
-  let hasCurrentDecision = false;
-  for (const node of decisions) {
-    const isCurrent = node.id === state.currentDecisionId;
-    if (isCurrent) {
-      hasCurrentDecision = true;
-      break;
-    }
-  }
-  if (!hasCurrentDecision) {
-    let selectedDecisionId;
-    for (const node of decisions) {
-      const isSelected = node.id === state.selectedEditorNodeId;
-      if (isSelected) {
-        selectedDecisionId = node.id;
-        break;
-      }
-    }
-    state.currentDecisionId = selectedDecisionId ?? decisions[0].id;
-  }
-  let current = 0;
-  for (let i = 0;i < decisions.length; i++) {
-    const isCurrent = decisions[i].id === state.currentDecisionId;
-    if (isCurrent) {
-      current = i + 1;
-      break;
-    }
-  }
-  decisionCounter.textContent = `${current} / ${decisions.length}`;
-  return decisions;
-}
-function moveNodeToViewportCenter(container, diagram, id) {
-  const node = diagram.querySelector('[id*="flowchart-' + id + '-"]');
-  if (!node)
-    return;
-  const containerRect = container.getBoundingClientRect();
-  const nodeRect = node.getBoundingClientRect();
-  container.scrollLeft += nodeRect.left + nodeRect.width / 2 - containerRect.left - container.clientWidth / 2;
-  container.scrollTop += nodeRect.top + nodeRect.height / 2 - containerRect.top - container.clientHeight / 2;
-}
-async function moveToDecision(step) {
-  let graph;
-  try {
-    graph = getEditorGraph();
-  } catch (error) {
-    reportEditorValidationError(error);
-    return;
-  }
-  const decisions = updateDecisionCounter(graph);
-  if (decisions.length === 0) {
-    setStatus("No decisions in this diagram");
-    return;
-  }
-  const selected = graph.nodes.get(state.selectedEditorNodeId ?? "");
-  const anchorId = selected?.kind === "question" ? selected.id : state.currentDecisionId;
-  let currentIndex = -1;
-  for (let i = 0;i < decisions.length; i++) {
-    const isAnchor = decisions[i].id === anchorId;
-    if (isAnchor) {
-      currentIndex = i;
-      break;
-    }
-  }
-  const nextIndex = (currentIndex + step + decisions.length) % decisions.length;
-  const decision = decisions[nextIndex];
-  state.currentDecisionId = decision.id;
-  state.phoneFocusNodeId = decision.id;
-  state.phoneFocusUsesDecisionContext = true;
-  state.phonePreviewChoiceId = null;
-  selectEditorNode(decision.id);
-  updateDecisionCounter(graph);
-  await render();
-  selectEditorNode(decision.id);
-  updateDecisionCounter(graph);
-  moveNodeToViewportCenter(outputBox, diagramBox, decision.id);
-}
-
-// diagram-source.ts
-function parseEdges(text) {
-  const edges = [];
-  for (const rawLine of text.split(`
-`)) {
-    const line = rawLine.trim();
-    const isComment = line.startsWith("%%");
-    const hasArrow = line.includes("-->");
-    const skipLine = isComment || !hasArrow;
-    if (skipLine)
-      continue;
-    const ids = [];
-    for (const s of line.split("-->")) {
-      ids.push(s.trim());
-    }
-    for (let i = 0;i + 1 < ids.length; i++)
-      edges.push([ids[i], ids[i + 1]]);
-  }
-  return edges;
-}
-
 // function-routing.ts
 var SIGNATURE = /^[A-Za-z_$][A-Za-z0-9_$]*\(.*\)/;
 function isFunctionLabel(label) {
@@ -1008,1056 +878,6 @@ function filterToFunctions(source) {
 `);
 }
 
-// class-lines.ts
-var CLASSDEF_LINE_RE = /^(\s*)classDef\s+(\S+)\s+(.+?)\s*$/;
-var CLASS_LINE_RE = /^(\s*)class\s+(\S+)\s+(\S+)\s*$/;
-function moveClassLinesToEnd(source) {
-  const otherLines = [];
-  const classLines = [];
-  for (const line of source.split(`
-`)) {
-    if (CLASS_LINE_RE.test(line))
-      classLines.push(line);
-    else
-      otherLines.push(line);
-  }
-  return [...otherLines, ...classLines].join(`
-`);
-}
-function isCommented(line) {
-  return line.trim().startsWith("%%");
-}
-function parseStyleProps(styleText) {
-  const order = [];
-  const props = {};
-  for (const part of styleText.split(",")) {
-    const trimmed = part.trim();
-    if (!trimmed)
-      continue;
-    const colonIndex = trimmed.indexOf(":");
-    if (colonIndex === -1)
-      continue;
-    const key = trimmed.slice(0, colonIndex).trim();
-    const value = trimmed.slice(colonIndex + 1).trim();
-    if (!(key in props))
-      order.push(key);
-    props[key] = value;
-  }
-  return { order, props };
-}
-function buildStyleText(order, props) {
-  const parts = [];
-  for (const key of order)
-    parts.push(`${key}:${props[key]}`);
-  return parts.join(",");
-}
-function parseClassDefs(source) {
-  const defs = [];
-  const lines = source.split(`
-`);
-  for (let i = 0;i < lines.length; i++) {
-    const isLineCommented = isCommented(lines[i]);
-    if (isLineCommented)
-      continue;
-    const match = lines[i].match(CLASSDEF_LINE_RE);
-    if (!match)
-      continue;
-    const { props } = parseStyleProps(match[3]);
-    defs.push({ name: match[2], fill: props.fill ?? "", stroke: props.stroke ?? "", lineIndex: i });
-  }
-  return defs;
-}
-function findClassDef(source, name) {
-  for (const def of parseClassDefs(source)) {
-    const isNamedClass = def.name === name;
-    if (isNamedClass)
-      return def;
-  }
-  return;
-}
-function findClassOfNode(source, nodeId) {
-  let found = null;
-  for (const line of source.split(`
-`)) {
-    const isLineCommented = isCommented(line);
-    if (isLineCommented)
-      continue;
-    const match = line.match(CLASS_LINE_RE);
-    if (!match)
-      continue;
-    const ids = match[2].split(",");
-    const listsNode = ids.includes(nodeId);
-    if (listsNode)
-      found = match[3];
-  }
-  return found;
-}
-
-// path-view-model.ts
-function buildPathEdges(pathIds) {
-  const edges = [];
-  const listedKeys = new Set;
-  for (let i = 0;i + 1 < pathIds.length; i++) {
-    const key = `${pathIds[i]} ${pathIds[i + 1]}`;
-    if (listedKeys.has(key))
-      continue;
-    listedKeys.add(key);
-    edges.push([pathIds[i], pathIds[i + 1]]);
-  }
-  return edges;
-}
-function findViewEditRefusal(view, graph, edit, nodeId) {
-  if (!view)
-    return null;
-  if (edit === "addChoice") {
-    if (view.kind === "onePath")
-      return "Show the full diagram to add a choice.";
-    return null;
-  }
-  if (edit === "insertStaticAfter") {
-    if (graph.nodes.get(nodeId).kind === "choice") {
-      if (!view.protectedIds.includes(nodeId))
-        return "This choice is not on the shown path.";
-    }
-    return null;
-  }
-  if (edit !== "removeNode")
-    return "Show the full diagram to make this change.";
-  const kind = graph.nodes.get(nodeId).kind;
-  if (kind === "question")
-    return "Show the full diagram to remove a decision.";
-  if (kind === "choice") {
-    if (view.protectedIds.includes(nodeId))
-      return "This choice is on the shown path.";
-    return null;
-  }
-  const isEndOfShownPath = view.pathIds ? view.pathIds[view.pathIds.length - 1] === nodeId : !graph.edges.some((edge) => edge.from === nodeId);
-  if (isEndOfShownPath)
-    return "This is the last block of the path.";
-  return null;
-}
-function choicesOf(id, edges) {
-  const found = [];
-  for (const [from, to] of edges) {
-    if (from === id)
-      found.push(to);
-  }
-  return found;
-}
-function findUnusedChoices(id, usedEdges, edges) {
-  return choicesOf(id, edges).filter((to) => !usedEdges.has(`${id}->${to}`));
-}
-var MAX_CHOICES = 16;
-function listDigitMaximums(diagram) {
-  if (!diagram.startIds.length)
-    throw new Error("The diagram has no path from a start block");
-  const counts = [diagram.startIds.length, ...diagram.decisionIds.map((id) => choicesOf(id, diagram.edges).length)];
-  for (const count of counts) {
-    if (count > MAX_CHOICES)
-      throw new Error(`A path digit holds ${MAX_CHOICES} choices; the diagram needs ${count}`);
-  }
-  return counts.map((count) => Math.max(count - 1, 0));
-}
-function walkDigitPath(diagram, digits) {
-  const reachedDigits = digits.map(() => 0);
-  reachedDigits[0] = digits[0];
-  const pathIds = [diagram.startIds[digits[0]]];
-  const usedEdges = new Set;
-  for (;; ) {
-    const current = pathIds[pathIds.length - 1];
-    const unusedChoices = findUnusedChoices(current, usedEdges, diagram.edges);
-    if (!unusedChoices.length)
-      return { pathIds, digits: reachedDigits };
-    let next = unusedChoices[0];
-    const position = diagram.decisionIds.indexOf(current) + 1;
-    if (position > 0) {
-      reachedDigits[position] = digits[position];
-      const namedChoice = choicesOf(current, diagram.edges)[digits[position]];
-      if (unusedChoices.includes(namedChoice))
-        next = namedChoice;
-    }
-    usedEdges.add(`${current}->${next}`);
-    pathIds.push(next);
-  }
-}
-function compareDigits(a, b) {
-  for (let i = 0;i < a.length; i++) {
-    if (a[i] !== b[i])
-      return a[i] - b[i];
-  }
-  return 0;
-}
-function findNeighbourDigits(diagram, digits, step) {
-  const maximums = listDigitMaximums(diagram);
-  let nearest = null;
-  function isOutOfRange(chosen) {
-    const lowest = maximums.map((_, i) => chosen[i] ?? 0);
-    const highest = maximums.map((maximum, i) => chosen[i] ?? maximum);
-    const farthest = step === 1 ? highest : lowest;
-    const closest = step === 1 ? lowest : highest;
-    if (compareDigits(farthest, digits) * step <= 0)
-      return true;
-    if (nearest) {
-      if (compareDigits(closest, nearest) * step >= 0)
-        return true;
-    }
-    return false;
-  }
-  function keepIfNearer(chosen) {
-    const found = maximums.map((_, i) => chosen[i] ?? 0);
-    if (compareDigits(found, digits) * step <= 0)
-      return;
-    if (nearest) {
-      if (compareDigits(found, nearest) * step >= 0)
-        return;
-    }
-    nearest = found;
-  }
-  function searchFrom(startId, usedEdges, chosen) {
-    let current = startId;
-    for (;; ) {
-      const unusedChoices = findUnusedChoices(current, usedEdges, diagram.edges);
-      if (!unusedChoices.length) {
-        keepIfNearer(chosen);
-        return;
-      }
-      let next = unusedChoices[0];
-      const position = diagram.decisionIds.indexOf(current) + 1;
-      if (position > 0) {
-        if (chosen[position] === undefined) {
-          searchEachDigit(current, position, usedEdges, chosen);
-          return;
-        }
-        const namedChoice = choicesOf(current, diagram.edges)[chosen[position]];
-        if (unusedChoices.includes(namedChoice))
-          next = namedChoice;
-      }
-      usedEdges.add(`${current}->${next}`);
-      current = next;
-    }
-  }
-  function searchEachDigit(decisionId, position, usedEdges, chosen) {
-    const values = choicesOf(decisionId, diagram.edges).map((_, digit) => digit);
-    if (step === -1)
-      values.reverse();
-    for (const digit of values) {
-      const branchChosen = [...chosen];
-      branchChosen[position] = digit;
-      if (isOutOfRange(branchChosen))
-        continue;
-      searchFrom(decisionId, new Set(usedEdges), branchChosen);
-    }
-  }
-  const startDigits = diagram.startIds.map((_, digit) => digit);
-  if (step === -1)
-    startDigits.reverse();
-  for (const startDigit of startDigits) {
-    const chosen = [startDigit];
-    if (isOutOfRange(chosen))
-      continue;
-    searchFrom(diagram.startIds[startDigit], new Set, chosen);
-  }
-  return nearest;
-}
-
-// graph-slice.ts
-function parentOf(id, edges) {
-  let found;
-  for (const edge of edges) {
-    if (edge[1] === id) {
-      found = edge;
-      break;
-    }
-  }
-  return found[0];
-}
-function contextualDecisionSliceIds(decisionId, edges) {
-  const reversed = [decisionId];
-  const visited = new Set(reversed);
-  let node = decisionId;
-  for (;; ) {
-    let incoming;
-    for (const edge of edges) {
-      const isMatch = edge[1] === node;
-      if (isMatch) {
-        incoming = edge;
-        break;
-      }
-    }
-    if (!incoming)
-      break;
-    const predecessor = incoming[0];
-    if (visited.has(predecessor))
-      break;
-    reversed.push(predecessor);
-    visited.add(predecessor);
-    const isPreviousDecision = predecessor.startsWith("Q_") && !predecessor.startsWith("Q_CHOICE");
-    if (isPreviousDecision)
-      break;
-    node = predecessor;
-  }
-  const ids = reversed.reverse();
-  for (const choice of choicesOf(decisionId, edges)) {
-    if (!visited.has(choice))
-      ids.push(choice);
-  }
-  return ids;
-}
-function sliceIds(edges) {
-  const focusNodeId = state.functionsOnly ? null : state.phoneFocusNodeId;
-  const hasFocusedDecisionContext = focusNodeId !== null && state.phoneFocusUsesDecisionContext;
-  if (hasFocusedDecisionContext)
-    return contextualDecisionSliceIds(focusNodeId, edges);
-  const last = state.functionsOnly ? undefined : state.phonePreviewChoiceId ?? phonePath[phonePath.length - 1];
-  const ids = focusNodeId ? [focusNodeId] : last ? [parentOf(last, edges), last] : [edges.map(([from]) => from).find((from) => !edges.some(([, to]) => to === from))];
-  let node = ids[ids.length - 1];
-  const visited = new Set(ids);
-  for (;; ) {
-    const next = [];
-    for (const [from, to] of edges) {
-      if (from === node)
-        next.push(to);
-    }
-    if (next.length === 0)
-      return ids;
-    if (next.length > 1)
-      return ids.concat(next);
-    node = next[0];
-    if (visited.has(node))
-      return ids;
-    ids.push(node);
-    visited.add(node);
-  }
-}
-function siblingIds(ids, edges) {
-  const hasDecisionContext = state.phoneFocusUsesDecisionContext || state.phonePreviewChoiceId || phonePath.length;
-  if (!hasDecisionContext)
-    return [];
-  const found = [];
-  for (const [from, to] of edges) {
-    const isFromFirst = from === ids[0];
-    const isNotSecond = to !== ids[1];
-    const isSibling = isFromFirst && isNotSecond;
-    if (isSibling)
-      found.push(to);
-  }
-  return found;
-}
-
-// class-style-index.ts
-function buildClassStyleIndex(source) {
-  const assignments = new Map;
-  for (const line of source.split(`
-`)) {
-    const isLineCommented = isCommented(line);
-    if (isLineCommented)
-      continue;
-    const match = line.match(CLASS_LINE_RE);
-    if (!match)
-      continue;
-    for (const id of match[2].split(","))
-      assignments.set(id, match[3]);
-  }
-  const defsByName = new Map;
-  for (const def of parseClassDefs(source))
-    defsByName.set(def.name, def);
-  return { assignments, defsByName };
-}
-function findNodeStyle(index, nodeId) {
-  const name = index.assignments.get(nodeId);
-  if (!name)
-    return null;
-  const def = index.defsByName.get(name);
-  if (!def)
-    return null;
-  return { name, fill: def.fill, stroke: def.stroke };
-}
-
-// node-type-colors.ts
-var UNCLASSED_STRIPE_PATTERN_ID = "unclassed-stripe-pattern";
-function addUnclassedStripePattern(svg) {
-  let defs = svg.querySelector("defs");
-  if (!defs) {
-    defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-    svg.insertBefore(defs, svg.firstChild);
-  }
-  const existingPattern = defs.querySelector("#" + UNCLASSED_STRIPE_PATTERN_ID);
-  if (existingPattern)
-    return;
-  defs.insertAdjacentHTML("beforeend", `<pattern id="${UNCLASSED_STRIPE_PATTERN_ID}" width="16" height="16" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#fde8e8"/><rect width="8" height="16" fill="#f4b4b4"/></pattern>`);
-}
-function applyNodeTypeColors(graph) {
-  const svg = diagramBox.querySelector("svg");
-  if (!svg)
-    return;
-  const classIndex = buildClassStyleIndex(codeBox.value);
-  for (const nodeEl of diagramBox.querySelectorAll("g.node")) {
-    const node = graph.nodes.get(getNodeId(nodeEl));
-    if (!node)
-      continue;
-    const isClassed = !!findNodeStyle(classIndex, node.id);
-    if (isClassed)
-      continue;
-    addUnclassedStripePattern(svg);
-    for (const shape of nodeEl.querySelectorAll("rect, path, polygon"))
-      shape.style.fill = `url(#${UNCLASSED_STRIPE_PATTERN_ID})`;
-  }
-}
-function applyNoteDots(graph) {
-  for (const nodeEl of diagramBox.querySelectorAll("g.node")) {
-    if (!graph.nodes.get(getNodeId(nodeEl))?.note)
-      continue;
-    const box = nodeEl.getBBox();
-    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    dot.setAttribute("class", "note-dot");
-    dot.setAttribute("cx", String(box.x + 6));
-    dot.setAttribute("cy", String(box.y + 6));
-    dot.setAttribute("r", "4");
-    const fill = getComputedStyle(nodeEl.querySelector("rect, path, polygon")).fill;
-    const rgb = fill.match(/rgb\((\d+), (\d+), (\d+)/);
-    if (!rgb)
-      dot.style.fill = "rgb(11, 75, 75)";
-    else {
-      const [r, g, b] = rgb.slice(1).map(Number);
-      const isMidGray = [r, g, b].every((channel) => channel >= 96 && channel <= 159);
-      const midGrayFill = (r + g + b) / 3 >= 128 ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)";
-      dot.style.fill = isMidGray ? midGrayFill : `rgb(${255 - r}, ${255 - g}, ${255 - b})`;
-    }
-    nodeEl.appendChild(dot);
-  }
-}
-
-// offscreen-arrow-heads.ts
-var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
-var EDGE_INSET_PX = 2;
-var SAMPLE_COUNT = 100;
-var REFINE_STEPS = 20;
-var DIRECTION_LENGTH = 2;
-function getVisibleArea(insetPx) {
-  const outputRect = outputBox.getBoundingClientRect();
-  const left = outputRect.left + outputBox.clientLeft + insetPx;
-  const top = outputRect.top + outputBox.clientTop + insetPx;
-  return { left, top, right: left + outputBox.clientWidth - 2 * insetPx, bottom: top + outputBox.clientHeight - 2 * insetPx };
-}
-function isPointInArea(point, area) {
-  if (point.x < area.left)
-    return false;
-  if (point.x > area.right)
-    return false;
-  if (point.y < area.top)
-    return false;
-  if (point.y > area.bottom)
-    return false;
-  return true;
-}
-function doesRectOverlapArea(rect, area) {
-  if (rect.right < area.left)
-    return false;
-  if (rect.left > area.right)
-    return false;
-  if (rect.bottom < area.top)
-    return false;
-  if (rect.top > area.bottom)
-    return false;
-  return true;
-}
-function getScreenPointAtLength(path, length, matrix) {
-  return path.getPointAtLength(length).matrixTransform(matrix);
-}
-function findLastVisibleLength(path, totalLength, matrix, area) {
-  let lastInsideLength = -1;
-  for (let step = 0;step <= SAMPLE_COUNT; step++) {
-    const length = totalLength * step / SAMPLE_COUNT;
-    const isInside = isPointInArea(getScreenPointAtLength(path, length, matrix), area);
-    if (isInside)
-      lastInsideLength = length;
-  }
-  if (lastInsideLength < 0)
-    return null;
-  let insideLength = lastInsideLength;
-  let outsideLength = Math.min(totalLength, lastInsideLength + totalLength / SAMPLE_COUNT);
-  for (let step = 0;step < REFINE_STEPS; step++) {
-    const middleLength = (insideLength + outsideLength) / 2;
-    const isInside = isPointInArea(getScreenPointAtLength(path, middleLength, matrix), area);
-    if (isInside)
-      insideLength = middleLength;
-    else
-      outsideLength = middleLength;
-  }
-  return insideLength;
-}
-function buildArrowHead(path, length, marker) {
-  const point = path.getPointAtLength(length);
-  const pointAhead = path.getPointAtLength(Math.min(length + DIRECTION_LENGTH, path.getTotalLength()));
-  const angleDegrees = Math.atan2(pointAhead.y - point.y, pointAhead.x - point.x) * 180 / Math.PI;
-  const markerPath = marker.querySelector("path");
-  const viewBox = marker.viewBox.baseVal;
-  const scale = Math.min(marker.markerWidth.baseVal.value / viewBox.width, marker.markerHeight.baseVal.value / viewBox.height);
-  const head = document.createElementNS(SVG_NAMESPACE, "path");
-  head.setAttribute("d", markerPath.getAttribute("d"));
-  head.setAttribute("class", "arrowMarkerPath offscreen-arrow-head");
-  head.setAttribute("style", markerPath.getAttribute("style") ?? "");
-  const markerPathStyle = getComputedStyle(markerPath);
-  head.style.fill = markerPathStyle.fill;
-  head.style.stroke = markerPathStyle.stroke;
-  head.setAttribute("transform", `translate(${point.x} ${point.y}) rotate(${angleDegrees}) scale(${scale}) translate(${-marker.refX.baseVal.value} ${-marker.refY.baseVal.value})`);
-  head.setAttribute("data-edge-id", path.getAttribute("data-id"));
-  return head;
-}
-function updateOffscreenArrowHeads() {
-  for (const oldHead of diagramBox.querySelectorAll(".offscreen-arrow-head"))
-    oldHead.remove();
-  const visibleArea = getVisibleArea(0);
-  const insetArea = getVisibleArea(EDGE_INSET_PX);
-  for (const path of diagramBox.querySelectorAll("path.flowchart-link")) {
-    const markerEnd = path.getAttribute("marker-end");
-    if (markerEnd === null)
-      continue;
-    if (!doesRectOverlapArea(path.getBoundingClientRect(), visibleArea))
-      continue;
-    const matrix = path.getScreenCTM();
-    const totalLength = path.getTotalLength();
-    const endPoint = getScreenPointAtLength(path, totalLength, matrix);
-    if (isPointInArea(endPoint, visibleArea))
-      continue;
-    const lastVisibleLength = findLastVisibleLength(path, totalLength, matrix, insetArea);
-    if (lastVisibleLength === null)
-      continue;
-    const markerId = markerEnd.match(/#([^)"']+)/)[1];
-    const marker = diagramBox.querySelector(`#${CSS.escape(markerId)}`);
-    path.after(buildArrowHead(path, lastVisibleLength, marker));
-  }
-}
-function scrollToStartBlockOfCmdClickedArrow(event) {
-  if (!event.metaKey)
-    return;
-  const target = event.target;
-  let path = target.closest("path.flowchart-link");
-  if (!path) {
-    const head = target.closest(".offscreen-arrow-head");
-    if (!head)
-      return;
-    path = diagramBox.querySelector(`path.flowchart-link[data-id="${head.getAttribute("data-edge-id")}"]`);
-  }
-  event.stopPropagation();
-  const [startBlockId] = getEdgeEnds(path, parseEdges(codeBox.value));
-  diagramBox.querySelector(`[id*="flowchart-${startBlockId}-"]`).scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-}
-function scrollToEndBlockOfClickedArrowHead(event) {
-  if (event.metaKey)
-    return;
-  const head = event.target.closest(".offscreen-arrow-head");
-  if (!head)
-    return;
-  event.stopPropagation();
-  const path = diagramBox.querySelector(`path.flowchart-link[data-id="${head.getAttribute("data-edge-id")}"]`);
-  const [, endBlockId] = getEdgeEnds(path, parseEdges(codeBox.value));
-  diagramBox.querySelector(`[id*="flowchart-${endBlockId}-"]`).scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-}
-outputBox.addEventListener("click", scrollToStartBlockOfCmdClickedArrow, true);
-outputBox.addEventListener("click", scrollToEndBlockOfClickedArrowHead, true);
-outputBox.addEventListener("scroll", updateOffscreenArrowHeads);
-window.addEventListener("resize", updateOffscreenArrowHeads);
-
-// zoom.ts
-function viewBoxOf(svgText) {
-  const match = svgText.match(/viewBox="[^"]*?\s([\d.]+)\s([\d.]+)"/);
-  const [, w, h] = match;
-  return { width: Number(w), height: Number(h) };
-}
-function applyMainZoom(preserveViewportCenter = true) {
-  zoomLevel.textContent = `${state.mainZoomPercent}%`;
-  zoomInBtn.disabled = state.mainZoomPercent >= MAX_MAIN_ZOOM;
-  zoomOutBtn.disabled = state.mainZoomPercent <= MIN_MAIN_ZOOM;
-  zoomResetBtn.disabled = state.mainZoomPercent === 100;
-  const svg = diagramBox.querySelector("svg");
-  const scale = state.diagramScale;
-  const hasSvg = svg !== null;
-  const hasScale = scale !== null;
-  if (!hasSvg)
-    return;
-  if (!hasScale)
-    return;
-  const oldWidth = Number.parseFloat(svg.style.width);
-  const oldHeight = Number.parseFloat(svg.style.height);
-  const centerX = outputBox.scrollLeft + outputBox.clientWidth / 2;
-  const svgOffsetX = outputBox.scrollLeft + svg.getBoundingClientRect().left - outputBox.getBoundingClientRect().left;
-  const centerY = outputBox.scrollTop + outputBox.clientHeight / 2;
-  const zoom = state.mainZoomPercent / 100;
-  const newWidth = svg.viewBox.baseVal.width * scale * zoom;
-  const newHeight = svg.viewBox.baseVal.height * scale * zoom;
-  svg.style.width = newWidth + "px";
-  svg.style.height = newHeight + "px";
-  const hadWidth = oldWidth > 0;
-  const hadHeight = oldHeight > 0;
-  if (preserveViewportCenter) {
-    if (hadWidth) {
-      if (hadHeight) {
-        outputBox.scrollLeft = svgOffsetX + (centerX - svgOffsetX) * newWidth / oldWidth - outputBox.clientWidth / 2;
-        outputBox.scrollTop = centerY * newHeight / oldHeight - outputBox.clientHeight / 2;
-      }
-    }
-  }
-  updateOffscreenArrowHeads();
-}
-function setMainZoomPercent(percent) {
-  state.mainZoomPercent = Math.max(MIN_MAIN_ZOOM, Math.min(MAX_MAIN_ZOOM, Math.round(percent)));
-  applyMainZoom();
-}
-
-// phone-render.ts
-function findRoots(edges) {
-  const roots = [];
-  for (const [candidate] of edges) {
-    let hasIncoming = false;
-    for (const [, to] of edges) {
-      const targetsCandidate = to === candidate;
-      if (targetsCandidate) {
-        hasIncoming = true;
-        break;
-      }
-    }
-    const isNewRoot = !hasIncoming && !roots.includes(candidate);
-    if (isNewRoot)
-      roots.push(candidate);
-  }
-  return roots;
-}
-function isPhoneAwaitingStartNode(edges) {
-  const roots = findRoots(edges);
-  const hasSeveralStartNodes = roots.length > 1;
-  if (!hasSeveralStartNodes)
-    return false;
-  const hasNoAnswers = phonePath.length === 0;
-  if (!hasNoAnswers)
-    return false;
-  return !roots.includes(state.phoneStartNodeId);
-}
-function selectPhonePathToNode(nodeId, edges, graph) {
-  const isChoice = graph.nodes.get(nodeId)?.kind === "choice";
-  const targetId = isChoice ? parentOf(nodeId, edges) : nodeId;
-  let startNodeId;
-  let answers;
-  for (const root of findRoots(edges)) {
-    answers = findAnswersFromRoot(root, targetId, edges, graph);
-    if (answers) {
-      startNodeId = root;
-      break;
-    }
-  }
-  if (!answers)
-    throw new Error(`No phone path leads from a start node to ${nodeId}`);
-  phonePath.length = 0;
-  phonePath.push(...answers);
-  if (isChoice)
-    phonePath.push(nodeId);
-  state.phoneStartNodeId = startNodeId;
-  state.phoneClickedNodeId = nodeId;
-  state.phoneClickedAtMs = Date.now();
-  state.phoneFocusNodeId = null;
-  state.phoneFocusUsesDecisionContext = false;
-  state.phonePreviewChoiceId = null;
-}
-function findHistoryRoot(edges, graph) {
-  const roots = findRoots(edges);
-  const isClickedStartNodeKnown = roots.includes(state.phoneStartNodeId);
-  if (isClickedStartNodeKnown)
-    return state.phoneStartNodeId;
-  const hasNoAnswers = phonePath.length === 0;
-  if (hasNoAnswers)
-    return roots[0];
-  const firstAnsweredQuestion = parentOf(phonePath[0], edges);
-  for (const root of roots) {
-    const answers = findAnswersFromRoot(root, firstAnsweredQuestion, edges, graph);
-    if (answers)
-      return root;
-  }
-  return roots[0];
-}
-function compareNodesByLine(a, b) {
-  return a.lineIndex - b.lineIndex;
-}
-function buildHistoryRows(edges, graph) {
-  if (edges.length === 0) {
-    const sorted = [...graph.nodes.values()].sort(compareNodesByLine);
-    const standaloneRows = [];
-    for (const node of sorted) {
-      const isBlock = node.kind === "block";
-      if (isBlock)
-        standaloneRows.push({ status: "block", id: node.id });
-      else
-        standaloneRows.push({ status: "active", id: node.id });
-    }
-    return standaloneRows;
-  }
-  const rows = [];
-  let cur = findHistoryRoot(edges, graph);
-  let pathIndex = 0;
-  const maxSteps = graph.nodes.size + phonePath.length + 1;
-  for (let step = 0;step < maxSteps; step++) {
-    if (cur === undefined)
-      break;
-    const kind = graph.nodes.get(cur)?.kind ?? "block";
-    if (kind === "question") {
-      const choices = choicesOf(cur, edges);
-      const hasAnswer = pathIndex < phonePath.length && choices.includes(phonePath[pathIndex]);
-      const isSingleChoice = choices.length === 1;
-      if (!hasAnswer && !isSingleChoice) {
-        rows.push({ status: "active", id: cur });
-        break;
-      }
-      const answered = hasAnswer ? phonePath[pathIndex] : choices[0];
-      const declinedChoiceIds = [];
-      for (const choiceId of choices) {
-        const isChosen = choiceId === answered;
-        if (!isChosen)
-          declinedChoiceIds.push(choiceId);
-      }
-      rows.push({ status: "past", id: cur, chosenChoiceId: answered, declinedChoiceIds, revertIndex: pathIndex });
-      if (hasAnswer)
-        pathIndex++;
-      const isAnswerAChoice = graph.nodes.get(answered)?.kind === "choice";
-      cur = isAnswerAChoice ? choicesOf(answered, edges)[0] : answered;
-      continue;
-    }
-    if (kind === "block")
-      rows.push({ status: "block", id: cur });
-    const nexts = choicesOf(cur, edges);
-    const isSingleChain = nexts.length === 1;
-    cur = isSingleChain ? nexts[0] : undefined;
-  }
-  return rows;
-}
-function isPhoneShowingHistory() {
-  const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
-  const hasPreviewChoice = !state.functionsOnly && !!state.phonePreviewChoiceId;
-  return !hasFocusedDecision && !hasPreviewChoice;
-}
-function findAnswersLeadingTo(questionId, edges, graph) {
-  for (const root of findRoots(edges)) {
-    const answers = findAnswersFromRoot(root, questionId, edges, graph);
-    if (answers) {
-      state.phoneStartNodeId = root;
-      return answers;
-    }
-  }
-  throw new Error(`No phone path leads from the start to ${questionId}`);
-}
-function findRouteIdsToNode(nodeId, edges, graph) {
-  const isChoice = graph.nodes.get(nodeId)?.kind === "choice";
-  const targetId = isChoice ? parentOf(nodeId, edges) : nodeId;
-  for (const root of findRoots(edges)) {
-    const walk = findWalkFromRoot(root, targetId, edges, graph);
-    if (walk) {
-      if (isChoice)
-        return [...walk.routeIds, nodeId];
-      return walk.routeIds;
-    }
-  }
-  throw new Error(`No route leads from a start block to ${nodeId}`);
-}
-function findAnswersFromRoot(root, questionId, edges, graph) {
-  return findWalkFromRoot(root, questionId, edges, graph)?.answers;
-}
-function findWalkFromRoot(root, questionId, edges, graph) {
-  const queue = [{ nodeId: root, answers: [], routeIds: [] }];
-  const visited = new Set;
-  for (let i = 0;i < queue.length; i++) {
-    const { nodeId, answers, routeIds } = queue[i];
-    if (nodeId === undefined)
-      continue;
-    if (nodeId === questionId)
-      return { answers, routeIds: [...routeIds, nodeId] };
-    const isVisited = visited.has(nodeId);
-    if (isVisited)
-      continue;
-    visited.add(nodeId);
-    const isQuestion = graph.nodes.get(nodeId)?.kind === "question";
-    if (isQuestion) {
-      for (const choiceId of choicesOf(nodeId, edges)) {
-        const isChoiceAQuestion = graph.nodes.get(choiceId)?.kind === "question";
-        const nextNodeId = isChoiceAQuestion ? choiceId : choicesOf(choiceId, edges)[0];
-        const nextRouteIds = isChoiceAQuestion ? [...routeIds, nodeId] : [...routeIds, nodeId, choiceId];
-        queue.push({ nodeId: nextNodeId, answers: [...answers, choiceId], routeIds: nextRouteIds });
-      }
-      continue;
-    }
-    const nexts = choicesOf(nodeId, edges);
-    const isSingleChain = nexts.length === 1;
-    if (isSingleChain)
-      queue.push({ nodeId: nexts[0], answers, routeIds: [...routeIds, nodeId] });
-  }
-  return;
-}
-
-// phone-rows.ts
-function buildRowsFromIdSequence(ids, graph, activeId, leadChosenId, leadDeclinedIds) {
-  const rows = [];
-  const seen = new Set;
-  const leadQuestionId = ids[0];
-  for (const id of ids) {
-    const alreadySeen = seen.has(id);
-    if (alreadySeen)
-      continue;
-    seen.add(id);
-    const kind = graph.nodes.get(id)?.kind;
-    const isChoice = kind === "choice";
-    if (isChoice)
-      continue;
-    const isBlock = kind === "block";
-    if (isBlock) {
-      rows.push({ status: "block", id });
-      continue;
-    }
-    const isQuestion = kind === "question";
-    if (!isQuestion)
-      continue;
-    const isActive = id === activeId;
-    if (isActive) {
-      rows.push({ status: "active", id });
-      continue;
-    }
-    const isLeadQuestion = id === leadQuestionId;
-    const hasLeadChoice = leadChosenId !== undefined;
-    const isAnsweredLeadQuestion = isLeadQuestion && hasLeadChoice;
-    if (isAnsweredLeadQuestion)
-      rows.push({ status: "past", id, chosenChoiceId: leadChosenId, declinedChoiceIds: leadDeclinedIds });
-  }
-  return rows;
-}
-function buildFocusRows(edges, graph, focusNodeId) {
-  const ids = sliceIds(edges);
-  const siblings = siblingIds(ids, edges);
-  return buildRowsFromIdSequence(ids, graph, focusNodeId, ids[1], siblings);
-}
-function buildPreviewRows(edges, graph) {
-  const ids = sliceIds(edges);
-  const siblings = siblingIds(ids, edges);
-  const reversedIds = [...ids].reverse();
-  let activeId;
-  for (const id of reversedIds) {
-    const isQuestion = graph.nodes.get(id)?.kind === "question";
-    const isLeadQuestion = id === ids[0];
-    const isEarlierQuestion = isQuestion && !isLeadQuestion;
-    if (isEarlierQuestion) {
-      activeId = id;
-      break;
-    }
-  }
-  return buildRowsFromIdSequence(ids, graph, activeId ?? ids[0], ids[1], siblings);
-}
-function buildRows(edges, graph) {
-  const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
-  if (hasFocusedDecision)
-    return buildFocusRows(edges, graph, state.phoneFocusNodeId);
-  const hasPreviewChoice = !state.functionsOnly && !!state.phonePreviewChoiceId;
-  if (hasPreviewChoice)
-    return buildPreviewRows(edges, graph);
-  return buildHistoryRows(edges, graph);
-}
-
-// phone-html.ts
-var PHONE_CLICKED_BORDER_MS = 3000;
-var UNCLASSED_PHONE_STYLE = "background:repeating-linear-gradient(45deg, #f4b4b4 0 8px, #fde8e8 8px 16px)";
-var classIndex = { assignments: new Map, defsByName: new Map };
-function getPhoneNodeAppearance(node, graph) {
-  const classStyle = findNodeStyle(classIndex, node.id);
-  const textAlignStyle = `;text-align:${getNodeAlign(graph.lines, node.id).justification}`;
-  if (!classStyle)
-    return { boxStyle: UNCLASSED_PHONE_STYLE + textAlignStyle, labelStyle: "" };
-  return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}${textAlignStyle}`, labelStyle: "" };
-}
-function encodeHtml(text) {
-  const withAmp = text.replace(/&/g, "&amp;");
-  const withLt = withAmp.replace(/</g, "&lt;");
-  const withGt = withLt.replace(/>/g, "&gt;");
-  const withQuote = withGt.replace(/"/g, "&quot;");
-  return withQuote.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
-}
-function getLabelOf(id, graph) {
-  return decodeLabelQuotes(graph.nodes.get(id)?.label ?? id);
-}
-function getLabelHtml(id, graph) {
-  const pieces = getLabelOf(id, graph).split(FENCED_CODE_BLOCK_PATTERN);
-  const htmlPieces = [];
-  for (const [index, piece] of pieces.entries()) {
-    const isCodeBlock = index % 2 === 1;
-    if (isCodeBlock) {
-      const codeLines = piece.split(CODE_LINE_BREAK_PATTERN).map(encodeHtml);
-      htmlPieces.push(`<code class="phone-code-block" style="${CODE_BLOCK_STYLE}">${codeLines.join("<br>")}</code>`);
-      continue;
-    }
-    htmlPieces.push(encodeHtml(piece).replace(/\\n/g, "<br>").replace(/`([^`]+)`/g, "<code>$1</code>"));
-  }
-  return htmlPieces.join("");
-}
-function buildChoiceButtonsHtml(choices, row, graph) {
-  const isPast = row.status === "past";
-  const declinedCount = choices.length - 1;
-  const declinedPct = 30 / declinedCount;
-  const buttons = [];
-  for (const choiceId of choices) {
-    const label = getLabelHtml(choiceId, graph);
-    const isActive = row.status === "active";
-    if (isActive) {
-      buttons.push(`<button type="button" class="phone-choice" data-node-id="${choiceId}" data-choose="${choiceId}">${label}</button>`);
-      continue;
-    }
-    if (!isPast)
-      continue;
-    const isChosen = choiceId === row.chosenChoiceId;
-    if (isChosen) {
-      buttons.push(`<button type="button" class="phone-choice phone-choice-chosen" style="flex:0 1 70%" data-node-id="${choiceId}">${label}</button>`);
-      continue;
-    }
-    const style = `style="flex:0 1 ${declinedPct}%"`;
-    const canRevert = row.revertIndex !== undefined;
-    if (canRevert)
-      buttons.push(`<button type="button" class="phone-choice phone-choice-declined" ${style} data-node-id="${choiceId}" data-revert="${row.revertIndex}:${choiceId}">&#8634; ${label}</button>`);
-    else
-      buttons.push(`<button type="button" class="phone-choice phone-choice-declined" ${style} data-node-id="${choiceId}" disabled>${label}</button>`);
-  }
-  return `<div class="phone-choice-row">${buttons.join("")}</div>`;
-}
-function buildRowHtml(row, graph, edges, isMasked) {
-  const node = graph.nodes.get(row.id);
-  if (!node)
-    return "";
-  if (row.status === "block") {
-    const blockClass = isMasked ? "phone-block phone-block-past" : "phone-block";
-    const { boxStyle, labelStyle } = getPhoneNodeAppearance(node, graph);
-    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
-  }
-  const choices = choicesOf(row.id, edges);
-  const activeAttr = row.status === "active" ? " data-active-question" : "";
-  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node, graph);
-  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
-  const wrapClass = isMasked ? "phone-decision phone-decision-past" : "phone-decision";
-  const isAutoPicked = row.status === "past" && choices.length === 1;
-  const buttonsHtml = isAutoPicked ? "" : buildChoiceButtonsHtml(choices, row, graph);
-  return `<div class="${wrapClass}">${question}<div class="phone-choice-count">${choices.length} choices</div>${buttonsHtml}</div>`;
-}
-function renderPhone(edges, graph) {
-  classIndex = buildClassStyleIndex(codeBox.value);
-  if (isPhoneShowingHistory()) {
-    if (isPhoneAwaitingStartNode(edges)) {
-      phoneDiagramBox.innerHTML = '<div id="phoneStartPrompt">Select a starting node to walk a path through that diagram</div>';
-      return;
-    }
-  }
-  const rows = buildRows(edges, graph);
-  let lastPastIndex = -1;
-  let hasOpenQuestion = false;
-  for (let i = 0;i < rows.length; i++) {
-    const isPast = rows[i].status === "past";
-    if (isPast)
-      lastPastIndex = i;
-    const isOpenQuestion = rows[i].status === "active";
-    if (isOpenQuestion)
-      hasOpenQuestion = true;
-  }
-  const historyParts = [];
-  const footerParts = [];
-  for (let i = 0;i < rows.length; i++) {
-    const isMasked = i <= lastPastIndex;
-    const html = buildRowHtml(rows[i], graph, edges, isMasked);
-    const isAfterLastAnswer = i > lastPastIndex;
-    const isFixedInPlace = isAfterLastAnswer ? hasOpenQuestion : false;
-    const target = isFixedInPlace ? footerParts : historyParts;
-    target.push(html);
-  }
-  const hasFixedRows = footerParts.length > 0;
-  if (lastPastIndex >= 0) {
-    if (hasFixedRows)
-      footerParts.unshift('<hr class="phone-separator">');
-  }
-  const hasAnswer = phonePath.length > 0;
-  const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button><button type="button" class="phone-undo" data-write-path>Write path</button></div>' : "";
-  phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join("")}</div><div id="phoneFooter">${footerParts.join("")}</div>`;
-  const historyBox = phoneDiagramBox.querySelector("#phoneHistory");
-  if (historyBox)
-    historyBox.scrollTop = historyBox.scrollHeight;
-  const footerBox = phoneDiagramBox.querySelector("#phoneFooter");
-  if (footerBox)
-    footerBox.scrollTop = footerBox.scrollHeight;
-  const hasClickedNode = state.phoneClickedNodeId !== null;
-  if (hasClickedNode) {
-    const isClickRecent = Date.now() - state.phoneClickedAtMs < PHONE_CLICKED_BORDER_MS;
-    if (isClickRecent) {
-      const clickedEl = phoneDiagramBox.querySelector(`[data-node-id="${state.phoneClickedNodeId}"]`);
-      if (clickedEl)
-        clickedEl.classList.add("phone-clicked");
-    }
-  }
-}
-
-// source-lines.ts
-function measureSourceLines() {
-  const style = getComputedStyle(codeBox);
-  const mirror = document.createElement("div");
-  mirror.style.cssText = `position:absolute;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;box-sizing:border-box;width:${codeBox.clientWidth}px;padding:${style.padding};font:${style.font};line-height:${style.lineHeight};`;
-  for (const line of codeBox.value.split(`
-`)) {
-    const lineEl = document.createElement("div");
-    lineEl.textContent = line || " ";
-    mirror.append(lineEl);
-  }
-  document.body.append(mirror);
-  const tops = [];
-  for (const lineEl of mirror.children)
-    tops.push(lineEl.offsetTop);
-  const end = mirror.offsetHeight;
-  mirror.remove();
-  return { tops, end };
-}
-function renderGutter(tops, end) {
-  const content = document.createElement("div");
-  content.style.height = end + "px";
-  for (let i = 0;i < tops.length; i++) {
-    const numberEl = document.createElement("span");
-    numberEl.textContent = String(i + 1);
-    numberEl.style.top = tops[i] + "px";
-    content.append(numberEl);
-  }
-  sourceGutter.replaceChildren(content);
-  sourceGutter.scrollTop = codeBox.scrollTop;
-}
-function findNodeLineIndex(lines, id) {
-  for (let i = 0;i < lines.length; i++) {
-    const trimmed = lines[i].trim();
-    const startsWithId = trimmed.startsWith(id);
-    const isNodeDefinition = startsWithId && ["[", "{", "("].includes(trimmed.charAt(id.length));
-    if (isNodeDefinition)
-      return i;
-  }
-  return -1;
-}
-function renderSelectedLineBand(tops, end) {
-  const id = state.selectedEditorNodeId;
-  const lineIndex = id ? findNodeLineIndex(codeBox.value.split(`
-`), id) : -1;
-  const hasSelectedLine = lineIndex !== -1;
-  if (!hasSelectedLine) {
-    codeBox.style.backgroundImage = "none";
-    return;
-  }
-  const top = tops[lineIndex];
-  const isLastLine = lineIndex === tops.length - 1;
-  const bottom = isLastLine ? end - parseFloat(getComputedStyle(codeBox).paddingBottom) : tops[lineIndex + 1];
-  const band = "color-mix(in srgb, var(--select-stroke) 25%, transparent)";
-  codeBox.style.backgroundImage = `linear-gradient(transparent ${top}px, ${band} ${top}px, ${band} ${bottom}px, transparent ${bottom}px)`;
-}
-function renderSourceLines() {
-  const { tops, end } = measureSourceLines();
-  renderGutter(tops, end);
-  renderSelectedLineBand(tops, end);
-}
-function syncGutterScroll() {
-  sourceGutter.scrollTop = codeBox.scrollTop;
-}
-codeBox.addEventListener("scroll", syncGutterScroll);
-new ResizeObserver(renderSourceLines).observe(codeBox);
-
 // editor-rename.ts
 var KIND_PREFIXES = { question: "Q_", block: "B_", choice: "Q_CHOICE_" };
 var CHOICE_PREFIX = KIND_PREFIXES.choice;
@@ -2122,6 +942,12 @@ function renameStateIds(renames) {
   state.phoneFocusNodeId = rename(state.phoneFocusNodeId);
   state.phonePreviewChoiceId = rename(state.phonePreviewChoiceId);
   state.currentDecisionId = rename(state.currentDecisionId);
+  const view = state.pathView;
+  if (view) {
+    view.clickedIds = view.clickedIds.map((id) => rename(id));
+    view.clickHistory = view.clickHistory.map((ids) => ids.map((id) => rename(id)));
+    view.decisionDigits = Object.fromEntries(Object.entries(view.decisionDigits).map(([id, digit]) => [rename(id), digit]));
+  }
 }
 function getParentQuestionId(graph, choiceId) {
   for (const edge of graph.edges) {
@@ -2247,6 +1073,91 @@ function renameNodeIdentifier(oldId, newId) {
     await applyEditorSource(buildRenamedSource(codeBox.value, plan.renames));
   }
   appendEditorAction(applyRename);
+}
+
+// class-lines.ts
+var CLASSDEF_LINE_RE = /^(\s*)classDef\s+(\S+)\s+(.+?)\s*$/;
+var CLASS_LINE_RE = /^(\s*)class\s+(\S+)\s+(\S+)\s*$/;
+function moveClassLinesToEnd(source) {
+  const otherLines = [];
+  const classLines = [];
+  for (const line of source.split(`
+`)) {
+    if (CLASS_LINE_RE.test(line))
+      classLines.push(line);
+    else
+      otherLines.push(line);
+  }
+  return [...otherLines, ...classLines].join(`
+`);
+}
+function isCommented(line) {
+  return line.trim().startsWith("%%");
+}
+function parseStyleProps(styleText) {
+  const order = [];
+  const props = {};
+  for (const part of styleText.split(",")) {
+    const trimmed = part.trim();
+    if (!trimmed)
+      continue;
+    const colonIndex = trimmed.indexOf(":");
+    if (colonIndex === -1)
+      continue;
+    const key = trimmed.slice(0, colonIndex).trim();
+    const value = trimmed.slice(colonIndex + 1).trim();
+    if (!(key in props))
+      order.push(key);
+    props[key] = value;
+  }
+  return { order, props };
+}
+function buildStyleText(order, props) {
+  const parts = [];
+  for (const key of order)
+    parts.push(`${key}:${props[key]}`);
+  return parts.join(",");
+}
+function parseClassDefs(source) {
+  const defs = [];
+  const lines = source.split(`
+`);
+  for (let i = 0;i < lines.length; i++) {
+    const isLineCommented = isCommented(lines[i]);
+    if (isLineCommented)
+      continue;
+    const match = lines[i].match(CLASSDEF_LINE_RE);
+    if (!match)
+      continue;
+    const { props } = parseStyleProps(match[3]);
+    defs.push({ name: match[2], fill: props.fill ?? "", stroke: props.stroke ?? "", lineIndex: i });
+  }
+  return defs;
+}
+function findClassDef(source, name) {
+  for (const def of parseClassDefs(source)) {
+    const isNamedClass = def.name === name;
+    if (isNamedClass)
+      return def;
+  }
+  return;
+}
+function findClassOfNode(source, nodeId) {
+  let found = null;
+  for (const line of source.split(`
+`)) {
+    const isLineCommented = isCommented(line);
+    if (isLineCommented)
+      continue;
+    const match = line.match(CLASS_LINE_RE);
+    if (!match)
+      continue;
+    const ids = match[2].split(",");
+    const listsNode = ids.includes(nodeId);
+    if (listsNode)
+      found = match[3];
+  }
+  return found;
 }
 
 // source-edit.ts
@@ -2512,6 +1423,225 @@ destinationList.addEventListener("mousedown", keepInputFocusOnListMouseDown);
 destinationList.addEventListener("click", pickDestinationOnItemClick);
 document.addEventListener("mousedown", closeDestinationListOnOutsideMouseDown);
 
+// path-view-model.ts
+function buildPathEdges(pathIds) {
+  const edges = [];
+  const listedKeys = new Set;
+  for (let i = 0;i + 1 < pathIds.length; i++) {
+    const key = `${pathIds[i]} ${pathIds[i + 1]}`;
+    if (listedKeys.has(key))
+      continue;
+    listedKeys.add(key);
+    edges.push([pathIds[i], pathIds[i + 1]]);
+  }
+  return edges;
+}
+function collectDownstreamEdges(anchorId, edges) {
+  const downstreamEdges = [];
+  const reachedIds = new Set([anchorId]);
+  for (const id of reachedIds) {
+    for (const [from, to] of edges) {
+      if (from !== id)
+        continue;
+      downstreamEdges.push([from, to]);
+      reachedIds.add(to);
+    }
+  }
+  return downstreamEdges;
+}
+function isViewLimitingEdits(view) {
+  if (!view)
+    return false;
+  if (view.kind === "onePath")
+    return true;
+  return view.clickedIds.length > 0;
+}
+function findViewEditRefusal(view, graph, edit, nodeId) {
+  if (!isViewLimitingEdits(view))
+    return null;
+  if (edit === "addChoice") {
+    if (view.kind === "onePath")
+      return "Show the full diagram to add a choice.";
+    return null;
+  }
+  if (edit === "insertStaticAfter") {
+    if (graph.nodes.get(nodeId).kind === "choice") {
+      if (!view.protectedIds.includes(nodeId))
+        return "This choice is not on the shown path.";
+    }
+    return null;
+  }
+  if (edit !== "removeNode")
+    return "Show the full diagram to make this change.";
+  const kind = graph.nodes.get(nodeId).kind;
+  if (kind === "question")
+    return "Show the full diagram to remove a decision.";
+  if (kind === "choice") {
+    if (view.protectedIds.includes(nodeId))
+      return "This choice is on the shown path.";
+    return null;
+  }
+  const isEndOfShownPath = view.pathIds ? view.pathIds[view.pathIds.length - 1] === nodeId : !graph.edges.some((edge) => edge.from === nodeId);
+  if (isEndOfShownPath)
+    return "This is the last block of the path.";
+  return null;
+}
+function choicesOf(id, edges) {
+  const found = [];
+  for (const [from, to] of edges) {
+    if (from === id)
+      found.push(to);
+  }
+  return found;
+}
+function findUnusedChoices(id, usedEdges, edges) {
+  return choicesOf(id, edges).filter((to) => !usedEdges.has(`${id}->${to}`));
+}
+var MAX_CHOICES = 16;
+function listDigitMaximums(diagram) {
+  if (!diagram.startIds.length)
+    throw new Error("The diagram has no path from a start block");
+  const counts = [diagram.startIds.length, ...diagram.decisionIds.map((id) => choicesOf(id, diagram.edges).length)];
+  for (const count of counts) {
+    if (count > MAX_CHOICES)
+      throw new Error(`A path digit holds ${MAX_CHOICES} choices; the diagram needs ${count}`);
+  }
+  return counts.map((count) => Math.max(count - 1, 0));
+}
+function walkDigitPath(diagram, digits) {
+  const reachedDigits = digits.map(() => 0);
+  reachedDigits[0] = digits[0];
+  const pathIds = [diagram.startIds[digits[0]]];
+  const usedEdges = new Set;
+  for (;; ) {
+    const current = pathIds[pathIds.length - 1];
+    const unusedChoices = findUnusedChoices(current, usedEdges, diagram.edges);
+    if (!unusedChoices.length)
+      return { pathIds, digits: reachedDigits };
+    let next = unusedChoices[0];
+    const position = diagram.decisionIds.indexOf(current) + 1;
+    if (position > 0) {
+      reachedDigits[position] = digits[position];
+      const namedChoice = choicesOf(current, diagram.edges)[digits[position]];
+      if (unusedChoices.includes(namedChoice))
+        next = namedChoice;
+    }
+    usedEdges.add(`${current}->${next}`);
+    pathIds.push(next);
+  }
+}
+function compareDigits(a, b) {
+  for (let i = 0;i < a.length; i++) {
+    if (a[i] !== b[i])
+      return a[i] - b[i];
+  }
+  return 0;
+}
+function findNeighbourDigits(diagram, digits, step) {
+  const maximums = listDigitMaximums(diagram);
+  let nearest = null;
+  function isOutOfRange(chosen) {
+    const lowest = maximums.map((_, i) => chosen[i] ?? 0);
+    const highest = maximums.map((maximum, i) => chosen[i] ?? maximum);
+    const farthest = step === 1 ? highest : lowest;
+    const closest = step === 1 ? lowest : highest;
+    if (compareDigits(farthest, digits) * step <= 0)
+      return true;
+    if (nearest) {
+      if (compareDigits(closest, nearest) * step >= 0)
+        return true;
+    }
+    return false;
+  }
+  function keepIfNearer(chosen) {
+    const found = maximums.map((_, i) => chosen[i] ?? 0);
+    if (compareDigits(found, digits) * step <= 0)
+      return;
+    if (nearest) {
+      if (compareDigits(found, nearest) * step >= 0)
+        return;
+    }
+    nearest = found;
+  }
+  function searchFrom(startId, usedEdges, chosen) {
+    let current = startId;
+    for (;; ) {
+      const unusedChoices = findUnusedChoices(current, usedEdges, diagram.edges);
+      if (!unusedChoices.length) {
+        keepIfNearer(chosen);
+        return;
+      }
+      let next = unusedChoices[0];
+      const position = diagram.decisionIds.indexOf(current) + 1;
+      if (position > 0) {
+        if (chosen[position] === undefined) {
+          searchEachDigit(current, position, usedEdges, chosen);
+          return;
+        }
+        const namedChoice = choicesOf(current, diagram.edges)[chosen[position]];
+        if (unusedChoices.includes(namedChoice))
+          next = namedChoice;
+      }
+      usedEdges.add(`${current}->${next}`);
+      current = next;
+    }
+  }
+  function searchEachDigit(decisionId, position, usedEdges, chosen) {
+    const values = choicesOf(decisionId, diagram.edges).map((_, digit) => digit);
+    if (step === -1)
+      values.reverse();
+    for (const digit of values) {
+      const branchChosen = [...chosen];
+      branchChosen[position] = digit;
+      if (isOutOfRange(branchChosen))
+        continue;
+      searchFrom(decisionId, new Set(usedEdges), branchChosen);
+    }
+  }
+  const startDigits = diagram.startIds.map((_, digit) => digit);
+  if (step === -1)
+    startDigits.reverse();
+  for (const startDigit of startDigits) {
+    const chosen = [startDigit];
+    if (isOutOfRange(chosen))
+      continue;
+    searchFrom(diagram.startIds[startDigit], new Set, chosen);
+  }
+  return nearest;
+}
+function findShortestRouteIds(fromId, toId, edges) {
+  const routes = [[fromId]];
+  const reachedIds = new Set([fromId]);
+  for (const route of routes) {
+    const lastId = route[route.length - 1];
+    if (lastId === toId)
+      return route;
+    for (const nextId of choicesOf(lastId, edges)) {
+      if (reachedIds.has(nextId))
+        continue;
+      reachedIds.add(nextId);
+      routes.push([...route, nextId]);
+    }
+  }
+  throw new Error(`No route leads from ${fromId} to ${toId}`);
+}
+function addFilterClick(clickedIds, routeIds, nodeId) {
+  if (clickedIds[clickedIds.length - 1] === nodeId)
+    return clickedIds;
+  const nodePlace = routeIds.indexOf(nodeId);
+  if (nodePlace === -1)
+    return [...clickedIds, nodeId];
+  const keptIds = [];
+  let place = -1;
+  for (const clickedId of clickedIds) {
+    place = routeIds.indexOf(clickedId, place + 1);
+    if (place >= nodePlace)
+      break;
+    keptIds.push(clickedId);
+  }
+  return [...keptIds, nodeId];
+}
+
 // node-inspector.ts
 function replaceDeclarationInLine(line, id, newToken) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -2593,7 +1723,7 @@ function renderNodeInspector() {
   nodeInspectorActions.replaceChildren(...actions);
   const hasDestination = node.kind !== "question";
   destinationRow.hidden = !hasDestination;
-  if (state.pathView)
+  if (isViewLimitingEdits(state.pathView))
     destinationRow.hidden = true;
   destinationSelect.replaceChildren();
   if (hasDestination) {
@@ -2622,278 +1752,274 @@ function renderNodeInspector() {
   updateNodeInspectorPosition();
 }
 
-// subset-source.ts
-function buildClassLines(source, declaredIds) {
-  const classIndex = buildClassStyleIndex(source);
-  const idsByClass = new Map;
-  for (const id of declaredIds) {
-    const className = classIndex.assignments.get(id);
-    if (!className)
-      continue;
-    const classIds = idsByClass.get(className) ?? [];
-    classIds.push(id);
-    idsByClass.set(className, classIds);
-  }
-  const sourceLines = source.split(`
-`);
-  const lines = [];
-  for (const [className, classIds] of idsByClass) {
-    const classDef = classIndex.defsByName.get(className);
-    if (classDef)
-      lines.push(`  ${sourceLines[classDef.lineIndex].trim()}`);
-    lines.push(`  class ${classIds.join(",")} ${className}`);
-  }
-  return lines;
-}
-function buildSubsetSource(graph, nodeIds, edges) {
-  const directionLine = graph.lines.find((line) => /^\s*(flowchart|graph)\b/.test(line));
-  const lines = [directionLine.trim()];
-  for (const id of nodeIds) {
-    for (const line of graph.lines) {
-      if (parsePropsLine(line)?.blockId === id)
-        lines.push(line);
+// graph-slice.ts
+function parentOf(id, edges) {
+  let found;
+  for (const edge of edges) {
+    if (edge[1] === id) {
+      found = edge;
+      break;
     }
-    lines.push(`  ${id}${getDeclarationSuffix(graph.nodes.get(id))}`);
   }
+  return found[0];
+}
+function contextualDecisionSliceIds(decisionId, edges) {
+  const reversed = [decisionId];
+  const visited = new Set(reversed);
+  let node = decisionId;
+  for (;; ) {
+    let incoming;
+    for (const edge of edges) {
+      const isMatch = edge[1] === node;
+      if (isMatch) {
+        incoming = edge;
+        break;
+      }
+    }
+    if (!incoming)
+      break;
+    const predecessor = incoming[0];
+    if (visited.has(predecessor))
+      break;
+    reversed.push(predecessor);
+    visited.add(predecessor);
+    const isPreviousDecision = predecessor.startsWith("Q_") && !predecessor.startsWith("Q_CHOICE");
+    if (isPreviousDecision)
+      break;
+    node = predecessor;
+  }
+  const ids = reversed.reverse();
+  for (const choice of choicesOf(decisionId, edges)) {
+    if (!visited.has(choice))
+      ids.push(choice);
+  }
+  return ids;
+}
+function sliceIds(edges) {
+  const focusNodeId = state.functionsOnly ? null : state.phoneFocusNodeId;
+  const hasFocusedDecisionContext = focusNodeId !== null && state.phoneFocusUsesDecisionContext;
+  if (hasFocusedDecisionContext)
+    return contextualDecisionSliceIds(focusNodeId, edges);
+  const last = state.functionsOnly ? undefined : state.phonePreviewChoiceId ?? phonePath[phonePath.length - 1];
+  const ids = focusNodeId ? [focusNodeId] : last ? [parentOf(last, edges), last] : [edges.map(([from]) => from).find((from) => !edges.some(([, to]) => to === from))];
+  let node = ids[ids.length - 1];
+  const visited = new Set(ids);
+  for (;; ) {
+    const next = [];
+    for (const [from, to] of edges) {
+      if (from === node)
+        next.push(to);
+    }
+    if (next.length === 0)
+      return ids;
+    if (next.length > 1)
+      return ids.concat(next);
+    node = next[0];
+    if (visited.has(node))
+      return ids;
+    ids.push(node);
+    visited.add(node);
+  }
+}
+function siblingIds(ids, edges) {
+  const hasDecisionContext = state.phoneFocusUsesDecisionContext || state.phonePreviewChoiceId || phonePath.length;
+  if (!hasDecisionContext)
+    return [];
+  const found = [];
   for (const [from, to] of edges) {
-    const edge = graph.edges.find((candidate) => `${candidate.from} ${candidate.to}` === `${from} ${to}`);
-    lines.push(edge.label ? `  ${from} -- "${edge.label}" --> ${to}` : `  ${from} --> ${to}`);
+    const isFromFirst = from === ids[0];
+    const isNotSecond = to !== ids[1];
+    const isSibling = isFromFirst && isNotSecond;
+    if (isSibling)
+      found.push(to);
   }
-  lines.push(...buildClassLines(graph.lines.join(`
-`), new Set(nodeIds)));
-  return lines.join(`
-`) + `
-`;
-}
-function buildPathSource(graph, pathIds) {
-  return buildSubsetSource(graph, [...new Set(pathIds)], buildPathEdges(pathIds));
+  return found;
 }
 
-// path-view.ts
-function buildPathDiagram(graph) {
-  const edges = graph.edges.map((edge) => [edge.from, edge.to]);
-  const decisionIds = [...graph.nodes.values()].filter((node) => node.kind === "question").map((node) => node.id);
-  return { startIds: findRoots(edges), edges, decisionIds };
-}
-function listViewDigits(view, diagram) {
-  const maximums = listDigitMaximums(diagram);
-  const storedDigits = [view.startDigit, ...diagram.decisionIds.map((id) => view.decisionDigits[id] ?? 0)];
-  return storedDigits.map((digit, i) => digit > maximums[i] ? 0 : digit);
-}
-function storeViewDigits(view, diagram, digits) {
-  view.startDigit = digits[0];
-  for (const [index, id] of diagram.decisionIds.entries())
-    view.decisionDigits[id] = digits[index + 1];
-}
-function renderPathViewControls() {
-  const view = state.pathView;
-  pathViewControls.hidden = !view;
-  onePathViewBtn.setAttribute("aria-pressed", String(!!view));
-  onePathViewBtn.disabled = state.functionsOnly;
-  functionsOnlyToggle.disabled = !!view;
-}
-function renderPathNumber(diagram, digits) {
-  viewPathLabel.textContent = `Path 0x${digits.map((digit) => digit.toString(16).toUpperCase()).join("")}`;
-  previousViewPathBtn.disabled = !findNeighbourDigits(diagram, digits, -1);
-  nextViewPathBtn.disabled = !findNeighbourDigits(diagram, digits, 1);
-}
-function buildMainViewSource(graph) {
-  renderPathViewControls();
-  const view = state.pathView;
-  if (!view) {
-    if (state.functionsOnly)
-      return filterToFunctions(codeBox.value);
-    return codeBox.value;
-  }
-  const diagram = buildPathDiagram(graph);
-  const path = walkDigitPath(diagram, listViewDigits(view, diagram));
-  storeViewDigits(view, diagram, path.digits);
-  view.pathIds = path.pathIds;
-  view.shownNodeIds = [...new Set(path.pathIds)];
-  view.protectedIds = path.pathIds;
-  renderPathNumber(diagram, path.digits);
-  return buildPathSource(graph, path.pathIds);
-}
-var VIEW_EDIT_BY_ACTION = {
-  remove: "removeNode",
-  "remove-choices": "removeChoices",
-  "add-choice": "addChoice",
-  "add-static-after": "addStaticAfter",
-  "insert-static-after": "insertStaticAfter"
-};
-function disableRefusedButtons(buttons, graph, nodeId) {
-  for (const button of buttons) {
-    const edit = VIEW_EDIT_BY_ACTION[button.dataset.action];
-    if (!edit)
-      continue;
-    const refusal = findViewEditRefusal(state.pathView, graph, edit, nodeId);
-    if (!refusal)
-      continue;
-    button.disabled = true;
-    button.title = refusal;
-  }
-}
-function refuseEditInPathView(edit, nodeId) {
-  if (!state.pathView)
-    return false;
-  const refusal = findViewEditRefusal(state.pathView, getEditorGraph(), edit, nodeId);
-  if (!refusal)
-    return false;
-  showInspectorNotice(refusal);
-  return true;
-}
-async function closePathView() {
-  state.pathView = null;
-  codeBox.readOnly = false;
-  await render();
-  renderNodeInspector();
-  if (state.selectedEditorNodeId)
-    moveNodeToViewportCenter(outputBox, diagramBox, state.selectedEditorNodeId);
-}
-async function toggleOnePathView() {
-  if (state.pathView) {
-    await closePathView();
-    return;
-  }
-  state.pathView = { kind: "onePath", anchorId: null, startDigit: 0, decisionDigits: {}, pathIds: null, shownNodeIds: [], protectedIds: [] };
-  codeBox.readOnly = true;
-  await render();
-  renderNodeInspector();
-  const selectedId = state.selectedEditorNodeId;
-  const isSelectedShown = state.pathView.shownNodeIds.includes(selectedId);
-  const centeredId = isSelectedShown ? selectedId : state.pathView.pathIds[0];
-  moveNodeToViewportCenter(outputBox, diagramBox, centeredId);
-}
-async function moveToViewPath(step) {
-  const view = state.pathView;
-  const diagram = buildPathDiagram(getEditorGraph());
-  storeViewDigits(view, diagram, findNeighbourDigits(diagram, listViewDigits(view, diagram), step));
-  await render();
-  const selectedId = state.selectedEditorNodeId;
-  const isSelectionHidden = !!selectedId && !view.shownNodeIds.includes(selectedId);
-  if (isSelectionHidden)
-    selectEditorNode(null);
-  else
-    renderNodeInspector();
-  moveNodeToViewportCenter(outputBox, diagramBox, view.pathIds[0]);
-}
-function showPreviousViewPath() {
-  moveToViewPath(-1);
-}
-function showNextViewPath() {
-  moveToViewPath(1);
-}
-onePathViewBtn.addEventListener("click", toggleOnePathView);
-fullDiagramBtn.addEventListener("click", closePathView);
-previousViewPathBtn.addEventListener("click", showPreviousViewPath);
-nextViewPathBtn.addEventListener("click", showNextViewPath);
-
-// render.ts
-var outputPointerHeld = null;
-function holdNewDrawingUntilPointerIsUp() {
-  outputPointerHeld = new Promise((resolve) => {
-    function endHold() {
-      outputPointerHeld = null;
-      resolve();
-    }
-    function endHoldAfterClick() {
-      setTimeout(endHold, 0);
-    }
-    document.addEventListener("pointerup", endHoldAfterClick, { once: true, capture: true });
-    document.addEventListener("pointercancel", endHoldAfterClick, { once: true, capture: true });
-  });
-}
-outputBox.addEventListener("pointerdown", holdNewDrawingUntilPointerIsUp, true);
-async function render() {
-  renderSourceLines();
-  errorBox.textContent = "";
-  try {
-    const graph = getEditorGraph();
-    clearInvalidPhonePreview(graph);
-    updateDecisionCounter(graph);
-    const edges = parseEdges(codeBox.value);
-    let phonePathIsStale = false;
-    for (const id of phonePath) {
-      let idIsInDiagram = false;
-      for (const [, to] of edges) {
-        const isTarget = to === id;
-        if (isTarget)
-          idIsInDiagram = true;
-      }
-      if (!idIsInDiagram)
-        phonePathIsStale = true;
-    }
-    if (phonePathIsStale)
-      phonePath.length = 0;
-    const ids = edges.length > 0 ? sliceIds(edges) : [];
-    const reversedIds = [...ids].reverse();
-    let bottomQ = state.phoneFocusNodeId && graph.nodes.get(state.phoneFocusNodeId)?.kind === "question" ? state.phoneFocusNodeId : undefined;
-    if (!bottomQ) {
-      for (const rid of reversedIds) {
-        let outgoingCount = 0;
-        for (const [from] of edges) {
-          if (from === rid)
-            outgoingCount++;
-        }
-        const hasBranch = outgoingCount > 1;
-        if (hasBranch) {
-          bottomQ = rid;
-          break;
-        }
+// phone-render.ts
+function findRoots(edges) {
+  const roots = [];
+  for (const [candidate] of edges) {
+    let hasIncoming = false;
+    for (const [, to] of edges) {
+      const targetsCandidate = to === candidate;
+      if (targetsCandidate) {
+        hasIncoming = true;
+        break;
       }
     }
-    state.currentBottomQ = bottomQ;
-    const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(buildMainViewSource(graph))));
-    const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
-    const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
-    const myRenderId = state.renderId;
-    const { svg: regularSvg } = await mermaid.render("diagram-" + state.renderId++, mainSource);
-    await outputPointerHeld;
-    if (state.renderId !== myRenderId + 1)
-      return;
-    const hasNodes = graph.nodes.size > 0;
-    const scaleIsUnset = state.diagramScale === null;
-    if (hasNodes) {
-      if (scaleIsUnset)
-        state.diagramScale = 1;
-    }
-    diagramBox.innerHTML = regularSvg;
-    renderPhone(phoneEdges, graph);
-    applyNodeTypeColors(graph);
-    applyNoteDots(graph);
-    renderEditorSelection();
-    applyPathHighlight();
-    if (hasNodes) {
-      const scale = state.diagramScale;
-      const mainZoom = state.mainZoomPercent / 100;
-      const regularSvgEl = diagramBox.querySelector("svg");
-      const regularBox = viewBoxOf(regularSvg);
-      regularSvgEl.style.width = regularBox.width * scale * mainZoom + "px";
-      regularSvgEl.style.height = regularBox.height * scale * mainZoom + "px";
-    }
-    outputBox.scrollLeft = regularViewport.left;
-    outputBox.scrollTop = regularViewport.top;
-    updateNodeInspectorPosition();
-    updateOffscreenArrowHeads();
-    errorLog.textContent = "";
-    errorLog.classList.remove("open");
-  } catch (err) {
-    state.currentDecisionId = null;
-    decisionCounter.textContent = "0 / 0";
-    reportEditorValidationError(err);
+    const isNewRoot = !hasIncoming && !roots.includes(candidate);
+    if (isNewRoot)
+      roots.push(candidate);
   }
+  return roots;
 }
-function applyFunctionsOnlyToggle() {
-  state.functionsOnly = functionsOnlyToggle.checked;
-  render();
+function isPhoneAwaitingStartNode(edges) {
+  const roots = findRoots(edges);
+  const hasSeveralStartNodes = roots.length > 1;
+  if (!hasSeveralStartNodes)
+    return false;
+  const hasNoAnswers = phonePath.length === 0;
+  if (!hasNoAnswers)
+    return false;
+  return !roots.includes(state.phoneStartNodeId);
 }
-function applyDarkModeToggle() {
-  document.body.classList.toggle("dark", darkModeToggle.checked);
-  mermaid.initialize(getMermaidOptions());
-  render();
+function selectPhonePathToNode(nodeId, edges, graph) {
+  const isChoice = graph.nodes.get(nodeId)?.kind === "choice";
+  const targetId = isChoice ? parentOf(nodeId, edges) : nodeId;
+  let startNodeId;
+  let answers;
+  for (const root of findRoots(edges)) {
+    answers = findAnswersFromRoot(root, targetId, edges, graph);
+    if (answers) {
+      startNodeId = root;
+      break;
+    }
+  }
+  if (!answers)
+    throw new Error(`No phone path leads from a start node to ${nodeId}`);
+  phonePath.length = 0;
+  phonePath.push(...answers);
+  if (isChoice)
+    phonePath.push(nodeId);
+  state.phoneStartNodeId = startNodeId;
+  state.phoneClickedNodeId = nodeId;
+  state.phoneClickedAtMs = Date.now();
+  state.phoneFocusNodeId = null;
+  state.phoneFocusUsesDecisionContext = false;
+  state.phonePreviewChoiceId = null;
 }
-functionsOnlyToggle.addEventListener("change", applyFunctionsOnlyToggle);
-darkModeToggle.addEventListener("change", applyDarkModeToggle);
+function findHistoryRoot(edges, graph) {
+  const roots = findRoots(edges);
+  const isClickedStartNodeKnown = roots.includes(state.phoneStartNodeId);
+  if (isClickedStartNodeKnown)
+    return state.phoneStartNodeId;
+  const hasNoAnswers = phonePath.length === 0;
+  if (hasNoAnswers)
+    return roots[0];
+  const firstAnsweredQuestion = parentOf(phonePath[0], edges);
+  for (const root of roots) {
+    const answers = findAnswersFromRoot(root, firstAnsweredQuestion, edges, graph);
+    if (answers)
+      return root;
+  }
+  return roots[0];
+}
+function compareNodesByLine(a, b) {
+  return a.lineIndex - b.lineIndex;
+}
+function buildHistoryRows(edges, graph) {
+  if (edges.length === 0) {
+    const sorted = [...graph.nodes.values()].sort(compareNodesByLine);
+    const standaloneRows = [];
+    for (const node of sorted) {
+      const isBlock = node.kind === "block";
+      if (isBlock)
+        standaloneRows.push({ status: "block", id: node.id });
+      else
+        standaloneRows.push({ status: "active", id: node.id });
+    }
+    return standaloneRows;
+  }
+  const rows = [];
+  let cur = findHistoryRoot(edges, graph);
+  let pathIndex = 0;
+  const maxSteps = graph.nodes.size + phonePath.length + 1;
+  for (let step = 0;step < maxSteps; step++) {
+    if (cur === undefined)
+      break;
+    const kind = graph.nodes.get(cur)?.kind ?? "block";
+    if (kind === "question") {
+      const choices = choicesOf(cur, edges);
+      const hasAnswer = pathIndex < phonePath.length && choices.includes(phonePath[pathIndex]);
+      const isSingleChoice = choices.length === 1;
+      if (!hasAnswer && !isSingleChoice) {
+        rows.push({ status: "active", id: cur });
+        break;
+      }
+      const answered = hasAnswer ? phonePath[pathIndex] : choices[0];
+      const declinedChoiceIds = [];
+      for (const choiceId of choices) {
+        const isChosen = choiceId === answered;
+        if (!isChosen)
+          declinedChoiceIds.push(choiceId);
+      }
+      rows.push({ status: "past", id: cur, chosenChoiceId: answered, declinedChoiceIds, revertIndex: pathIndex });
+      if (hasAnswer)
+        pathIndex++;
+      const isAnswerAChoice = graph.nodes.get(answered)?.kind === "choice";
+      cur = isAnswerAChoice ? choicesOf(answered, edges)[0] : answered;
+      continue;
+    }
+    if (kind === "block")
+      rows.push({ status: "block", id: cur });
+    const nexts = choicesOf(cur, edges);
+    const isSingleChain = nexts.length === 1;
+    cur = isSingleChain ? nexts[0] : undefined;
+  }
+  return rows;
+}
+function isPhoneShowingHistory() {
+  const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
+  const hasPreviewChoice = !state.functionsOnly && !!state.phonePreviewChoiceId;
+  return !hasFocusedDecision && !hasPreviewChoice;
+}
+function findAnswersLeadingTo(questionId, edges, graph) {
+  for (const root of findRoots(edges)) {
+    const answers = findAnswersFromRoot(root, questionId, edges, graph);
+    if (answers) {
+      state.phoneStartNodeId = root;
+      return answers;
+    }
+  }
+  throw new Error(`No phone path leads from the start to ${questionId}`);
+}
+function findRouteIdsToNode(nodeId, edges, graph) {
+  const isChoice = graph.nodes.get(nodeId)?.kind === "choice";
+  const targetId = isChoice ? parentOf(nodeId, edges) : nodeId;
+  for (const root of findRoots(edges)) {
+    const walk = findWalkFromRoot(root, targetId, edges, graph);
+    if (walk) {
+      if (isChoice)
+        return [...walk.routeIds, nodeId];
+      return walk.routeIds;
+    }
+  }
+  throw new Error(`No route leads from a start block to ${nodeId}`);
+}
+function findAnswersFromRoot(root, questionId, edges, graph) {
+  return findWalkFromRoot(root, questionId, edges, graph)?.answers;
+}
+function findWalkFromRoot(root, questionId, edges, graph) {
+  const queue = [{ nodeId: root, answers: [], routeIds: [] }];
+  const visited = new Set;
+  for (let i = 0;i < queue.length; i++) {
+    const { nodeId, answers, routeIds } = queue[i];
+    if (nodeId === undefined)
+      continue;
+    if (nodeId === questionId)
+      return { answers, routeIds: [...routeIds, nodeId] };
+    const isVisited = visited.has(nodeId);
+    if (isVisited)
+      continue;
+    visited.add(nodeId);
+    const isQuestion = graph.nodes.get(nodeId)?.kind === "question";
+    if (isQuestion) {
+      for (const choiceId of choicesOf(nodeId, edges)) {
+        const isChoiceAQuestion = graph.nodes.get(choiceId)?.kind === "question";
+        const nextNodeId = isChoiceAQuestion ? choiceId : choicesOf(choiceId, edges)[0];
+        const nextRouteIds = isChoiceAQuestion ? [...routeIds, nodeId] : [...routeIds, nodeId, choiceId];
+        queue.push({ nodeId: nextNodeId, answers: [...answers, choiceId], routeIds: nextRouteIds });
+      }
+      continue;
+    }
+    const nexts = choicesOf(nodeId, edges);
+    const isSingleChain = nexts.length === 1;
+    if (isSingleChain)
+      queue.push({ nodeId: nexts[0], answers, routeIds: [...routeIds, nodeId] });
+  }
+  return;
+}
 
 // diagram-save.ts
 var lastSavedDiagramText = null;
@@ -3012,6 +2138,1146 @@ async function saveDiagram() {
   }
 }
 
+// source-lines.ts
+function measureSourceLines() {
+  const style = getComputedStyle(codeBox);
+  const mirror = document.createElement("div");
+  mirror.style.cssText = `position:absolute;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;box-sizing:border-box;width:${codeBox.clientWidth}px;padding:${style.padding};font:${style.font};line-height:${style.lineHeight};`;
+  for (const line of codeBox.value.split(`
+`)) {
+    const lineEl = document.createElement("div");
+    lineEl.textContent = line || " ";
+    mirror.append(lineEl);
+  }
+  document.body.append(mirror);
+  const tops = [];
+  for (const lineEl of mirror.children)
+    tops.push(lineEl.offsetTop);
+  const end = mirror.offsetHeight;
+  mirror.remove();
+  return { tops, end };
+}
+function renderGutter(tops, end) {
+  const content = document.createElement("div");
+  content.style.height = end + "px";
+  for (let i = 0;i < tops.length; i++) {
+    const numberEl = document.createElement("span");
+    numberEl.textContent = String(i + 1);
+    numberEl.style.top = tops[i] + "px";
+    content.append(numberEl);
+  }
+  sourceGutter.replaceChildren(content);
+  sourceGutter.scrollTop = codeBox.scrollTop;
+}
+function findNodeLineIndex(lines, id) {
+  for (let i = 0;i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    const startsWithId = trimmed.startsWith(id);
+    const isNodeDefinition = startsWithId && ["[", "{", "("].includes(trimmed.charAt(id.length));
+    if (isNodeDefinition)
+      return i;
+  }
+  return -1;
+}
+function renderSelectedLineBand(tops, end) {
+  const id = state.selectedEditorNodeId;
+  const lineIndex = id ? findNodeLineIndex(codeBox.value.split(`
+`), id) : -1;
+  const hasSelectedLine = lineIndex !== -1;
+  if (!hasSelectedLine) {
+    codeBox.style.backgroundImage = "none";
+    return;
+  }
+  const top = tops[lineIndex];
+  const isLastLine = lineIndex === tops.length - 1;
+  const bottom = isLastLine ? end - parseFloat(getComputedStyle(codeBox).paddingBottom) : tops[lineIndex + 1];
+  const band = "color-mix(in srgb, var(--select-stroke) 25%, transparent)";
+  codeBox.style.backgroundImage = `linear-gradient(transparent ${top}px, ${band} ${top}px, ${band} ${bottom}px, transparent ${bottom}px)`;
+}
+function renderSourceLines() {
+  const { tops, end } = measureSourceLines();
+  renderGutter(tops, end);
+  renderSelectedLineBand(tops, end);
+}
+function syncGutterScroll() {
+  sourceGutter.scrollTop = codeBox.scrollTop;
+}
+codeBox.addEventListener("scroll", syncGutterScroll);
+new ResizeObserver(renderSourceLines).observe(codeBox);
+
+// editor-view-state.ts
+async function saveEditorViewState() {
+  const hasSaveTarget = !!state.currentName || !!state.openedFileHandle || !!state.loadedPath;
+  if (!hasSaveTarget)
+    return;
+  const sourceWithMetadata = buildSourceWithMetadata(codeBox.value);
+  if (sourceWithMetadata === codeBox.value)
+    return;
+  const { scrollTop, selectionStart, selectionEnd } = codeBox;
+  codeBox.value = sourceWithMetadata;
+  codeBox.scrollTop = scrollTop;
+  codeBox.setSelectionRange(selectionStart, selectionEnd);
+  renderSourceLines();
+  await saveDiagram();
+}
+
+// class-style-index.ts
+function buildClassStyleIndex(source) {
+  const assignments = new Map;
+  for (const line of source.split(`
+`)) {
+    const isLineCommented = isCommented(line);
+    if (isLineCommented)
+      continue;
+    const match = line.match(CLASS_LINE_RE);
+    if (!match)
+      continue;
+    for (const id of match[2].split(","))
+      assignments.set(id, match[3]);
+  }
+  const defsByName = new Map;
+  for (const def of parseClassDefs(source))
+    defsByName.set(def.name, def);
+  return { assignments, defsByName };
+}
+function findNodeStyle(index, nodeId) {
+  const name = index.assignments.get(nodeId);
+  if (!name)
+    return null;
+  const def = index.defsByName.get(name);
+  if (!def)
+    return null;
+  return { name, fill: def.fill, stroke: def.stroke };
+}
+
+// subset-source.ts
+function buildClassLines(source, declaredIds) {
+  const classIndex = buildClassStyleIndex(source);
+  const idsByClass = new Map;
+  for (const id of declaredIds) {
+    const className = classIndex.assignments.get(id);
+    if (!className)
+      continue;
+    const classIds = idsByClass.get(className) ?? [];
+    classIds.push(id);
+    idsByClass.set(className, classIds);
+  }
+  const sourceLines = source.split(`
+`);
+  const lines = [];
+  for (const [className, classIds] of idsByClass) {
+    const classDef = classIndex.defsByName.get(className);
+    if (classDef)
+      lines.push(`  ${sourceLines[classDef.lineIndex].trim()}`);
+    lines.push(`  class ${classIds.join(",")} ${className}`);
+  }
+  return lines;
+}
+function buildSubsetSource(graph, nodeIds, edges) {
+  const directionLine = graph.lines.find((line) => /^\s*(flowchart|graph)\b/.test(line));
+  const lines = [directionLine.trim()];
+  for (const id of nodeIds) {
+    for (const line of graph.lines) {
+      if (parsePropsLine(line)?.blockId === id)
+        lines.push(line);
+    }
+    lines.push(`  ${id}${getDeclarationSuffix(graph.nodes.get(id))}`);
+  }
+  for (const [from, to] of edges) {
+    const edge = graph.edges.find((candidate) => `${candidate.from} ${candidate.to}` === `${from} ${to}`);
+    lines.push(edge.label ? `  ${from} -- "${edge.label}" --> ${to}` : `  ${from} --> ${to}`);
+  }
+  lines.push(...buildClassLines(graph.lines.join(`
+`), new Set(nodeIds)));
+  return lines.join(`
+`) + `
+`;
+}
+function buildPathSource(graph, pathIds) {
+  return buildSubsetSource(graph, [...new Set(pathIds)], buildPathEdges(pathIds));
+}
+
+// path-view.ts
+function buildPathDiagram(graph) {
+  const edges = graph.edges.map((edge) => [edge.from, edge.to]);
+  const decisionIds = [...graph.nodes.values()].filter((node) => node.kind === "question").map((node) => node.id);
+  return { startIds: findRoots(edges), edges, decisionIds };
+}
+function listViewDigits(view, diagram) {
+  const maximums = listDigitMaximums(diagram);
+  const storedDigits = [view.startDigit, ...diagram.decisionIds.map((id) => view.decisionDigits[id] ?? 0)];
+  return storedDigits.map((digit, i) => digit > maximums[i] ? 0 : digit);
+}
+function storeViewDigits(view, diagram, digits) {
+  view.startDigit = digits[0];
+  for (const [index, id] of diagram.decisionIds.entries())
+    view.decisionDigits[id] = digits[index + 1];
+}
+function renderPathViewControls() {
+  const view = state.pathView;
+  const isOnePath = view?.kind === "onePath";
+  const isDownstream = view?.kind === "downstream";
+  pathViewControls.hidden = !isOnePath;
+  onePathViewBtn.setAttribute("aria-pressed", String(isOnePath));
+  onePathViewBtn.disabled = state.functionsOnly || isDownstream;
+  downstreamViewControls.hidden = !isDownstream;
+  downstreamViewBtn.setAttribute("aria-pressed", String(isDownstream));
+  downstreamViewBtn.disabled = state.functionsOnly || isOnePath;
+  backDownstreamViewBtn.disabled = !view?.clickHistory.length;
+  functionsOnlyToggle.disabled = !!view;
+}
+function renderPathNumber(diagram, digits) {
+  viewPathLabel.textContent = `Path 0x${digits.map((digit) => digit.toString(16).toUpperCase()).join("")}`;
+  previousViewPathBtn.disabled = !findNeighbourDigits(diagram, digits, -1);
+  nextViewPathBtn.disabled = !findNeighbourDigits(diagram, digits, 1);
+}
+function buildOnePathSource(view, graph) {
+  const diagram = buildPathDiagram(graph);
+  const path = walkDigitPath(diagram, listViewDigits(view, diagram));
+  storeViewDigits(view, diagram, path.digits);
+  view.pathIds = path.pathIds;
+  view.shownNodeIds = [...new Set(path.pathIds)];
+  view.protectedIds = path.pathIds;
+  renderPathNumber(diagram, path.digits);
+  return buildPathSource(graph, path.pathIds);
+}
+function closeViewWithRemovedBlock(graph) {
+  const view = state.pathView;
+  if (!view)
+    return;
+  for (const id of view.clickedIds) {
+    if (!graph.nodes.has(id)) {
+      state.pathView = null;
+      codeBox.readOnly = false;
+      return;
+    }
+  }
+}
+function buildDownstreamSource(view, graph) {
+  view.pathIds = null;
+  if (!view.clickedIds.length) {
+    view.shownNodeIds = [...graph.nodes.keys()];
+    view.protectedIds = [];
+    return codeBox.value;
+  }
+  const edges = graph.edges.map((edge) => [edge.from, edge.to]);
+  const routeIds = findRouteIdsToNode(view.clickedIds[0], edges, graph);
+  for (let i = 1;i < view.clickedIds.length; i++)
+    routeIds.push(...findShortestRouteIds(view.clickedIds[i - 1], view.clickedIds[i], edges).slice(1));
+  const latestId = view.clickedIds[view.clickedIds.length - 1];
+  const shownEdgesByKey = new Map;
+  for (const edge of [...buildPathEdges(routeIds), ...collectDownstreamEdges(latestId, edges)])
+    shownEdgesByKey.set(edge.join(" "), edge);
+  const shownEdges = [...shownEdgesByKey.values()];
+  view.shownNodeIds = [...new Set([...routeIds, ...shownEdges.flat()])];
+  view.protectedIds = routeIds;
+  return buildSubsetSource(graph, view.shownNodeIds, shownEdges);
+}
+function isNodeDrawn(id) {
+  if (!state.pathView)
+    return true;
+  return state.pathView.shownNodeIds.includes(id);
+}
+function showRouteInPhone(view, graph) {
+  phonePath.length = 0;
+  for (let i = 0;i + 1 < view.protectedIds.length; i++) {
+    if (graph.nodes.get(view.protectedIds[i]).kind === "question")
+      phonePath.push(view.protectedIds[i + 1]);
+  }
+  state.phoneStartNodeId = view.protectedIds[0];
+}
+function buildMainViewSource(graph) {
+  closeViewWithRemovedBlock(graph);
+  renderPathViewControls();
+  const view = state.pathView;
+  if (!view) {
+    if (state.functionsOnly)
+      return filterToFunctions(codeBox.value);
+    return codeBox.value;
+  }
+  const source = view.kind === "downstream" ? buildDownstreamSource(view, graph) : buildOnePathSource(view, graph);
+  if (isViewLimitingEdits(view))
+    showRouteInPhone(view, graph);
+  return source;
+}
+var VIEW_EDIT_BY_ACTION = {
+  remove: "removeNode",
+  "remove-choices": "removeChoices",
+  "add-choice": "addChoice",
+  "add-static-after": "addStaticAfter",
+  "insert-static-after": "insertStaticAfter"
+};
+function disableRefusedButtons(buttons, graph, nodeId) {
+  for (const button of buttons) {
+    const edit = VIEW_EDIT_BY_ACTION[button.dataset.action];
+    if (!edit)
+      continue;
+    const refusal = findViewEditRefusal(state.pathView, graph, edit, nodeId);
+    if (!refusal)
+      continue;
+    button.disabled = true;
+    button.title = refusal;
+  }
+}
+function refuseEditInPathView(edit, nodeId) {
+  if (!isViewLimitingEdits(state.pathView))
+    return false;
+  const refusal = findViewEditRefusal(state.pathView, getEditorGraph(), edit, nodeId);
+  if (!refusal)
+    return false;
+  showInspectorNotice(refusal);
+  return true;
+}
+async function closePathView() {
+  state.pathView = null;
+  codeBox.readOnly = false;
+  await render();
+  renderNodeInspector();
+  if (state.selectedEditorNodeId)
+    moveNodeToViewportCenter(outputBox, diagramBox, state.selectedEditorNodeId);
+}
+async function toggleOnePathView() {
+  if (state.pathView) {
+    await closePathView();
+    return;
+  }
+  state.pathView = { kind: "onePath", clickedIds: [], clickHistory: [], startDigit: 0, decisionDigits: {}, pathIds: null, shownNodeIds: [], protectedIds: [] };
+  codeBox.readOnly = true;
+  await render();
+  renderNodeInspector();
+  const selectedId = state.selectedEditorNodeId;
+  const isSelectedShown = state.pathView.shownNodeIds.includes(selectedId);
+  const centeredId = isSelectedShown ? selectedId : state.pathView.pathIds[0];
+  moveNodeToViewportCenter(outputBox, diagramBox, centeredId);
+}
+async function moveToViewPath(step) {
+  const view = state.pathView;
+  const diagram = buildPathDiagram(getEditorGraph());
+  storeViewDigits(view, diagram, findNeighbourDigits(diagram, listViewDigits(view, diagram), step));
+  await render();
+  const selectedId = state.selectedEditorNodeId;
+  const isSelectionHidden = !!selectedId && !view.shownNodeIds.includes(selectedId);
+  if (isSelectionHidden)
+    selectEditorNode(null);
+  else
+    renderNodeInspector();
+  moveNodeToViewportCenter(outputBox, diagramBox, view.pathIds[0]);
+}
+function showPreviousViewPath() {
+  moveToViewPath(-1);
+}
+function showNextViewPath() {
+  moveToViewPath(1);
+}
+async function toggleDownstreamView() {
+  if (state.pathView) {
+    await closePathView();
+    return;
+  }
+  state.pathView = { kind: "downstream", clickedIds: [], clickHistory: [], startDigit: 0, decisionDigits: {}, pathIds: null, shownNodeIds: [], protectedIds: [] };
+  await render();
+  renderNodeInspector();
+}
+async function filterDownstreamView(nodeId) {
+  const view = state.pathView;
+  let nextClickedIds;
+  if (view.shownNodeIds.includes(nodeId))
+    nextClickedIds = addFilterClick(view.clickedIds, view.protectedIds, nodeId);
+  else {
+    const edges = getEditorGraph().edges.map((edge) => [edge.from, edge.to]);
+    nextClickedIds = [...addFilterClick(view.clickedIds, view.protectedIds, parentOf(nodeId, edges)), nodeId];
+  }
+  if (nextClickedIds !== view.clickedIds) {
+    view.clickHistory.push(view.clickedIds);
+    view.clickedIds = nextClickedIds;
+  }
+  codeBox.readOnly = true;
+  await render();
+  renderNodeInspector();
+  moveNodeToViewportCenter(outputBox, diagramBox, nodeId);
+}
+async function undoFilterClick() {
+  const view = state.pathView;
+  view.clickedIds = view.clickHistory.pop();
+  codeBox.readOnly = isViewLimitingEdits(view);
+  if (!view.clickedIds.length)
+    clearPhoneAnswers();
+  await render();
+  renderNodeInspector();
+}
+async function resetDownstreamFilter() {
+  const view = state.pathView;
+  view.clickedIds = [];
+  view.clickHistory = [];
+  codeBox.readOnly = false;
+  clearPhoneAnswers();
+  await render();
+  renderNodeInspector();
+}
+function clearPhoneFocus() {
+  state.phoneFocusNodeId = null;
+  state.phoneFocusUsesDecisionContext = false;
+  state.phonePreviewChoiceId = null;
+}
+function clearPhoneAnswers() {
+  phonePath.length = 0;
+  state.phoneStartNodeId = null;
+  clearPhoneFocus();
+}
+async function renderAfterPhoneTap() {
+  await render();
+  const isSelectionHidden = !!state.selectedEditorNodeId && !isNodeDrawn(state.selectedEditorNodeId);
+  if (isSelectionHidden)
+    selectEditorNode(null);
+  else
+    renderNodeInspector();
+}
+async function handlePhoneTapInPathView(button) {
+  const view = state.pathView;
+  if (!view)
+    return false;
+  const isUndo = button.dataset.undo !== undefined;
+  if (isUndo) {
+    if (view.kind === "downstream") {
+      if (!isViewLimitingEdits(view))
+        return false;
+      await undoFilterClick();
+      return true;
+    }
+    const graph = getEditorGraph();
+    const answeredIds = view.protectedIds.slice(0, -1).filter((id) => graph.nodes.get(id).kind === "question");
+    view.decisionDigits[answeredIds[answeredIds.length - 1]] = 0;
+    await renderAfterPhoneTap();
+    return true;
+  }
+  const isReset = button.dataset.resetDecisions !== undefined;
+  if (isReset) {
+    if (view.kind === "downstream") {
+      if (!isViewLimitingEdits(view))
+        return false;
+      await resetDownstreamFilter();
+      return true;
+    }
+    view.startDigit = 0;
+    view.decisionDigits = {};
+    await renderAfterPhoneTap();
+    return true;
+  }
+  const isRevert = button.dataset.revert !== undefined;
+  if (isRevert) {
+    if (view.kind === "downstream") {
+      if (!isViewLimitingEdits(view))
+        return false;
+    }
+  }
+  const choiceId = isRevert ? button.dataset.revert.split(":")[1] : button.dataset.choose;
+  const graph = getEditorGraph();
+  const edges = graph.edges.map((edge) => [edge.from, edge.to]);
+  const decisionId = parentOf(choiceId, edges);
+  clearPhoneFocus();
+  if (view.kind === "downstream") {
+    const tappedId = isRevert ? decisionId : choiceId;
+    selectEditorNode(tappedId);
+    saveEditorViewState();
+    await filterDownstreamView(tappedId);
+    return true;
+  }
+  view.decisionDigits[decisionId] = choicesOf(decisionId, edges).indexOf(choiceId);
+  await renderAfterPhoneTap();
+  return true;
+}
+onePathViewBtn.addEventListener("click", toggleOnePathView);
+fullDiagramBtn.addEventListener("click", closePathView);
+previousViewPathBtn.addEventListener("click", showPreviousViewPath);
+nextViewPathBtn.addEventListener("click", showNextViewPath);
+downstreamViewBtn.addEventListener("click", toggleDownstreamView);
+backDownstreamViewBtn.addEventListener("click", undoFilterClick);
+resetDownstreamViewBtn.addEventListener("click", resetDownstreamFilter);
+
+// decision-nav.ts
+function compareLineIndex(a, b) {
+  return a.lineIndex - b.lineIndex;
+}
+function listDecisionNodes(graph) {
+  const decisions = [];
+  for (const node of graph.nodes.values()) {
+    const isQuestion = node.kind === "question";
+    if (isQuestion)
+      decisions.push(node);
+  }
+  decisions.sort(compareLineIndex);
+  return decisions;
+}
+function clearInvalidPhonePreview(graph) {
+  const hasFocus = !!state.phoneFocusNodeId;
+  const isFocusNotQuestion = graph.nodes.get(state.phoneFocusNodeId ?? "")?.kind !== "question";
+  const isFocusInvalid = hasFocus && isFocusNotQuestion;
+  if (isFocusInvalid) {
+    state.phoneFocusNodeId = null;
+    state.phoneFocusUsesDecisionContext = false;
+  }
+  const hasPreview = !!state.phonePreviewChoiceId;
+  if (!hasPreview)
+    return;
+  const feedingChoice = findNearestFeedingChoice(state.phonePreviewChoiceId, graph);
+  const isPreviewInvalid = feedingChoice !== state.phonePreviewChoiceId;
+  if (isPreviewInvalid)
+    state.phonePreviewChoiceId = null;
+}
+function updateDecisionCounter(graph) {
+  const decisions = listDecisionNodes(graph);
+  if (decisions.length === 0) {
+    state.currentDecisionId = null;
+    decisionCounter.textContent = "0 / 0";
+    return decisions;
+  }
+  let hasCurrentDecision = false;
+  for (const node of decisions) {
+    const isCurrent = node.id === state.currentDecisionId;
+    if (isCurrent) {
+      hasCurrentDecision = true;
+      break;
+    }
+  }
+  if (!hasCurrentDecision) {
+    let selectedDecisionId;
+    for (const node of decisions) {
+      const isSelected = node.id === state.selectedEditorNodeId;
+      if (isSelected) {
+        selectedDecisionId = node.id;
+        break;
+      }
+    }
+    state.currentDecisionId = selectedDecisionId ?? decisions[0].id;
+  }
+  let current = 0;
+  for (let i = 0;i < decisions.length; i++) {
+    const isCurrent = decisions[i].id === state.currentDecisionId;
+    if (isCurrent) {
+      current = i + 1;
+      break;
+    }
+  }
+  decisionCounter.textContent = `${current} / ${decisions.length}`;
+  return decisions;
+}
+function moveNodeToViewportCenter(container, diagram, id) {
+  const node = diagram.querySelector('[id*="flowchart-' + id + '-"]');
+  if (!node)
+    return;
+  const containerRect = container.getBoundingClientRect();
+  const nodeRect = node.getBoundingClientRect();
+  container.scrollLeft += nodeRect.left + nodeRect.width / 2 - containerRect.left - container.clientWidth / 2;
+  container.scrollTop += nodeRect.top + nodeRect.height / 2 - containerRect.top - container.clientHeight / 2;
+}
+async function moveToDecision(step) {
+  let graph;
+  try {
+    graph = getEditorGraph();
+  } catch (error) {
+    reportEditorValidationError(error);
+    return;
+  }
+  const decisions = updateDecisionCounter(graph);
+  if (decisions.length === 0) {
+    setStatus("No decisions in this diagram");
+    return;
+  }
+  const selected = graph.nodes.get(state.selectedEditorNodeId ?? "");
+  const anchorId = selected?.kind === "question" ? selected.id : state.currentDecisionId;
+  let currentIndex = -1;
+  for (let i = 0;i < decisions.length; i++) {
+    const isAnchor = decisions[i].id === anchorId;
+    if (isAnchor) {
+      currentIndex = i;
+      break;
+    }
+  }
+  let nextIndex = currentIndex;
+  for (let tried = 0;tried < decisions.length; tried++) {
+    nextIndex = (nextIndex + step + decisions.length) % decisions.length;
+    if (isNodeDrawn(decisions[nextIndex].id))
+      break;
+  }
+  const decision = decisions[nextIndex];
+  if (!isNodeDrawn(decision.id))
+    return;
+  state.currentDecisionId = decision.id;
+  state.phoneFocusNodeId = decision.id;
+  state.phoneFocusUsesDecisionContext = true;
+  state.phonePreviewChoiceId = null;
+  selectEditorNode(decision.id);
+  updateDecisionCounter(graph);
+  await render();
+  selectEditorNode(decision.id);
+  updateDecisionCounter(graph);
+  moveNodeToViewportCenter(outputBox, diagramBox, decision.id);
+}
+
+// diagram-source.ts
+function parseEdges(text) {
+  const edges = [];
+  for (const rawLine of text.split(`
+`)) {
+    const line = rawLine.trim();
+    const isComment = line.startsWith("%%");
+    const hasArrow = line.includes("-->");
+    const skipLine = isComment || !hasArrow;
+    if (skipLine)
+      continue;
+    const ids = [];
+    for (const s of line.split("-->")) {
+      ids.push(s.trim());
+    }
+    for (let i = 0;i + 1 < ids.length; i++)
+      edges.push([ids[i], ids[i + 1]]);
+  }
+  return edges;
+}
+
+// node-type-colors.ts
+var UNCLASSED_STRIPE_PATTERN_ID = "unclassed-stripe-pattern";
+function addUnclassedStripePattern(svg) {
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    svg.insertBefore(defs, svg.firstChild);
+  }
+  const existingPattern = defs.querySelector("#" + UNCLASSED_STRIPE_PATTERN_ID);
+  if (existingPattern)
+    return;
+  defs.insertAdjacentHTML("beforeend", `<pattern id="${UNCLASSED_STRIPE_PATTERN_ID}" width="16" height="16" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#fde8e8"/><rect width="8" height="16" fill="#f4b4b4"/></pattern>`);
+}
+function applyNodeTypeColors(graph) {
+  const svg = diagramBox.querySelector("svg");
+  if (!svg)
+    return;
+  const classIndex = buildClassStyleIndex(codeBox.value);
+  for (const nodeEl of diagramBox.querySelectorAll("g.node")) {
+    const node = graph.nodes.get(getNodeId(nodeEl));
+    if (!node)
+      continue;
+    const isClassed = !!findNodeStyle(classIndex, node.id);
+    if (isClassed)
+      continue;
+    addUnclassedStripePattern(svg);
+    for (const shape of nodeEl.querySelectorAll("rect, path, polygon"))
+      shape.style.fill = `url(#${UNCLASSED_STRIPE_PATTERN_ID})`;
+  }
+}
+function applyNoteDots(graph) {
+  for (const nodeEl of diagramBox.querySelectorAll("g.node")) {
+    if (!graph.nodes.get(getNodeId(nodeEl))?.note)
+      continue;
+    const box = nodeEl.getBBox();
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("class", "note-dot");
+    dot.setAttribute("cx", String(box.x + 6));
+    dot.setAttribute("cy", String(box.y + 6));
+    dot.setAttribute("r", "4");
+    const fill = getComputedStyle(nodeEl.querySelector("rect, path, polygon")).fill;
+    const rgb = fill.match(/rgb\((\d+), (\d+), (\d+)/);
+    if (!rgb)
+      dot.style.fill = "rgb(11, 75, 75)";
+    else {
+      const [r, g, b] = rgb.slice(1).map(Number);
+      const isMidGray = [r, g, b].every((channel) => channel >= 96 && channel <= 159);
+      const midGrayFill = (r + g + b) / 3 >= 128 ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)";
+      dot.style.fill = isMidGray ? midGrayFill : `rgb(${255 - r}, ${255 - g}, ${255 - b})`;
+    }
+    nodeEl.appendChild(dot);
+  }
+}
+
+// offscreen-arrow-heads.ts
+var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+var EDGE_INSET_PX = 2;
+var SAMPLE_COUNT = 100;
+var REFINE_STEPS = 20;
+var DIRECTION_LENGTH = 2;
+function getVisibleArea(insetPx) {
+  const outputRect = outputBox.getBoundingClientRect();
+  const left = outputRect.left + outputBox.clientLeft + insetPx;
+  const top = outputRect.top + outputBox.clientTop + insetPx;
+  return { left, top, right: left + outputBox.clientWidth - 2 * insetPx, bottom: top + outputBox.clientHeight - 2 * insetPx };
+}
+function isPointInArea(point, area) {
+  if (point.x < area.left)
+    return false;
+  if (point.x > area.right)
+    return false;
+  if (point.y < area.top)
+    return false;
+  if (point.y > area.bottom)
+    return false;
+  return true;
+}
+function doesRectOverlapArea(rect, area) {
+  if (rect.right < area.left)
+    return false;
+  if (rect.left > area.right)
+    return false;
+  if (rect.bottom < area.top)
+    return false;
+  if (rect.top > area.bottom)
+    return false;
+  return true;
+}
+function getScreenPointAtLength(path, length, matrix) {
+  return path.getPointAtLength(length).matrixTransform(matrix);
+}
+function findLastVisibleLength(path, totalLength, matrix, area) {
+  let lastInsideLength = -1;
+  for (let step = 0;step <= SAMPLE_COUNT; step++) {
+    const length = totalLength * step / SAMPLE_COUNT;
+    const isInside = isPointInArea(getScreenPointAtLength(path, length, matrix), area);
+    if (isInside)
+      lastInsideLength = length;
+  }
+  if (lastInsideLength < 0)
+    return null;
+  let insideLength = lastInsideLength;
+  let outsideLength = Math.min(totalLength, lastInsideLength + totalLength / SAMPLE_COUNT);
+  for (let step = 0;step < REFINE_STEPS; step++) {
+    const middleLength = (insideLength + outsideLength) / 2;
+    const isInside = isPointInArea(getScreenPointAtLength(path, middleLength, matrix), area);
+    if (isInside)
+      insideLength = middleLength;
+    else
+      outsideLength = middleLength;
+  }
+  return insideLength;
+}
+function buildArrowHead(path, length, marker) {
+  const point = path.getPointAtLength(length);
+  const pointAhead = path.getPointAtLength(Math.min(length + DIRECTION_LENGTH, path.getTotalLength()));
+  const angleDegrees = Math.atan2(pointAhead.y - point.y, pointAhead.x - point.x) * 180 / Math.PI;
+  const markerPath = marker.querySelector("path");
+  const viewBox = marker.viewBox.baseVal;
+  const scale = Math.min(marker.markerWidth.baseVal.value / viewBox.width, marker.markerHeight.baseVal.value / viewBox.height);
+  const head = document.createElementNS(SVG_NAMESPACE, "path");
+  head.setAttribute("d", markerPath.getAttribute("d"));
+  head.setAttribute("class", "arrowMarkerPath offscreen-arrow-head");
+  head.setAttribute("style", markerPath.getAttribute("style") ?? "");
+  const markerPathStyle = getComputedStyle(markerPath);
+  head.style.fill = markerPathStyle.fill;
+  head.style.stroke = markerPathStyle.stroke;
+  head.setAttribute("transform", `translate(${point.x} ${point.y}) rotate(${angleDegrees}) scale(${scale}) translate(${-marker.refX.baseVal.value} ${-marker.refY.baseVal.value})`);
+  head.setAttribute("data-edge-id", path.getAttribute("data-id"));
+  return head;
+}
+function updateOffscreenArrowHeads() {
+  for (const oldHead of diagramBox.querySelectorAll(".offscreen-arrow-head"))
+    oldHead.remove();
+  const visibleArea = getVisibleArea(0);
+  const insetArea = getVisibleArea(EDGE_INSET_PX);
+  for (const path of diagramBox.querySelectorAll("path.flowchart-link")) {
+    const markerEnd = path.getAttribute("marker-end");
+    if (markerEnd === null)
+      continue;
+    if (!doesRectOverlapArea(path.getBoundingClientRect(), visibleArea))
+      continue;
+    const matrix = path.getScreenCTM();
+    const totalLength = path.getTotalLength();
+    const endPoint = getScreenPointAtLength(path, totalLength, matrix);
+    if (isPointInArea(endPoint, visibleArea))
+      continue;
+    const lastVisibleLength = findLastVisibleLength(path, totalLength, matrix, insetArea);
+    if (lastVisibleLength === null)
+      continue;
+    const markerId = markerEnd.match(/#([^)"']+)/)[1];
+    const marker = diagramBox.querySelector(`#${CSS.escape(markerId)}`);
+    path.after(buildArrowHead(path, lastVisibleLength, marker));
+  }
+}
+function scrollToStartBlockOfCmdClickedArrow(event) {
+  if (!event.metaKey)
+    return;
+  const target = event.target;
+  let path = target.closest("path.flowchart-link");
+  if (!path) {
+    const head = target.closest(".offscreen-arrow-head");
+    if (!head)
+      return;
+    path = diagramBox.querySelector(`path.flowchart-link[data-id="${head.getAttribute("data-edge-id")}"]`);
+  }
+  event.stopPropagation();
+  const [startBlockId] = getEdgeEnds(path, parseEdges(codeBox.value));
+  diagramBox.querySelector(`[id*="flowchart-${startBlockId}-"]`).scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+}
+function scrollToEndBlockOfClickedArrowHead(event) {
+  if (event.metaKey)
+    return;
+  const head = event.target.closest(".offscreen-arrow-head");
+  if (!head)
+    return;
+  event.stopPropagation();
+  const path = diagramBox.querySelector(`path.flowchart-link[data-id="${head.getAttribute("data-edge-id")}"]`);
+  const [, endBlockId] = getEdgeEnds(path, parseEdges(codeBox.value));
+  diagramBox.querySelector(`[id*="flowchart-${endBlockId}-"]`).scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+}
+outputBox.addEventListener("click", scrollToStartBlockOfCmdClickedArrow, true);
+outputBox.addEventListener("click", scrollToEndBlockOfClickedArrowHead, true);
+outputBox.addEventListener("scroll", updateOffscreenArrowHeads);
+window.addEventListener("resize", updateOffscreenArrowHeads);
+
+// zoom.ts
+function viewBoxOf(svgText) {
+  const match = svgText.match(/viewBox="[^"]*?\s([\d.]+)\s([\d.]+)"/);
+  const [, w, h] = match;
+  return { width: Number(w), height: Number(h) };
+}
+function applyMainZoom(preserveViewportCenter = true) {
+  zoomLevel.textContent = `${state.mainZoomPercent}%`;
+  zoomInBtn.disabled = state.mainZoomPercent >= MAX_MAIN_ZOOM;
+  zoomOutBtn.disabled = state.mainZoomPercent <= MIN_MAIN_ZOOM;
+  zoomResetBtn.disabled = state.mainZoomPercent === 100;
+  const svg = diagramBox.querySelector("svg");
+  const scale = state.diagramScale;
+  const hasSvg = svg !== null;
+  const hasScale = scale !== null;
+  if (!hasSvg)
+    return;
+  if (!hasScale)
+    return;
+  const oldWidth = Number.parseFloat(svg.style.width);
+  const oldHeight = Number.parseFloat(svg.style.height);
+  const centerX = outputBox.scrollLeft + outputBox.clientWidth / 2;
+  const svgOffsetX = outputBox.scrollLeft + svg.getBoundingClientRect().left - outputBox.getBoundingClientRect().left;
+  const centerY = outputBox.scrollTop + outputBox.clientHeight / 2;
+  const zoom = state.mainZoomPercent / 100;
+  const newWidth = svg.viewBox.baseVal.width * scale * zoom;
+  const newHeight = svg.viewBox.baseVal.height * scale * zoom;
+  svg.style.width = newWidth + "px";
+  svg.style.height = newHeight + "px";
+  const hadWidth = oldWidth > 0;
+  const hadHeight = oldHeight > 0;
+  if (preserveViewportCenter) {
+    if (hadWidth) {
+      if (hadHeight) {
+        outputBox.scrollLeft = svgOffsetX + (centerX - svgOffsetX) * newWidth / oldWidth - outputBox.clientWidth / 2;
+        outputBox.scrollTop = centerY * newHeight / oldHeight - outputBox.clientHeight / 2;
+      }
+    }
+  }
+  updateOffscreenArrowHeads();
+}
+function setMainZoomPercent(percent) {
+  state.mainZoomPercent = Math.max(MIN_MAIN_ZOOM, Math.min(MAX_MAIN_ZOOM, Math.round(percent)));
+  applyMainZoom();
+}
+
+// phone-rows.ts
+function buildRowsFromIdSequence(ids, graph, activeId, leadChosenId, leadDeclinedIds) {
+  const rows = [];
+  const seen = new Set;
+  const leadQuestionId = ids[0];
+  for (const id of ids) {
+    const alreadySeen = seen.has(id);
+    if (alreadySeen)
+      continue;
+    seen.add(id);
+    const kind = graph.nodes.get(id)?.kind;
+    const isChoice = kind === "choice";
+    if (isChoice)
+      continue;
+    const isBlock = kind === "block";
+    if (isBlock) {
+      rows.push({ status: "block", id });
+      continue;
+    }
+    const isQuestion = kind === "question";
+    if (!isQuestion)
+      continue;
+    const isActive = id === activeId;
+    if (isActive) {
+      rows.push({ status: "active", id });
+      continue;
+    }
+    const isLeadQuestion = id === leadQuestionId;
+    const hasLeadChoice = leadChosenId !== undefined;
+    const isAnsweredLeadQuestion = isLeadQuestion && hasLeadChoice;
+    if (isAnsweredLeadQuestion)
+      rows.push({ status: "past", id, chosenChoiceId: leadChosenId, declinedChoiceIds: leadDeclinedIds });
+  }
+  return rows;
+}
+function buildFocusRows(edges, graph, focusNodeId) {
+  const ids = sliceIds(edges);
+  const siblings = siblingIds(ids, edges);
+  return buildRowsFromIdSequence(ids, graph, focusNodeId, ids[1], siblings);
+}
+function buildPreviewRows(edges, graph) {
+  const ids = sliceIds(edges);
+  const siblings = siblingIds(ids, edges);
+  const reversedIds = [...ids].reverse();
+  let activeId;
+  for (const id of reversedIds) {
+    const isQuestion = graph.nodes.get(id)?.kind === "question";
+    const isLeadQuestion = id === ids[0];
+    const isEarlierQuestion = isQuestion && !isLeadQuestion;
+    if (isEarlierQuestion) {
+      activeId = id;
+      break;
+    }
+  }
+  return buildRowsFromIdSequence(ids, graph, activeId ?? ids[0], ids[1], siblings);
+}
+function buildRows(edges, graph) {
+  const hasFocusedDecision = !state.functionsOnly && state.phoneFocusUsesDecisionContext && !!state.phoneFocusNodeId;
+  if (hasFocusedDecision)
+    return buildFocusRows(edges, graph, state.phoneFocusNodeId);
+  const hasPreviewChoice = !state.functionsOnly && !!state.phonePreviewChoiceId;
+  if (hasPreviewChoice)
+    return buildPreviewRows(edges, graph);
+  return buildHistoryRows(edges, graph);
+}
+
+// phone-html.ts
+var PHONE_CLICKED_BORDER_MS = 3000;
+var UNCLASSED_PHONE_STYLE = "background:repeating-linear-gradient(45deg, #f4b4b4 0 8px, #fde8e8 8px 16px)";
+var classIndex = { assignments: new Map, defsByName: new Map };
+function getPhoneNodeAppearance(node, graph) {
+  const classStyle = findNodeStyle(classIndex, node.id);
+  const textAlignStyle = `;text-align:${getNodeAlign(graph.lines, node.id).justification}`;
+  if (!classStyle)
+    return { boxStyle: UNCLASSED_PHONE_STYLE + textAlignStyle, labelStyle: "" };
+  return { boxStyle: `background:${classStyle.fill};border:2px solid ${classStyle.stroke}${textAlignStyle}`, labelStyle: "" };
+}
+function encodeHtml(text) {
+  const withAmp = text.replace(/&/g, "&amp;");
+  const withLt = withAmp.replace(/</g, "&lt;");
+  const withGt = withLt.replace(/>/g, "&gt;");
+  const withQuote = withGt.replace(/"/g, "&quot;");
+  return withQuote.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
+}
+function getLabelOf(id, graph) {
+  return decodeLabelQuotes(graph.nodes.get(id)?.label ?? id);
+}
+function getLabelHtml(id, graph) {
+  const pieces = getLabelOf(id, graph).split(FENCED_CODE_BLOCK_PATTERN);
+  const htmlPieces = [];
+  for (const [index, piece] of pieces.entries()) {
+    const isCodeBlock = index % 2 === 1;
+    if (isCodeBlock) {
+      const codeLines = piece.split(CODE_LINE_BREAK_PATTERN).map(encodeHtml);
+      htmlPieces.push(`<code class="phone-code-block" style="${CODE_BLOCK_STYLE}">${codeLines.join("<br>")}</code>`);
+      continue;
+    }
+    htmlPieces.push(encodeHtml(piece).replace(/\\n/g, "<br>").replace(/`([^`]+)`/g, "<code>$1</code>"));
+  }
+  return htmlPieces.join("");
+}
+function buildChoiceButtonsHtml(choices, row, graph) {
+  const isPast = row.status === "past";
+  const declinedCount = choices.length - 1;
+  const declinedPct = 30 / declinedCount;
+  const buttons = [];
+  for (const choiceId of choices) {
+    const label = getLabelHtml(choiceId, graph);
+    const isActive = row.status === "active";
+    if (isActive) {
+      buttons.push(`<button type="button" class="phone-choice" data-node-id="${choiceId}" data-choose="${choiceId}">${label}</button>`);
+      continue;
+    }
+    if (!isPast)
+      continue;
+    const isChosen = choiceId === row.chosenChoiceId;
+    if (isChosen) {
+      buttons.push(`<button type="button" class="phone-choice phone-choice-chosen" style="flex:0 1 70%" data-node-id="${choiceId}">${label}</button>`);
+      continue;
+    }
+    const style = `style="flex:0 1 ${declinedPct}%"`;
+    const canRevert = row.revertIndex !== undefined;
+    if (canRevert)
+      buttons.push(`<button type="button" class="phone-choice phone-choice-declined" ${style} data-node-id="${choiceId}" data-revert="${row.revertIndex}:${choiceId}">&#8634; ${label}</button>`);
+    else
+      buttons.push(`<button type="button" class="phone-choice phone-choice-declined" ${style} data-node-id="${choiceId}" disabled>${label}</button>`);
+  }
+  return `<div class="phone-choice-row">${buttons.join("")}</div>`;
+}
+function buildRowHtml(row, graph, edges, isMasked) {
+  const node = graph.nodes.get(row.id);
+  if (!node)
+    return "";
+  if (row.status === "block") {
+    const blockClass = isMasked ? "phone-block phone-block-past" : "phone-block";
+    const { boxStyle, labelStyle } = getPhoneNodeAppearance(node, graph);
+    return `<div class="${blockClass}" data-node-id="${row.id}" style="${boxStyle}"><span style="${labelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
+  }
+  const choices = choicesOf(row.id, edges);
+  const activeAttr = row.status === "active" ? " data-active-question" : "";
+  const { boxStyle: questionBoxStyle, labelStyle: questionLabelStyle } = getPhoneNodeAppearance(node, graph);
+  const question = `<div class="phone-question" data-node-id="${row.id}"${activeAttr} style="${questionBoxStyle}"><span style="${questionLabelStyle}">${getLabelHtml(row.id, graph)}</span></div>`;
+  const wrapClass = isMasked ? "phone-decision phone-decision-past" : "phone-decision";
+  const isAutoPicked = row.status === "past" && choices.length === 1;
+  const buttonsHtml = isAutoPicked ? "" : buildChoiceButtonsHtml(choices, row, graph);
+  return `<div class="${wrapClass}">${question}<div class="phone-choice-count">${choices.length} choices</div>${buttonsHtml}</div>`;
+}
+function renderPhone(edges, graph) {
+  classIndex = buildClassStyleIndex(codeBox.value);
+  if (isPhoneShowingHistory()) {
+    if (isPhoneAwaitingStartNode(edges)) {
+      phoneDiagramBox.innerHTML = '<div id="phoneStartPrompt">Select a starting node to walk a path through that diagram</div>';
+      return;
+    }
+  }
+  const rows = buildRows(edges, graph);
+  let lastPastIndex = -1;
+  let hasOpenQuestion = false;
+  for (let i = 0;i < rows.length; i++) {
+    const isPast = rows[i].status === "past";
+    if (isPast)
+      lastPastIndex = i;
+    const isOpenQuestion = rows[i].status === "active";
+    if (isOpenQuestion)
+      hasOpenQuestion = true;
+  }
+  const historyParts = [];
+  const footerParts = [];
+  for (let i = 0;i < rows.length; i++) {
+    const isMasked = i <= lastPastIndex;
+    const html = buildRowHtml(rows[i], graph, edges, isMasked);
+    const isAfterLastAnswer = i > lastPastIndex;
+    const isFixedInPlace = isAfterLastAnswer ? hasOpenQuestion : false;
+    const target = isFixedInPlace ? footerParts : historyParts;
+    target.push(html);
+  }
+  const hasFixedRows = footerParts.length > 0;
+  if (lastPastIndex >= 0) {
+    if (hasFixedRows)
+      footerParts.unshift('<hr class="phone-separator">');
+  }
+  const hasAnswer = phonePath.length > 0;
+  const isBarShown = hasAnswer || isViewLimitingEdits(state.pathView);
+  const disabledAttribute = hasAnswer ? "" : " disabled";
+  const topBar = isBarShown ? `<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo${disabledAttribute}>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions${disabledAttribute}>Reset decisions</button><button type="button" class="phone-undo" data-write-path${disabledAttribute}>Write path</button></div>` : "";
+  phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join("")}</div><div id="phoneFooter">${footerParts.join("")}</div>`;
+  const historyBox = phoneDiagramBox.querySelector("#phoneHistory");
+  if (historyBox)
+    historyBox.scrollTop = historyBox.scrollHeight;
+  const footerBox = phoneDiagramBox.querySelector("#phoneFooter");
+  if (footerBox)
+    footerBox.scrollTop = footerBox.scrollHeight;
+  const hasClickedNode = state.phoneClickedNodeId !== null;
+  if (hasClickedNode) {
+    const isClickRecent = Date.now() - state.phoneClickedAtMs < PHONE_CLICKED_BORDER_MS;
+    if (isClickRecent) {
+      const clickedEl = phoneDiagramBox.querySelector(`[data-node-id="${state.phoneClickedNodeId}"]`);
+      if (clickedEl)
+        clickedEl.classList.add("phone-clicked");
+    }
+  }
+}
+
+// render.ts
+var outputPointerHeld = null;
+function holdNewDrawingUntilPointerIsUp() {
+  outputPointerHeld = new Promise((resolve) => {
+    function endHold() {
+      outputPointerHeld = null;
+      resolve();
+    }
+    function endHoldAfterClick() {
+      setTimeout(endHold, 0);
+    }
+    document.addEventListener("pointerup", endHoldAfterClick, { once: true, capture: true });
+    document.addEventListener("pointercancel", endHoldAfterClick, { once: true, capture: true });
+  });
+}
+outputBox.addEventListener("pointerdown", holdNewDrawingUntilPointerIsUp, true);
+async function render() {
+  renderSourceLines();
+  errorBox.textContent = "";
+  try {
+    const graph = getEditorGraph();
+    clearInvalidPhonePreview(graph);
+    updateDecisionCounter(graph);
+    const edges = parseEdges(codeBox.value);
+    let phonePathIsStale = false;
+    for (const id of phonePath) {
+      let idIsInDiagram = false;
+      for (const [, to] of edges) {
+        const isTarget = to === id;
+        if (isTarget)
+          idIsInDiagram = true;
+      }
+      if (!idIsInDiagram)
+        phonePathIsStale = true;
+    }
+    if (phonePathIsStale)
+      phonePath.length = 0;
+    const viewSource = buildMainViewSource(graph);
+    const ids = edges.length > 0 ? sliceIds(edges) : [];
+    const reversedIds = [...ids].reverse();
+    let bottomQ = state.phoneFocusNodeId && graph.nodes.get(state.phoneFocusNodeId)?.kind === "question" ? state.phoneFocusNodeId : undefined;
+    if (!bottomQ) {
+      for (const rid of reversedIds) {
+        let outgoingCount = 0;
+        for (const [from] of edges) {
+          if (from === rid)
+            outgoingCount++;
+        }
+        const hasBranch = outgoingCount > 1;
+        if (hasBranch) {
+          bottomQ = rid;
+          break;
+        }
+      }
+    }
+    state.currentBottomQ = bottomQ;
+    const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(viewSource)));
+    const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
+    const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
+    const myRenderId = state.renderId;
+    const { svg: regularSvg } = await mermaid.render("diagram-" + state.renderId++, mainSource);
+    await outputPointerHeld;
+    if (state.renderId !== myRenderId + 1)
+      return;
+    const hasNodes = graph.nodes.size > 0;
+    const scaleIsUnset = state.diagramScale === null;
+    if (hasNodes) {
+      if (scaleIsUnset)
+        state.diagramScale = 1;
+    }
+    diagramBox.innerHTML = regularSvg;
+    renderPhone(phoneEdges, graph);
+    applyNodeTypeColors(graph);
+    applyNoteDots(graph);
+    renderEditorSelection();
+    applyPathHighlight();
+    if (hasNodes) {
+      const scale = state.diagramScale;
+      const mainZoom = state.mainZoomPercent / 100;
+      const regularSvgEl = diagramBox.querySelector("svg");
+      const regularBox = viewBoxOf(regularSvg);
+      regularSvgEl.style.width = regularBox.width * scale * mainZoom + "px";
+      regularSvgEl.style.height = regularBox.height * scale * mainZoom + "px";
+    }
+    outputBox.scrollLeft = regularViewport.left;
+    outputBox.scrollTop = regularViewport.top;
+    updateNodeInspectorPosition();
+    updateOffscreenArrowHeads();
+    errorLog.textContent = "";
+    errorLog.classList.remove("open");
+  } catch (err) {
+    state.currentDecisionId = null;
+    decisionCounter.textContent = "0 / 0";
+    reportEditorValidationError(err);
+  }
+}
+function applyFunctionsOnlyToggle() {
+  state.functionsOnly = functionsOnlyToggle.checked;
+  render();
+}
+function applyDarkModeToggle() {
+  document.body.classList.toggle("dark", darkModeToggle.checked);
+  mermaid.initialize(getMermaidOptions());
+  render();
+}
+functionsOnlyToggle.addEventListener("change", applyFunctionsOnlyToggle);
+darkModeToggle.addEventListener("change", applyDarkModeToggle);
+
 // node-search.ts
 var searchMatches = [];
 var searchIndex = 0;
@@ -3086,6 +3352,21 @@ function showMatchInSourceEditor(match) {
   const { tops } = measureSourceLines();
   codeBox.scrollTop = tops[lineIndex] - parseFloat(getComputedStyle(codeBox).paddingTop);
 }
+function findShownMatchIndex(fromIndex, step) {
+  const { graph, problems } = parseEditorGraph(codeBox.value);
+  for (let offset = 0;offset < searchMatches.length; offset++) {
+    const unwrapped = fromIndex + offset * step;
+    const index = (unwrapped % searchMatches.length + searchMatches.length) % searchMatches.length;
+    if (problems.length)
+      return index;
+    const id = findNodeIdAtMatch(graph, searchMatches[index]);
+    if (!id)
+      return index;
+    if (isNodeDrawn(id))
+      return index;
+  }
+  return;
+}
 async function moveToSearchMatch() {
   const runId = ++searchRunId;
   const match = searchMatches[searchIndex];
@@ -3110,6 +3391,11 @@ async function executeSearch() {
   updateSearchControls();
   if (searchMatches.length === 0)
     return;
+  const shownIndex = findShownMatchIndex(0, 1);
+  if (shownIndex === undefined)
+    return;
+  searchIndex = shownIndex;
+  updateSearchControls();
   await moveToSearchMatch();
 }
 function refreshSearchMatches() {
@@ -3118,7 +3404,10 @@ function refreshSearchMatches() {
   updateSearchControls();
 }
 async function moveSearchSelection(step) {
-  searchIndex = (searchIndex + step + searchMatches.length) % searchMatches.length;
+  const shownIndex = findShownMatchIndex(searchIndex + step, step);
+  if (shownIndex === undefined)
+    return;
+  searchIndex = shownIndex;
   updateSearchControls();
   await moveToSearchMatch();
 }
@@ -3508,7 +3797,7 @@ async function insertDecisionAfterNode(sourceId, graph) {
   const decisionId = getNextEditorId("Q_NEW", graph);
   const yesId = buildChoiceId(decisionId, "Y");
   const noId = buildChoiceId(decisionId, "N");
-  const isViewOn = state.pathView !== null;
+  const isViewOn = isViewLimitingEdits(state.pathView);
   const newLines = [`  ${decisionId}{{"New Decision"}}`, `  ${yesId}["Yes"]`];
   if (!isViewOn)
     newLines.push(`  ${noId}["No"]`);
@@ -4109,7 +4398,7 @@ function enableDiagramEdits() {
   destinationRow.inert = false;
   nodeInspectorRemovalPreview.inert = false;
   phoneDiagramBox.classList.remove("writing-all-paths");
-  codeBox.readOnly = state.pathView !== null;
+  codeBox.readOnly = isViewLimitingEdits(state.pathView);
   document.getElementById("exportAllPathsBtn").disabled = false;
 }
 async function writeAllPathsWithEditsDisabled() {
@@ -4140,32 +4429,16 @@ function resetNodeSize(id) {
   appendEditorAction(applyAutomaticSize);
 }
 
-// editor-view-state.ts
-async function saveEditorViewState() {
-  const hasSaveTarget = !!state.currentName || !!state.openedFileHandle || !!state.loadedPath;
-  if (!hasSaveTarget)
-    return;
-  const sourceWithMetadata = buildSourceWithMetadata(codeBox.value);
-  if (sourceWithMetadata === codeBox.value)
-    return;
-  const { scrollTop, selectionStart, selectionEnd } = codeBox;
-  codeBox.value = sourceWithMetadata;
-  codeBox.scrollTop = scrollTop;
-  codeBox.setSelectionRange(selectionStart, selectionEnd);
-  renderSourceLines();
-  await saveDiagram();
-}
-
 // editor-connect.ts
 function connectNodesWithShiftClick(clickedId) {
+  if (refuseEditInPathView("connectNodes", null))
+    return;
   const fromId = state.selectedEditorNodeId;
   if (!fromId) {
     selectEditorNode(clickedId);
     return;
   }
   if (fromId === clickedId)
-    return;
-  if (refuseEditInPathView("connectNodes", null))
     return;
   const graph = getEditorGraph();
   const newLines = [`  ${fromId} --> ${clickedId}`];
@@ -4303,7 +4576,9 @@ function selectNeighborNodeOnArrowKey(event) {
   const { graph, problems } = parseEditorGraph(codeBox.value);
   if (problems.length)
     throw new Error(problems.join("; "));
-  const neighborEdge = isArrowDown ? graph.edges.find((edge) => edge.from === selectedId) : graph.edges.find((edge) => edge.to === selectedId);
+  const isStepDown = (edge) => edge.from === selectedId && isNodeDrawn(edge.to);
+  const isStepUp = (edge) => edge.to === selectedId && isNodeDrawn(edge.from);
+  const neighborEdge = graph.edges.find(isArrowDown ? isStepDown : isStepUp);
   if (!neighborEdge)
     return;
   event.preventDefault();
@@ -4535,7 +4810,7 @@ function dispatchInspectorAction(event) {
       return;
     setEditorActionPromise(insertDecisionAfterNode(state.selectedEditorNodeId, getEditorGraph()));
   } else if (action === "add-decision-after") {
-    if (state.pathView) {
+    if (isViewLimitingEdits(state.pathView)) {
       if (!state.selectedEditorNodeId)
         return;
       setEditorActionPromise(insertDecisionAfterNode(state.selectedEditorNodeId, getEditorGraph()));
@@ -4561,7 +4836,10 @@ function dispatchInspectorAction(event) {
 nodeInspectorActions.addEventListener("click", dispatchInspectorAction);
 function walkBackFromSelectedNode() {
   const graph = getEditorGraph();
-  const parentIds = [...new Set(graph.edges.filter((edge) => edge.to === state.selectedEditorNodeId).map((edge) => edge.from))];
+  const allParentIds = [...new Set(graph.edges.filter((edge) => edge.to === state.selectedEditorNodeId).map((edge) => edge.from))];
+  const parentIds = allParentIds.filter(isNodeDrawn);
+  if (!parentIds.length)
+    return;
   const hasOneParent = parentIds.length === 1;
   if (hasOneParent) {
     selectEditorNode(parentIds[0]);
@@ -5090,7 +5368,12 @@ var selectClickedNode = (event) => {
   selectEditorNode(id);
   saveEditorViewState();
   if (id) {
-    selectPhonePathToNode(id, parseEdges(codeBox.value), getEditorGraph());
+    if (state.pathView?.kind === "downstream") {
+      filterDownstreamView(id);
+      return;
+    }
+    if (!state.pathView)
+      selectPhonePathToNode(id, parseEdges(codeBox.value), getEditorGraph());
     render();
   }
 };
@@ -5107,6 +5390,11 @@ var selectPhoneChoice = async (event) => {
   if (isWritePath) {
     await writeChosenPath();
     return;
+  }
+  if (state.pathView) {
+    const isHandled = await handlePhoneTapInPathView(target);
+    if (isHandled)
+      return;
   }
   const isResetDecisions = target.dataset.resetDecisions !== undefined;
   if (isResetDecisions) {
@@ -5135,7 +5423,7 @@ var selectPhoneChoice = async (event) => {
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
   await render();
-  if (state.currentBottomQ) {
+  if (state.currentBottomQ && isNodeDrawn(state.currentBottomQ)) {
     state.currentDecisionId = state.currentBottomQ;
     selectEditorNode(state.currentBottomQ);
     const node = diagramBox.querySelector('[id*="flowchart-' + state.currentBottomQ + '-"]');
@@ -5152,6 +5440,8 @@ phoneDiagramBox.addEventListener("click", selectPhoneChoice);
 var scrollMainViewToPhoneRow = (event) => {
   const row = event.target.closest(".phone-block, .phone-question, .phone-choice-chosen");
   if (!row)
+    return;
+  if (!isNodeDrawn(row.dataset.nodeId))
     return;
   if (refuseMoveWhileNodeNameIsInvalid())
     return;

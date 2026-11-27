@@ -8,6 +8,7 @@ import { getDeclarationSuffix } from './editor-parse.ts';
 import { setEditorActionPromise } from './editor-metadata.ts';
 import { diagramBox, outputBox } from './dom.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
+import { isViewLimitingEdits } from './path-view-model.ts';
 
 export async function createStaticAfter(sourceId: string, graph: EditorGraph) {
   const staticId = getNextEditorId('B_NEW', graph);
@@ -64,7 +65,8 @@ export async function insertDecisionAfterNode(sourceId: string, graph: EditorGra
   //   `  ${decisionId} --> ${noId}`,
   // ];
   // A path view keeps the old end point, so the new decision gets one choice there.
-  const isViewOn = state.pathView !== null;
+  // const isViewOn = state.pathView !== null;
+  const isViewOn = isViewLimitingEdits(state.pathView);
   const newLines = [`  ${decisionId}{{"New Decision"}}`, `  ${yesId}["Yes"]`];
   if (!isViewOn)
     newLines.push(`  ${noId}["No"]`);

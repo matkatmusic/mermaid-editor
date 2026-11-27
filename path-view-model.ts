@@ -35,7 +35,11 @@ export type PathViewKind = 'onePath' | 'downstream';
 
 export interface PathView {
     kind: PathViewKind;
-    anchorId: string | null;
+    // anchorId: string | null;
+    // The downstream view's filter clicks in click order; empty in the one-path view.
+    clickedIds: string[];
+    // The earlier click lists, oldest first, for the Back button.
+    clickHistory: string[][];
     // // null is the downstream view of all paths.
     // pathNumber: number | null;
     // The one-path view's number: which start block, then one choice index for each decision.
@@ -96,9 +100,21 @@ export interface PathView {
 
 export type ViewEdit = 'removeNode' | 'removeChoices' | 'changeDestination' | 'connectNodes' | 'addStandaloneBlock' | 'addStaticAfter' | 'insertStaticAfter' | 'addChoice';
 
+
+// A view limits edits, but the downstream view does not before its first filter click.
+export function isViewLimitingEdits(view: PathView | null): view is PathView {
+    if (!view)
+        return false;
+    if (view.kind === 'onePath')
+        return true;
+    return view.clickedIds.length > 0;
+}
+
 // The reason an edit is refused while a view is on; null means the edit is allowed.
 export function findViewEditRefusal(view: PathView | null, graph: EditorGraph, edit: ViewEdit, nodeId: string | null): string | null {
-    if (!view)
+    // if (!view)
+    //     return null;
+    if (!isViewLimitingEdits(view))
         return null;
     if (edit === 'addChoice') {
         if (view.kind === 'onePath')
@@ -282,4 +298,41 @@ export function findNeighbourDigits(diagram: PathDiagram, digits: number[], step
         searchFrom(diagram.startIds[startDigit], new Set(), chosen);
     }
     return nearest;
+}
+
+// A breadth-first search: the ids from one block to another, both included.
+export function findShortestRouteIds(fromId: string, toId: string, edges: Edge[]): string[] {
+    const routes: string[][] = [[fromId]];
+    const reachedIds = new Set([fromId]);
+    // An array that grows during the loop is also visited, so a shorter route comes first.
+    for (const route of routes) {
+        const lastId = route[route.length - 1];
+        if (lastId === toId)
+            return route;
+        for (const nextId of choicesOf(lastId, edges)) {
+            if (reachedIds.has(nextId))
+                continue;
+            reachedIds.add(nextId);
+            routes.push([...route, nextId]);
+        }
+    }
+    throw new Error(`No route leads from ${fromId} to ${toId}`);
+}
+
+// The click list after a click. A click on the drawn route drops every click at or after that place.
+export function addFilterClick(clickedIds: string[], routeIds: string[], nodeId: string): string[] {
+    if (clickedIds[clickedIds.length - 1] === nodeId)
+        return clickedIds;
+    const nodePlace = routeIds.indexOf(nodeId);
+    if (nodePlace === -1)
+        return [...clickedIds, nodeId];
+    const keptIds: string[] = [];
+    let place = -1;
+    for (const clickedId of clickedIds) {
+        place = routeIds.indexOf(clickedId, place + 1);
+        if (place >= nodePlace)
+            break;
+        keptIds.push(clickedId);
+    }
+    return [...keptIds, nodeId];
 }

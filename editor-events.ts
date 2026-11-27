@@ -17,6 +17,8 @@ import './editor-keys.ts';
 import './editor-inspector-events.ts';
 import './editor-class-events.ts';
 import './editor-classes-dialog.ts';
+// import { filterDownstreamView } from './path-view.ts';
+import { filterDownstreamView, handlePhoneTapInPathView, isNodeDrawn } from './path-view.ts';
 
 function setCodeBoxScrollToLine(lineNum: number) {
   const { tops } = measureSourceLines();
@@ -72,7 +74,15 @@ const selectClickedNode = (event: MouseEvent) => {
   selectEditorNode(id);
   saveEditorViewState();
   if (id) {
-    selectPhonePathToNode(id, parseEdges(codeBox.value), getEditorGraph());
+    // In the downstream view a plain click filters; shift-click and command-click returned above.
+    if (state.pathView?.kind === 'downstream') {
+      filterDownstreamView(id);
+      return;
+    }
+    // selectPhonePathToNode(id, parseEdges(codeBox.value), getEditorGraph());
+    // A view sets the phone path itself in render().
+    if (!state.pathView)
+      selectPhonePathToNode(id, parseEdges(codeBox.value), getEditorGraph());
     render();
   }
 };
@@ -93,6 +103,11 @@ const selectPhoneChoice = async (event: MouseEvent) => {
   if (isWritePath) {
     await writeChosenPath();
     return;
+  }
+  if (state.pathView) {
+    const isHandled = await handlePhoneTapInPathView(target);
+    if (isHandled)
+      return;
   }
   const isResetDecisions = target.dataset.resetDecisions !== undefined;
   if (isResetDecisions) {
@@ -124,7 +139,9 @@ const selectPhoneChoice = async (event: MouseEvent) => {
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
   await render();
-  if (state.currentBottomQ) {
+  // if (state.currentBottomQ) {
+  // A view can leave the open decision out of the main view.
+  if (state.currentBottomQ && isNodeDrawn(state.currentBottomQ)) {
     state.currentDecisionId = state.currentBottomQ;
     selectEditorNode(state.currentBottomQ);
     // centerNodeInViewport(outputBox, diagramBox, state.currentBottomQ);
@@ -143,6 +160,8 @@ phoneDiagramBox.addEventListener('click', selectPhoneChoice);
 const scrollMainViewToPhoneRow = (event: MouseEvent) => {
   const row = (event.target as HTMLElement).closest<HTMLElement>('.phone-block, .phone-question, .phone-choice-chosen');
   if (!row)
+    return;
+  if (!isNodeDrawn(row.dataset.nodeId!))
     return;
   if (refuseMoveWhileNodeNameIsInvalid())
     return;

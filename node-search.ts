@@ -6,6 +6,7 @@ import { render } from './render.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { measureSourceLines } from './source-lines.ts';
 import { parsePropsLine } from './node-props.ts';
+import { isNodeDrawn } from './path-view.ts';
 
 type SearchMatch = { start: number; end: number };
 
@@ -103,6 +104,24 @@ function showMatchInSourceEditor(match: SearchMatch) {
   codeBox.scrollTop = tops[lineIndex] - parseFloat(getComputedStyle(codeBox).paddingTop);
 }
 
+// The first match at or after the index, in the step's direction, whose block is on screen.
+// A match that names no block counts. undefined means every match is in a hidden block.
+function findShownMatchIndex(fromIndex: number, step: 1 | -1) {
+  const { graph, problems } = parseEditorGraph(codeBox.value);
+  for (let offset = 0; offset < searchMatches.length; offset++) {
+    const unwrapped = fromIndex + offset * step;
+    const index = ((unwrapped % searchMatches.length) + searchMatches.length) % searchMatches.length;
+    if (problems.length)
+      return index;
+    const id = findNodeIdAtMatch(graph, searchMatches[index]);
+    if (!id)
+      return index;
+    if (isNodeDrawn(id))
+      return index;
+  }
+  return undefined;
+}
+
 async function moveToSearchMatch() {
   const runId = ++searchRunId;
   const match = searchMatches[searchIndex];
@@ -129,6 +148,12 @@ export async function executeSearch() {
   updateSearchControls();
   if (searchMatches.length === 0)
     return;
+  // await moveToSearchMatch();
+  const shownIndex = findShownMatchIndex(0, 1);
+  if (shownIndex === undefined)
+    return;
+  searchIndex = shownIndex;
+  updateSearchControls();
   await moveToSearchMatch();
 }
 
@@ -139,7 +164,13 @@ export function refreshSearchMatches() {
 }
 
 export async function moveSearchSelection(step: 1 | -1) {
-  searchIndex = (searchIndex + step + searchMatches.length) % searchMatches.length;
+  // searchIndex = (searchIndex + step + searchMatches.length) % searchMatches.length;
+  // updateSearchControls();
+  // await moveToSearchMatch();
+  const shownIndex = findShownMatchIndex(searchIndex + step, step);
+  if (shownIndex === undefined)
+    return;
+  searchIndex = shownIndex;
   updateSearchControls();
   await moveToSearchMatch();
 }

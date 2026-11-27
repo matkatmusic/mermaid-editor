@@ -9,6 +9,7 @@ import { buildRows } from './phone-rows.ts';
 import { decodeLabelQuotes } from './editor-parse.ts';
 import { getNodeAlign } from './node-align.ts';
 import { CODE_BLOCK_STYLE, CODE_LINE_BREAK_PATTERN, FENCED_CODE_BLOCK_PATTERN } from './label-code.ts';
+import { isViewLimitingEdits } from './path-view-model.ts';
 
 // How long after a click the phone keeps the animated border on the clicked node; matches the CSS animation length.
 const PHONE_CLICKED_BORDER_MS = 3000;
@@ -140,7 +141,11 @@ export function renderPhone(edges: Edge[], graph: EditorGraph) {
       footerParts.unshift('<hr class="phone-separator">');
   }
   const hasAnswer = phonePath.length > 0;
-  const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button><button type="button" class="phone-undo" data-write-path>Write path</button></div>' : '';
+  // const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button><button type="button" class="phone-undo" data-write-path>Write path</button></div>' : '';
+  // A view that limits edits keeps the bar on screen, greyed out, while its route has no answer.
+  const isBarShown = hasAnswer || isViewLimitingEdits(state.pathView);
+  const disabledAttribute = hasAnswer ? '' : ' disabled';
+  const topBar = isBarShown ? `<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo${disabledAttribute}>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions${disabledAttribute}>Reset decisions</button><button type="button" class="phone-undo" data-write-path${disabledAttribute}>Write path</button></div>` : '';
   phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join('')}</div><div id="phoneFooter">${footerParts.join('')}</div>`;
   const historyBox = phoneDiagramBox.querySelector<HTMLElement>('#phoneHistory');
   if (historyBox)

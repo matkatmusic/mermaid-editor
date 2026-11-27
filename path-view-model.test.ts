@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 // import { buildPathEdges, collectDownstreamEdges, findPathByNumber, findViewEditRefusal, walkPaths } from './path-view-model.ts';
 // import type { PathView, ViewEdit } from './path-view-model.ts';
-import { buildPathEdges, collectDownstreamEdges, findNeighbourDigits, findViewEditRefusal, listDigitMaximums, walkDigitPath } from './path-view-model.ts';
+// import { buildPathEdges, collectDownstreamEdges, findNeighbourDigits, findViewEditRefusal, listDigitMaximums, walkDigitPath } from './path-view-model.ts';
+import { addFilterClick, buildPathEdges, collectDownstreamEdges, findNeighbourDigits, findShortestRouteIds, findViewEditRefusal, listDigitMaximums, walkDigitPath } from './path-view-model.ts';
 import type { PathDiagram, PathView, ViewEdit } from './path-view-model.ts';
 import { parseEditorGraph } from './editor-graph-parse.ts';
 import type { Edge } from './dom.ts';
@@ -70,9 +71,11 @@ const { graph: RULE_GRAPH } = parseEditorGraph([
 
 const YES_PATH = ['B_START', 'Q_ASK', 'Q_CHOICE_ASK_YES', 'B_YES', 'B_END'];
 // const ONE_PATH_VIEW: PathView = { kind: 'onePath', anchorId: null, pathNumber: 1, pathIds: YES_PATH, shownNodeIds: YES_PATH, protectedIds: YES_PATH };
-const ONE_PATH_VIEW: PathView = { kind: 'onePath', anchorId: null, startDigit: 0, decisionDigits: {}, pathIds: YES_PATH, shownNodeIds: YES_PATH, protectedIds: YES_PATH };
+// const ONE_PATH_VIEW: PathView = { kind: 'onePath', anchorId: null, startDigit: 0, decisionDigits: {}, pathIds: YES_PATH, shownNodeIds: YES_PATH, protectedIds: YES_PATH };
+const ONE_PATH_VIEW: PathView = { kind: 'onePath', clickedIds: [], clickHistory: [], startDigit: 0, decisionDigits: {}, pathIds: YES_PATH, shownNodeIds: YES_PATH, protectedIds: YES_PATH };
 // const DOWNSTREAM_ALL_VIEW: PathView = { kind: 'downstream', anchorId: 'Q_ASK', pathNumber: null, pathIds: null, shownNodeIds: [], protectedIds: ['B_START', 'Q_ASK'] };
-const DOWNSTREAM_ALL_VIEW: PathView = { kind: 'downstream', anchorId: 'Q_ASK', startDigit: 0, decisionDigits: {}, pathIds: null, shownNodeIds: [], protectedIds: ['B_START', 'Q_ASK'] };
+// const DOWNSTREAM_ALL_VIEW: PathView = { kind: 'downstream', anchorId: 'Q_ASK', startDigit: 0, decisionDigits: {}, pathIds: null, shownNodeIds: [], protectedIds: ['B_START', 'Q_ASK'] };
+const DOWNSTREAM_VIEW: PathView = { kind: 'downstream', clickedIds: ['Q_ASK'], clickHistory: [[]], startDigit: 0, decisionDigits: {}, pathIds: null, shownNodeIds: [], protectedIds: ['B_START', 'Q_ASK'] };
 
 function findOnePathRefusal(edit: ViewEdit, nodeId: string | null) {
     return findViewEditRefusal(ONE_PATH_VIEW, RULE_GRAPH, edit, nodeId);
@@ -86,8 +89,10 @@ test('test_removing_the_last_block_of_the_shown_path_is_refused', () => {
     assert.equal(findOnePathRefusal('removeNode', 'B_END'), 'This is the last block of the path.');
 });
 
-test('test_removing_a_block_with_no_outgoing_arrow_is_refused_on_the_all_step', () => {
-    assert.equal(findViewEditRefusal(DOWNSTREAM_ALL_VIEW, RULE_GRAPH, 'removeNode', 'B_END'), 'This is the last block of the path.');
+// test('test_removing_a_block_with_no_outgoing_arrow_is_refused_on_the_all_step', () => {
+//     assert.equal(findViewEditRefusal(DOWNSTREAM_ALL_VIEW, RULE_GRAPH, 'removeNode', 'B_END'), 'This is the last block of the path.');
+test('test_removing_a_block_with_no_outgoing_arrow_is_refused_in_the_downstream_view', () => {
+    assert.equal(findViewEditRefusal(DOWNSTREAM_VIEW, RULE_GRAPH, 'removeNode', 'B_END'), 'This is the last block of the path.');
 });
 
 test('test_removing_a_middle_block_of_the_shown_path_is_allowed', () => {
@@ -111,7 +116,8 @@ test('test_add_choice_is_refused_in_the_one_path_view', () => {
 });
 
 test('test_add_choice_is_allowed_in_the_downstream_view', () => {
-    assert.equal(findViewEditRefusal(DOWNSTREAM_ALL_VIEW, RULE_GRAPH, 'addChoice', 'Q_ASK'), null);
+    // assert.equal(findViewEditRefusal(DOWNSTREAM_ALL_VIEW, RULE_GRAPH, 'addChoice', 'Q_ASK'), null);
+    assert.equal(findViewEditRefusal(DOWNSTREAM_VIEW, RULE_GRAPH, 'addChoice', 'Q_ASK'), null);
 });
 
 test('test_insert_static_after_is_allowed_on_a_choice_on_the_shown_path', () => {
@@ -223,4 +229,40 @@ test('test_previous_digits_reach_every_path_once_when_the_file_order_differs_fro
         digits = findNeighbourDigits(REVERSED_DIAGRAM, digits, -1);
     }
     assert.deepEqual(reached, expected);
+});
+
+test('test_every_edit_is_allowed_in_the_downstream_view_with_no_filter', () => {
+    const view: PathView = { ...DOWNSTREAM_VIEW, clickedIds: [], clickHistory: [], protectedIds: [] };
+    const edits: ViewEdit[] = ['removeNode', 'removeChoices', 'changeDestination', 'connectNodes', 'addStandaloneBlock', 'addStaticAfter', 'insertStaticAfter', 'addChoice'];
+    for (const edit of edits)
+        assert.equal(findViewEditRefusal(view, RULE_GRAPH, edit, 'Q_ASK'), null);
+});
+
+// A reaches E through B in one step less than through C and D.
+const TWO_ROUTES: Edge[] = [['A', 'C'], ['C', 'D'], ['D', 'E'], ['A', 'B'], ['B', 'E']];
+
+test('test_shortest_route_goes_from_one_block_to_a_later_block', () => {
+    assert.deepEqual(findShortestRouteIds('C', 'E', TWO_ROUTES), ['C', 'D', 'E']);
+});
+
+test('test_shortest_route_takes_the_shorter_of_two_routes', () => {
+    assert.deepEqual(findShortestRouteIds('A', 'E', TWO_ROUTES), ['A', 'B', 'E']);
+});
+
+test('test_shortest_route_with_no_way_to_the_block_throws', () => {
+    assert.throws(() => findShortestRouteIds('E', 'A', TWO_ROUTES), /E to A/);
+});
+
+test('test_filter_click_off_the_route_is_added_to_the_list', () => {
+    assert.deepEqual(addFilterClick(['B'], ['A', 'B'], 'D'), ['B', 'D']);
+});
+
+test('test_filter_click_on_the_latest_block_changes_nothing', () => {
+    const clickedIds = ['B', 'D'];
+    assert.equal(addFilterClick(clickedIds, ['A', 'B', 'C', 'D'], 'D'), clickedIds);
+});
+
+test('test_filter_click_on_the_route_drops_the_later_clicks', () => {
+    // C was never clicked; the clicks after it are B's later ones.
+    assert.deepEqual(addFilterClick(['B', 'D', 'E'], ['A', 'B', 'C', 'D', 'E'], 'C'), ['B', 'C']);
 });

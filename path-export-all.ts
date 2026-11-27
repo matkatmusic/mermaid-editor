@@ -1,7 +1,8 @@
 import { classesMenuBtn, codeBox, destinationRow, nodeActions, nodeAlignRow, nodeClassRow, nodeInspectorActions, nodeInspectorRemovalPreview, nodeTextInput, openFileBtn, phoneDiagramBox, selectBox } from './dom.ts';
 import type { Edge } from './dom.ts';
 // import { parseEdges } from './diagram-source.ts';
-import { findUnusedChoices } from './path-view-model.ts';
+// import { findUnusedChoices } from './path-view-model.ts';
+import { findUnusedChoices, isViewLimitingEdits } from './path-view-model.ts';
 import { getEditorGraph } from './editor-graph.ts';
 import { setStatus } from './diagram-io.ts';
 import { state } from './state.ts';
@@ -120,7 +121,8 @@ function enableDiagramEdits() {
   phoneDiagramBox.classList.remove('writing-all-paths');
   // codeBox.readOnly = false;
   // A path view keeps the source editor read-only.
-  codeBox.readOnly = state.pathView !== null;
+  // codeBox.readOnly = state.pathView !== null;
+  codeBox.readOnly = isViewLimitingEdits(state.pathView);
   (document.getElementById('exportAllPathsBtn') as HTMLButtonElement).disabled = false;
 }
 

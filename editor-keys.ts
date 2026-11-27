@@ -9,7 +9,8 @@ import { getSelectedNodeIds } from './editor-multiselect.ts';
 import { refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
 import { buildBlockRemovedSource, buildChoiceRemovedSource } from './editor-remove.ts';
 import { buildQuestionRemovedSource } from './editor-remove-question.ts';
-import { refuseEditInPathView } from './path-view.ts';
+// import { refuseEditInPathView } from './path-view.ts';
+import { isNodeDrawn, refuseEditInPathView } from './path-view.ts';
 
 function isTextBoxTarget(target: EventTarget | null) {
   const element = target as HTMLElement;
@@ -135,9 +136,13 @@ function selectNeighborNodeOnArrowKey(event: KeyboardEvent) {
   const { graph, problems } = parseEditorGraph(codeBox.value);
   if (problems.length)
     throw new Error(problems.join('; '));
-  const neighborEdge = isArrowDown
-    ? graph.edges.find((edge) => edge.from === selectedId)
-    : graph.edges.find((edge) => edge.to === selectedId);
+  // const neighborEdge = isArrowDown
+  //   ? graph.edges.find((edge) => edge.from === selectedId)
+  //   : graph.edges.find((edge) => edge.to === selectedId);
+  // A view leaves some blocks out; the arrow keys skip them.
+  const isStepDown = (edge: { from: string; to: string }) => edge.from === selectedId && isNodeDrawn(edge.to);
+  const isStepUp = (edge: { from: string; to: string }) => edge.to === selectedId && isNodeDrawn(edge.from);
+  const neighborEdge = graph.edges.find(isArrowDown ? isStepDown : isStepUp);
   if (!neighborEdge)
     return;
   event.preventDefault();

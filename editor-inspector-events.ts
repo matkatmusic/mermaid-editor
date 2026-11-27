@@ -17,6 +17,8 @@ import { getOneLineLabel } from './editor-parse.ts';
 import { setNodeAlignment, setNodeJustification } from './editor-node-align.ts';
 import { resetNodeSize } from './editor-node-size.ts';
 import type { Alignment, Justification } from './node-align.ts';
+import { isViewLimitingEdits } from './path-view-model.ts';
+import { isNodeDrawn } from './path-view.ts';
 
 // The bounding box of all text lines of the label; the size wrapper that fills a sized block is not text.
 function isPointInsideLabelText(nodeEl: Element, x: number, y: number) {
@@ -105,7 +107,8 @@ function dispatchInspectorAction(event: MouseEvent) {
   //   applyDestination(NEW_DECISION_DESTINATION);
   else if (action === 'add-decision-after') {
     // applyDestination replaces the destination; a path view keeps the end point, so the decision goes into the arrow.
-    if (state.pathView) {
+    // if (state.pathView) {
+    if (isViewLimitingEdits(state.pathView)) {
       if (!state.selectedEditorNodeId)
         return;
       setEditorActionPromise(insertDecisionAfterNode(state.selectedEditorNodeId, getEditorGraph()));
@@ -134,7 +137,12 @@ function dispatchInspectorAction(event: MouseEvent) {
 nodeInspectorActions.addEventListener('click', dispatchInspectorAction);
 function walkBackFromSelectedNode() {
   const graph = getEditorGraph();
-  const parentIds = [...new Set(graph.edges.filter((edge) => edge.to === state.selectedEditorNodeId).map((edge) => edge.from))];
+  // const parentIds = [...new Set(graph.edges.filter((edge) => edge.to === state.selectedEditorNodeId).map((edge) => edge.from))];
+  const allParentIds = [...new Set(graph.edges.filter((edge) => edge.to === state.selectedEditorNodeId).map((edge) => edge.from))];
+  // A view leaves some blocks out; Walk back skips them.
+  const parentIds = allParentIds.filter(isNodeDrawn);
+  if (!parentIds.length)
+    return;
   const hasOneParent = parentIds.length === 1;
   if (hasOneParent) {
     selectEditorNode(parentIds[0]);
