@@ -5,7 +5,7 @@
 ```sh
 bun install
 bun run build
-bun server.ts
+bun source/app/server.ts
 ```
 
 The terminal prints the address. Open it in your browser.
@@ -16,7 +16,7 @@ To work on the editor code, run `bun run dev --port 4000` instead. It builds `vi
 
 - `--port 4000`: use this port. With no `--port`, the server picks a free port.
 - `--hostname 127.0.0.1`: listen on a different address. The default is `0.0.0.0`.
-- `DIAGRAMS_DIR=/path/to/diagrams bun server.ts`: read `.mmd` files from a different folder. The default is `../diagrams`.
+- `DIAGRAMS_DIR=/path/to/diagrams bun source/app/server.ts`: read `.mmd` files from a different folder. The default is `../diagrams`.
 
 Run `bun run build` again after you change a `.ts` file. The build makes `viewer.js`.
 
@@ -36,8 +36,8 @@ bun run dev --port 3000
 You can also run the two parts yourself, each in its own terminal:
 
 ```sh
-bun --watch server.ts --port 3000
-bun build viewer.ts --outfile viewer.js --watch
+bun --watch source/app/server.ts --port 3000
+bun build source/app/viewer.ts --outfile source/app/viewer.js --watch
 ```
 
 ## Node names
@@ -68,7 +68,7 @@ bun /Users/matkatmusicllc/Programming/relationship-mermaid/mermaid-editor/source
 
 - If the file is correct, the command prints `OK <file>` and exits with code 0.
 - If the file has problems, the command prints one problem on each line and exits with code 1. A problem from Mermaid's own parser starts with `Mermaid: `.
-- The command uses the same rules as the editor (`editor-graph-parse.ts`), so a file that passes also opens in the editor.
+- The command uses the same rules as the editor (`source/model/editor-graph-parse.ts`), so a file that passes also opens in the editor.
 - The Mermaid check starts Google Chrome with no window, so each check takes a few seconds. Chrome must be at `/Applications/Google Chrome.app`.
 - The command changes no diagram file. It makes a temporary Chrome folder and deletes it at the end.
 
