@@ -12,7 +12,7 @@ import { applyNodeTypeColors, applyNoteDots } from './node-type-colors.ts';
 import { renderEditorSelection } from '../../actions/edit/editor-actions.ts';
 import { applyPathHighlight, reportEditorValidationError } from './render-helpers.ts';
 import { /* baseScale, */ viewBoxOf } from './zoom.ts';
-import { renderPhone } from '../../../phone-html.ts';
+import { renderPhone } from '../phone/phone-html.ts';
 import { updateNodeInspectorPosition } from '../../../node-inspector-focus.ts';
 import { renderSourceLines } from '../editor-drawer/source-lines.ts';
 import { buildSourceWithCodeTags } from '../../model/label-code.ts';

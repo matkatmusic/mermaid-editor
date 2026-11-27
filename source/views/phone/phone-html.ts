@@ -1,17 +1,17 @@
-import { codeBox, phoneDiagramBox } from './dom.ts';
-import type { Edge } from './dom.ts';
-import type { EditorGraph, EditorNode } from './source/model/editor-types.ts';
-import { phonePath, state } from './state.ts';
-import { choicesOf } from './source/model/graph-slice.ts';
-import { buildClassStyleIndex, findNodeStyle, type ClassStyleIndex } from './source/model/class-style-index.ts';
+import { codeBox, phoneDiagramBox } from '../../../dom.ts';
+import type { Edge } from '../../../dom.ts';
+import type { EditorGraph, EditorNode } from '../../model/editor-types.ts';
+import { phonePath, state } from '../../../state.ts';
+import { choicesOf } from '../../model/graph-slice.ts';
+import { buildClassStyleIndex, findNodeStyle, type ClassStyleIndex } from '../../model/class-style-index.ts';
 // import { isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './phone-render.ts';
-import { findRoots, isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './source/model/phone-render.ts';
-import { buildRows } from './source/model/phone-rows.ts';
-import { decodeLabelQuotes } from './source/model/editor-parse.ts';
-import { getNodeAlign } from './source/model/node-align.ts';
-import { CODE_BLOCK_STYLE, CODE_LINE_BREAK_PATTERN, FENCED_CODE_BLOCK_PATTERN } from './source/model/label-code.ts';
-import { isViewLimitingEdits } from './source/model/path-view-model.ts';
-import { findUndoDecisionId } from './source/actions/navigation/path-view.ts';
+import { findRoots, isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from '../../model/phone-render.ts';
+import { buildRows } from '../../model/phone-rows.ts';
+import { decodeLabelQuotes } from '../../model/editor-parse.ts';
+import { getNodeAlign } from '../../model/node-align.ts';
+import { CODE_BLOCK_STYLE, CODE_LINE_BREAK_PATTERN, FENCED_CODE_BLOCK_PATTERN } from '../../model/label-code.ts';
+import { isViewLimitingEdits } from '../../model/path-view-model.ts';
+import { findUndoDecisionId } from '../../actions/navigation/path-view.ts';
 
 // How long after a click the phone keeps the animated border on the clicked node; matches the CSS animation length.
 const PHONE_CLICKED_BORDER_MS = 3000;
