@@ -27,6 +27,8 @@ export async function loadDiagram(name: string) {
   state.openedFileHandle = null;
   statusBox.textContent = state.loadedPath ?? '';
   phonePath.length = 0;
+  state.pathView = null;
+  codeBox.readOnly = false;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;

@@ -166,15 +166,37 @@ export function findAnswersLeadingTo(questionId: string, edges: Edge[], graph: E
   throw new Error(`No phone path leads from the start to ${questionId}`);
 }
 
+// Every block, decision and choice id on the shortest route from a start node to nodeId.
+export function findRouteIdsToNode(nodeId: string, edges: Edge[], graph: EditorGraph): string[] {
+  const isChoice = graph.nodes.get(nodeId)?.kind === 'choice';
+  const targetId = isChoice ? parentOf(nodeId, edges) : nodeId;
+  for (const root of findRoots(edges)) {
+    const walk = findWalkFromRoot(root, targetId, edges, graph);
+    if (walk) {
+      if (isChoice)
+        return [...walk.routeIds, nodeId];
+      return walk.routeIds;
+    }
+  }
+  throw new Error(`No route leads from a start block to ${nodeId}`);
+}
+
 function findAnswersFromRoot(root: string, questionId: string, edges: Edge[], graph: EditorGraph): string[] | undefined {
-  const queue: { nodeId: string | undefined; answers: string[] }[] = [{ nodeId: root, answers: [] }];
+  return findWalkFromRoot(root, questionId, edges, graph)?.answers;
+}
+
+function findWalkFromRoot(root: string, questionId: string, edges: Edge[], graph: EditorGraph): { answers: string[]; routeIds: string[] } | undefined {
+  // const queue: { nodeId: string | undefined; answers: string[] }[] = [{ nodeId: root, answers: [] }];
+  const queue: { nodeId: string | undefined; answers: string[]; routeIds: string[] }[] = [{ nodeId: root, answers: [], routeIds: [] }];
   const visited = new Set<string>();
   for (let i = 0; i < queue.length; i++) {
-    const { nodeId, answers } = queue[i];
+    // const { nodeId, answers } = queue[i];
+    const { nodeId, answers, routeIds } = queue[i];
     if (nodeId === undefined)
       continue;
     if (nodeId === questionId)
-      return answers;
+      // return answers;
+      return { answers, routeIds: [...routeIds, nodeId] };
     const isVisited = visited.has(nodeId);
     if (isVisited)
       continue;
@@ -184,14 +206,17 @@ function findAnswersFromRoot(root: string, questionId: string, edges: Edge[], gr
       for (const choiceId of choicesOf(nodeId, edges)) {
         const isChoiceAQuestion = graph.nodes.get(choiceId)?.kind === 'question';
         const nextNodeId = isChoiceAQuestion ? choiceId : choicesOf(choiceId, edges)[0];
-        queue.push({ nodeId: nextNodeId, answers: [...answers, choiceId] });
+        const nextRouteIds = isChoiceAQuestion ? [...routeIds, nodeId] : [...routeIds, nodeId, choiceId];
+        // queue.push({ nodeId: nextNodeId, answers: [...answers, choiceId] });
+        queue.push({ nodeId: nextNodeId, answers: [...answers, choiceId], routeIds: nextRouteIds });
       }
       continue;
     }
     const nexts = choicesOf(nodeId, edges);
     const isSingleChain = nexts.length === 1;
     if (isSingleChain)
-      queue.push({ nodeId: nexts[0], answers });
+      // queue.push({ nodeId: nexts[0], answers });
+      queue.push({ nodeId: nexts[0], answers, routeIds: [...routeIds, nodeId] });
   }
   return undefined;
 }

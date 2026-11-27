@@ -232,6 +232,13 @@
   </div>
   <label><input type="checkbox" id="functionsOnlyToggle"> Functions only</label>
   <button id="exportAllPathsBtn" type="button">Export all paths</button>
+  <button id="onePathViewBtn" type="button" aria-pressed="false">One path view</button>
+  <span id="pathViewControls" hidden>
+    <button id="previousViewPathBtn" type="button" aria-label="Previous path">&lt;</button>
+    <output id="viewPathLabel" aria-live="polite"></output>
+    <button id="nextViewPathBtn" type="button" aria-label="Next path">&gt;</button>
+    <button id="fullDiagramBtn" type="button">Show full diagram</button>
+  </span>
   <!-- <select id="diagramSelect">
     <option value="" disabled selected>Diagrams</option>
   </select> -->

@@ -1,6 +1,7 @@
 import { codeBox } from './dom.ts';
 import type { Edge } from './dom.ts';
 import { phonePath, state } from './state.ts';
+import { choicesOf } from './path-view-model.ts';
 
 export function parentOf(id: string, edges: Edge[]) {
   let found: Edge | undefined;
@@ -115,13 +116,15 @@ export function siblingIds(ids: string[], edges: Edge[]) {
   return found;
 }
 
-export function choicesOf(id: string, edges: Edge[]) {
-  const found = [];
-  for (const [from, to] of edges) {
-    if (from === id)
-      found.push(to);
-  }
-  return found;
-}
+// export function choicesOf(id: string, edges: Edge[]) {
+//   const found = [];
+//   for (const [from, to] of edges) {
+//     if (from === id)
+//       found.push(to);
+//   }
+//   return found;
+// }
+// Callers still import it from here.
+export { choicesOf };
 
 

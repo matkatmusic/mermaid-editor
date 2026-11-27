@@ -1,6 +1,8 @@
 import { classesMenuBtn, codeBox, destinationRow, nodeActions, nodeAlignRow, nodeClassRow, nodeInspectorActions, nodeInspectorRemovalPreview, nodeTextInput, openFileBtn, phoneDiagramBox, selectBox } from './dom.ts';
 import type { Edge } from './dom.ts';
-import { parseEdges } from './diagram-source.ts';
+// import { parseEdges } from './diagram-source.ts';
+import { findUnusedChoices } from './path-view-model.ts';
+import { getEditorGraph } from './editor-graph.ts';
 import { setStatus } from './diagram-io.ts';
 import { state } from './state.ts';
 import { findRoots } from './phone-render.ts';
@@ -9,21 +11,33 @@ import { selectPathFolder, writeToOpenedFileFolder, writeToServerDiagrams } from
 
 // Depth first: each edge is used once per path; a path ends where no unused edge leaves the node.
 function collectPaths(path: string[], usedEdges: Set<string>, edges: Edge[], paths: string[][]) {
+  // const current = path[path.length - 1];
+  // let hasUnusedEdge = false;
+  // for (const [from, to] of edges) {
+  //   const edgeKey = `${from}->${to}`;
+  //   const isUnusedOutgoing = from === current && !usedEdges.has(edgeKey);
+  //   if (!isUnusedOutgoing)
+  //     continue;
+  //   hasUnusedEdge = true;
+  //   usedEdges.add(edgeKey);
+  //   path.push(to);
+  //   collectPaths(path, usedEdges, edges, paths);
+  //   path.pop();
+  //   usedEdges.delete(edgeKey);
+  // }
+  // if (!hasUnusedEdge)
+  //   paths.push([...path]);
   const current = path[path.length - 1];
-  let hasUnusedEdge = false;
-  for (const [from, to] of edges) {
-    const edgeKey = `${from}->${to}`;
-    const isUnusedOutgoing = from === current && !usedEdges.has(edgeKey);
-    if (!isUnusedOutgoing)
-      continue;
-    hasUnusedEdge = true;
+  const unusedChoices = findUnusedChoices(current, usedEdges, edges);
+  for (const to of unusedChoices) {
+    const edgeKey = `${current}->${to}`;
     usedEdges.add(edgeKey);
     path.push(to);
     collectPaths(path, usedEdges, edges, paths);
     path.pop();
     usedEdges.delete(edgeKey);
   }
-  if (!hasUnusedEdge)
+  if (!unusedChoices.length)
     paths.push([...path]);
 }
 
@@ -40,7 +54,10 @@ export function listAllPathIds(edges: Edge[]): string[][] {
 
 export async function writeAllPaths() {
   const sources: string[] = [];
-  for (const ids of listAllPathIds(parseEdges(codeBox.value)))
+  // for (const ids of listAllPathIds(parseEdges(codeBox.value)))
+  // The parsed graph reads an arrow with a label; parseEdges does not.
+  const edges: Edge[] = getEditorGraph().edges.map((edge) => [edge.from, edge.to]);
+  for (const ids of listAllPathIds(edges))
     sources.push(buildChosenPathSource(ids));
   if (state.currentName) {
     setStatus(`Writing 0/${sources.length} paths`);
@@ -101,7 +118,9 @@ function enableDiagramEdits() {
   destinationRow.inert = false;
   nodeInspectorRemovalPreview.inert = false;
   phoneDiagramBox.classList.remove('writing-all-paths');
-  codeBox.readOnly = false;
+  // codeBox.readOnly = false;
+  // A path view keeps the source editor read-only.
+  codeBox.readOnly = state.pathView !== null;
   (document.getElementById('exportAllPathsBtn') as HTMLButtonElement).disabled = false;
 }
 

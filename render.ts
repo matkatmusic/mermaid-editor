@@ -17,6 +17,7 @@ import { renderSourceLines } from './source-lines.ts';
 import { buildSourceWithCodeTags } from './label-code.ts';
 import { buildSourceWithSizeWrappers } from './node-size.ts';
 import { updateOffscreenArrowHeads } from './offscreen-arrow-heads.ts';
+import { buildMainViewSource } from './path-view.ts';
 
 let outputPointerHeld: Promise<void> | null = null;
 function holdNewDrawingUntilPointerIsUp() {
@@ -79,7 +80,8 @@ export async function render() {
       }
     }
     state.currentBottomQ = bottomQ;
-    const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value)));
+    // const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value)));
+    const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(buildMainViewSource(graph))));
     const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
     const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
     const myRenderId = state.renderId;

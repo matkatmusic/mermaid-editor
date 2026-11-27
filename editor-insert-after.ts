@@ -55,14 +55,22 @@ export async function insertDecisionAfterNode(sourceId: string, graph: EditorGra
   const decisionId = getNextEditorId('Q_NEW', graph);
   const yesId = buildChoiceId(decisionId, 'Y');
   const noId = buildChoiceId(decisionId, 'N');
-  const newLines = [
-    `  ${decisionId}{{"New Decision"}}`,
-    `  ${yesId}["Yes"]`,
-    `  ${noId}["No"]`,
-    `  ${sourceId} --> ${decisionId}`,
-    `  ${decisionId} --> ${yesId}`,
-    `  ${decisionId} --> ${noId}`,
-  ];
+  // const newLines = [
+  //   `  ${decisionId}{{"New Decision"}}`,
+  //   `  ${yesId}["Yes"]`,
+  //   `  ${noId}["No"]`,
+  //   `  ${sourceId} --> ${decisionId}`,
+  //   `  ${decisionId} --> ${yesId}`,
+  //   `  ${decisionId} --> ${noId}`,
+  // ];
+  // A path view keeps the old end point, so the new decision gets one choice there.
+  const isViewOn = state.pathView !== null;
+  const newLines = [`  ${decisionId}{{"New Decision"}}`, `  ${yesId}["Yes"]`];
+  if (!isViewOn)
+    newLines.push(`  ${noId}["No"]`);
+  newLines.push(`  ${sourceId} --> ${decisionId}`, `  ${decisionId} --> ${yesId}`);
+  if (!isViewOn)
+    newLines.push(`  ${decisionId} --> ${noId}`);
   const restoredIds = new Set<string>();
   for (const edge of successors) {
     appendInlineDeclaration(newLines, restoredIds, graph, edge, edge.to);

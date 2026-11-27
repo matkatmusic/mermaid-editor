@@ -10,6 +10,7 @@ import { createDecisionAfter, createStaticAfter } from './editor-insert-after.ts
 import { destinationSelect, diagramBox, nodeNotesInput, nodeTextInput, outputBox } from './dom.ts';
 import { buildSourceWithNodeProps } from './node-props.ts';
 import { buildSourceWithoutNodeSize } from './node-size.ts';
+import { refuseEditInPathView } from './path-view.ts';
 
 // Rewrites only this decision's declaration between Q_X{{"text"}} (hexagon) and Q_X{"text"} (diamond); the text, class lines and edges stay.
 export function updateDecisionShape(id: string | null, isHexagon: boolean) {
@@ -133,5 +134,7 @@ export function applyDestination(destination: string) {
 }
 
 export function applyDestinationSelection() {
+  if (refuseEditInPathView('changeDestination', null))
+    return;
   applyDestination(destinationSelect.value);
 }

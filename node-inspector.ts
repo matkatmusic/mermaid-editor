@@ -11,6 +11,7 @@ import { getNodeAlign } from './node-align.ts';
 import { clearInspectorFocus, updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { applyInspectorExtraHeight } from './inspector-resize.ts';
 import { showDestinationInInput } from './destination-picker.ts';
+import { disableRefusedButtons } from './path-view.ts';
 
 export function replaceDeclarationInLine(line: string, id: string, newToken: string) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -144,9 +145,13 @@ export function renderNodeInspector() {
       createInspectorActionButton('insert-decision-after', 'Insert decision block after'),
       createInspectorActionButton('insert-static-after', 'Insert static block after'),
     );
+  disableRefusedButtons(actions, graph, node.id);
   nodeInspectorActions.replaceChildren(...actions);
   const hasDestination = node.kind !== 'question';
   destinationRow.hidden = !hasDestination;
+  // A path view does not allow a new destination.
+  if (state.pathView)
+    destinationRow.hidden = true;
   destinationSelect.replaceChildren();
   if (hasDestination) {
     destinationSelect.add(new Option('Terminal', ''));

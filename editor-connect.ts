@@ -3,6 +3,7 @@ import { getEditorGraph } from './editor-graph.ts';
 import { setEditorActionPromise } from './editor-metadata.ts';
 import { buildSourceWithLinesReplaced } from './source-edit.ts';
 import { applyEditorSource, selectEditorNode } from './editor-actions.ts';
+import { refuseEditInPathView } from './path-view.ts';
 
 export function connectNodesWithShiftClick(clickedId: string) {
   const fromId = state.selectedEditorNodeId;
@@ -11,6 +12,8 @@ export function connectNodesWithShiftClick(clickedId: string) {
     return;
   }
   if (fromId === clickedId)
+    return;
+  if (refuseEditInPathView('connectNodes', null))
     return;
   // state.connectFromNodeId = null;
   const graph = getEditorGraph();

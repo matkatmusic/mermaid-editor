@@ -101,8 +101,18 @@ function dispatchInspectorAction(event: MouseEvent) {
       return;
     setEditorActionPromise(insertDecisionAfterNode(state.selectedEditorNodeId, getEditorGraph()));
   }
-  else if (action === 'add-decision-after')
-    applyDestination(NEW_DECISION_DESTINATION);
+  // else if (action === 'add-decision-after')
+  //   applyDestination(NEW_DECISION_DESTINATION);
+  else if (action === 'add-decision-after') {
+    // applyDestination replaces the destination; a path view keeps the end point, so the decision goes into the arrow.
+    if (state.pathView) {
+      if (!state.selectedEditorNodeId)
+        return;
+      setEditorActionPromise(insertDecisionAfterNode(state.selectedEditorNodeId, getEditorGraph()));
+    }
+    else
+      applyDestination(NEW_DECISION_DESTINATION);
+  }
   else if (action === 'add-choice')
     addChoiceOnDecision();
   else if (action === 'remove') {

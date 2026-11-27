@@ -38,6 +38,8 @@ async function resetEditorToNewDiagram() {
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
   state.diagramScale = null;
+  state.pathView = null;
+  codeBox.readOnly = false;
   state.currentDecisionId = null;
   applyTypeMetadata(null);
   // codeBox.value = 'flowchart TD\n  B_NEW[New idea]';

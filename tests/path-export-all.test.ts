@@ -71,3 +71,30 @@ test("test_export_all_paths_button_writes_one_numbered_file_per_path", async () 
   await executeExpression("loadDiagram('accountability.mmd')");
   await waitForRender();
 });
+
+test("test_exported_path_keeps_props_lines_arrow_labels_and_direction", async () => {
+  const source = [
+    "flowchart LR",
+    '  %% ==props==: {"blockId":"B_START","alignment":"left","note":"kept note"}',
+    '  B_START["Start"]',
+    '  Q_ASK{"Done?"}',
+    '  Q_CHOICE_ASK_YES["Yes"]',
+    '  B_END["End"]',
+    "  B_START --> Q_ASK",
+    '  Q_ASK -- "agreed" --> Q_CHOICE_ASK_YES',
+    "  Q_CHOICE_ASK_YES --> B_END",
+    "",
+  ].join("\n");
+  await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/label-demo.mmd`, { method: "PUT", body: source });
+  await executeExpression("loadDiagram('label-demo.mmd')");
+  await waitMilliseconds(500);
+  await executeExpression("document.getElementById('exportAllPathsBtn').click()");
+  await waitMilliseconds(1500);
+  const pathSource = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/label-demo-path-0.mmd`).then((r) => r.text());
+  assert.ok(pathSource.includes("flowchart LR\n"), pathSource);
+  assert.ok(pathSource.includes('"alignment":"left","note":"kept note"'), pathSource);
+  assert.ok(pathSource.includes('Q_ASK -- "agreed" --> Q_CHOICE_ASK_YES'), pathSource);
+  // Step: put the default diagram back for later tests.
+  await executeExpression("loadDiagram('accountability.mmd')");
+  await waitForRender();
+});

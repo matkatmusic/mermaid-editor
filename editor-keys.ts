@@ -9,6 +9,7 @@ import { getSelectedNodeIds } from './editor-multiselect.ts';
 import { refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
 import { buildBlockRemovedSource, buildChoiceRemovedSource } from './editor-remove.ts';
 import { buildQuestionRemovedSource } from './editor-remove-question.ts';
+import { refuseEditInPathView } from './path-view.ts';
 
 function isTextBoxTarget(target: EventTarget | null) {
   const element = target as HTMLElement;
@@ -55,6 +56,11 @@ function removeSelectedNodesOnDeleteKey(event: KeyboardEvent) {
   if (!selectedIds.length)
     return;
   event.preventDefault();
+  // One refused node stops the whole delete.
+  for (const id of selectedIds) {
+    if (refuseEditInPathView('removeNode', id))
+      return;
+  }
   const newSource = buildSourceWithNodesRemoved(selectedIds);
   // Clear selection before committing so the saved metadata doesn't point at a removed node.
   selectEditorNode(null);

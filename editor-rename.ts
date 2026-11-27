@@ -163,14 +163,22 @@ export function isNodeNameBoxInvalid() {
 
 let hideNoticeTimer: ReturnType<typeof setTimeout> | undefined;
 
+export function showInspectorNotice(text: string) {
+  inspectorNotice.textContent = text;
+  inspectorNotice.hidden = false;
+  clearTimeout(hideNoticeTimer);
+  hideNoticeTimer = setTimeout(hideInspectorNotice, 4000);
+}
+
 // A click, Cmd-click or arrow key may not move the selection away from a bad Node Name; the pop-up says why.
 export function refuseMoveWhileNodeNameIsInvalid() {
   if (!isNodeNameBoxInvalid())
     return false;
-  inspectorNotice.textContent = 'Fix the bad Node Name first.';
-  inspectorNotice.hidden = false;
-  clearTimeout(hideNoticeTimer);
-  hideNoticeTimer = setTimeout(hideInspectorNotice, 4000);
+  // inspectorNotice.textContent = 'Fix the bad Node Name first.';
+  // inspectorNotice.hidden = false;
+  // clearTimeout(hideNoticeTimer);
+  // hideNoticeTimer = setTimeout(hideInspectorNotice, 4000);
+  showInspectorNotice('Fix the bad Node Name first.');
   return true;
 }
 

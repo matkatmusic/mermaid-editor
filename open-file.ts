@@ -45,6 +45,8 @@ export async function showOpenedFile(path: string, text: string) {
   state.loadedPath = path;
   statusBox.textContent = path;
   state.pathFolderHandle = null;
+  state.pathView = null;
+  codeBox.readOnly = false;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;

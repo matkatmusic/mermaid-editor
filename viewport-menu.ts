@@ -1,9 +1,12 @@
 import { addDecisionBlockMenuBtn, addStaticBlockMenuBtn, outputBox, viewportMenu } from './dom.ts';
 import { appendEditorAction } from './editor-actions.ts';
 import { addStandaloneDecisionBlock, addStandaloneStaticBlock } from './editor-add-standalone.ts';
+import { refuseEditInPathView } from './path-view.ts';
 
 function openViewportMenu(event: MouseEvent) {
   event.preventDefault();
+  if (refuseEditInPathView('addStandaloneBlock', null))
+    return;
   viewportMenu.style.left = event.clientX + 'px';
   viewportMenu.style.top = event.clientY + 'px';
   viewportMenu.hidden = false;

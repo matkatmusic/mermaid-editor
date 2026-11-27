@@ -12,10 +12,12 @@ import { render } from './render.ts';
 import { showOpenedFile } from './open-file.ts';
 import { listAllPathIds } from './path-export-all.ts';
 import { setNodeSize } from './editor-node-size.ts';
+import { findRouteIdsToNode } from './phone-render.ts';
 import './editor-events.ts';
 import './main-events.ts';
 import './node-resize.ts';
 import './viewport-menu.ts';
+import './path-view.ts';
 
 // render();
 // loadList();
@@ -41,4 +43,4 @@ async function loadLastOpened() {
 }
 loadLastOpened();
 
-Object.assign(window, { render, loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds, setNodeSize });
+Object.assign(window, { render, loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds, setNodeSize, findRouteIdsToNode });

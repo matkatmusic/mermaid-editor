@@ -1,5 +1,6 @@
 import { codeBox } from './dom.ts';
 import type { PendingRemoval } from './editor-types.ts';
+import type { PathView } from './path-view-model.ts';
 
 export const MAIN_ZOOM_STEP = 10;
 export const MIN_MAIN_ZOOM = 20;
@@ -35,6 +36,7 @@ export const state = {
   diagramScale: null as number | null,
   mainZoomPercent: 100,
   functionsOnly: false,
+  pathView: null as PathView | null, // the main view draws one path while this is set
   selectedEditorNodeId: null as string | null,
   multiSelectedNodeIds: [] as string[], // two or more Cmd-clicked nodes; selectedEditorNodeId is null while this has entries
   currentDecisionId: null as string | null,

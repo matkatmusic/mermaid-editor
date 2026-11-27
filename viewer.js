@@ -363,6 +363,12 @@ var zoomOutBtn = document.getElementById("zoomOutBtn");
 var zoomResetBtn = document.getElementById("zoomResetBtn");
 var zoomLevel = document.getElementById("zoomLevel");
 var functionsOnlyToggle = document.getElementById("functionsOnlyToggle");
+var onePathViewBtn = document.getElementById("onePathViewBtn");
+var pathViewControls = document.getElementById("pathViewControls");
+var previousViewPathBtn = document.getElementById("previousViewPathBtn");
+var viewPathLabel = document.getElementById("viewPathLabel");
+var nextViewPathBtn = document.getElementById("nextViewPathBtn");
+var fullDiagramBtn = document.getElementById("fullDiagramBtn");
 var nodeActions = document.getElementById("nodeActions");
 var selectedNodeBox = document.getElementById("selectedNode");
 var nodeInspector = document.getElementById("nodeInspector");
@@ -463,6 +469,7 @@ var state = {
   diagramScale: null,
   mainZoomPercent: 100,
   functionsOnly: false,
+  pathView: null,
   selectedEditorNodeId: null,
   multiSelectedNodeIds: [],
   currentDecisionId: null,
@@ -1086,6 +1093,173 @@ function findClassOfNode(source, nodeId) {
   return found;
 }
 
+// path-view-model.ts
+function buildPathEdges(pathIds) {
+  const edges = [];
+  const listedKeys = new Set;
+  for (let i = 0;i + 1 < pathIds.length; i++) {
+    const key = `${pathIds[i]} ${pathIds[i + 1]}`;
+    if (listedKeys.has(key))
+      continue;
+    listedKeys.add(key);
+    edges.push([pathIds[i], pathIds[i + 1]]);
+  }
+  return edges;
+}
+function findViewEditRefusal(view, graph, edit, nodeId) {
+  if (!view)
+    return null;
+  if (edit === "addChoice") {
+    if (view.kind === "onePath")
+      return "Show the full diagram to add a choice.";
+    return null;
+  }
+  if (edit === "insertStaticAfter") {
+    if (graph.nodes.get(nodeId).kind === "choice") {
+      if (!view.protectedIds.includes(nodeId))
+        return "This choice is not on the shown path.";
+    }
+    return null;
+  }
+  if (edit !== "removeNode")
+    return "Show the full diagram to make this change.";
+  const kind = graph.nodes.get(nodeId).kind;
+  if (kind === "question")
+    return "Show the full diagram to remove a decision.";
+  if (kind === "choice") {
+    if (view.protectedIds.includes(nodeId))
+      return "This choice is on the shown path.";
+    return null;
+  }
+  const isEndOfShownPath = view.pathIds ? view.pathIds[view.pathIds.length - 1] === nodeId : !graph.edges.some((edge) => edge.from === nodeId);
+  if (isEndOfShownPath)
+    return "This is the last block of the path.";
+  return null;
+}
+function choicesOf(id, edges) {
+  const found = [];
+  for (const [from, to] of edges) {
+    if (from === id)
+      found.push(to);
+  }
+  return found;
+}
+function findUnusedChoices(id, usedEdges, edges) {
+  return choicesOf(id, edges).filter((to) => !usedEdges.has(`${id}->${to}`));
+}
+var MAX_CHOICES = 16;
+function listDigitMaximums(diagram) {
+  if (!diagram.startIds.length)
+    throw new Error("The diagram has no path from a start block");
+  const counts = [diagram.startIds.length, ...diagram.decisionIds.map((id) => choicesOf(id, diagram.edges).length)];
+  for (const count of counts) {
+    if (count > MAX_CHOICES)
+      throw new Error(`A path digit holds ${MAX_CHOICES} choices; the diagram needs ${count}`);
+  }
+  return counts.map((count) => Math.max(count - 1, 0));
+}
+function walkDigitPath(diagram, digits) {
+  const reachedDigits = digits.map(() => 0);
+  reachedDigits[0] = digits[0];
+  const pathIds = [diagram.startIds[digits[0]]];
+  const usedEdges = new Set;
+  for (;; ) {
+    const current = pathIds[pathIds.length - 1];
+    const unusedChoices = findUnusedChoices(current, usedEdges, diagram.edges);
+    if (!unusedChoices.length)
+      return { pathIds, digits: reachedDigits };
+    let next = unusedChoices[0];
+    const position = diagram.decisionIds.indexOf(current) + 1;
+    if (position > 0) {
+      reachedDigits[position] = digits[position];
+      const namedChoice = choicesOf(current, diagram.edges)[digits[position]];
+      if (unusedChoices.includes(namedChoice))
+        next = namedChoice;
+    }
+    usedEdges.add(`${current}->${next}`);
+    pathIds.push(next);
+  }
+}
+function compareDigits(a, b) {
+  for (let i = 0;i < a.length; i++) {
+    if (a[i] !== b[i])
+      return a[i] - b[i];
+  }
+  return 0;
+}
+function findNeighbourDigits(diagram, digits, step) {
+  const maximums = listDigitMaximums(diagram);
+  let nearest = null;
+  function isOutOfRange(chosen) {
+    const lowest = maximums.map((_, i) => chosen[i] ?? 0);
+    const highest = maximums.map((maximum, i) => chosen[i] ?? maximum);
+    const farthest = step === 1 ? highest : lowest;
+    const closest = step === 1 ? lowest : highest;
+    if (compareDigits(farthest, digits) * step <= 0)
+      return true;
+    if (nearest) {
+      if (compareDigits(closest, nearest) * step >= 0)
+        return true;
+    }
+    return false;
+  }
+  function keepIfNearer(chosen) {
+    const found = maximums.map((_, i) => chosen[i] ?? 0);
+    if (compareDigits(found, digits) * step <= 0)
+      return;
+    if (nearest) {
+      if (compareDigits(found, nearest) * step >= 0)
+        return;
+    }
+    nearest = found;
+  }
+  function searchFrom(startId, usedEdges, chosen) {
+    let current = startId;
+    for (;; ) {
+      const unusedChoices = findUnusedChoices(current, usedEdges, diagram.edges);
+      if (!unusedChoices.length) {
+        keepIfNearer(chosen);
+        return;
+      }
+      let next = unusedChoices[0];
+      const position = diagram.decisionIds.indexOf(current) + 1;
+      if (position > 0) {
+        if (chosen[position] === undefined) {
+          searchEachDigit(current, position, usedEdges, chosen);
+          return;
+        }
+        const namedChoice = choicesOf(current, diagram.edges)[chosen[position]];
+        if (unusedChoices.includes(namedChoice))
+          next = namedChoice;
+      }
+      usedEdges.add(`${current}->${next}`);
+      current = next;
+    }
+  }
+  function searchEachDigit(decisionId, position, usedEdges, chosen) {
+    const values = choicesOf(decisionId, diagram.edges).map((_, digit) => digit);
+    if (step === -1)
+      values.reverse();
+    for (const digit of values) {
+      const branchChosen = [...chosen];
+      branchChosen[position] = digit;
+      if (isOutOfRange(branchChosen))
+        continue;
+      searchFrom(decisionId, new Set(usedEdges), branchChosen);
+    }
+  }
+  const startDigits = diagram.startIds.map((_, digit) => digit);
+  if (step === -1)
+    startDigits.reverse();
+  for (const startDigit of startDigits) {
+    const chosen = [startDigit];
+    if (isOutOfRange(chosen))
+      continue;
+    searchFrom(diagram.startIds[startDigit], new Set, chosen);
+  }
+  return nearest;
+}
+
 // graph-slice.ts
 function parentOf(id, edges) {
   let found;
@@ -1165,14 +1339,6 @@ function siblingIds(ids, edges) {
     const isNotSecond = to !== ids[1];
     const isSibling = isFromFirst && isNotSecond;
     if (isSibling)
-      found.push(to);
-  }
-  return found;
-}
-function choicesOf(id, edges) {
-  const found = [];
-  for (const [from, to] of edges) {
-    if (from === id)
       found.push(to);
   }
   return found;
@@ -1577,15 +1743,31 @@ function findAnswersLeadingTo(questionId, edges, graph) {
   }
   throw new Error(`No phone path leads from the start to ${questionId}`);
 }
+function findRouteIdsToNode(nodeId, edges, graph) {
+  const isChoice = graph.nodes.get(nodeId)?.kind === "choice";
+  const targetId = isChoice ? parentOf(nodeId, edges) : nodeId;
+  for (const root of findRoots(edges)) {
+    const walk = findWalkFromRoot(root, targetId, edges, graph);
+    if (walk) {
+      if (isChoice)
+        return [...walk.routeIds, nodeId];
+      return walk.routeIds;
+    }
+  }
+  throw new Error(`No route leads from a start block to ${nodeId}`);
+}
 function findAnswersFromRoot(root, questionId, edges, graph) {
-  const queue = [{ nodeId: root, answers: [] }];
+  return findWalkFromRoot(root, questionId, edges, graph)?.answers;
+}
+function findWalkFromRoot(root, questionId, edges, graph) {
+  const queue = [{ nodeId: root, answers: [], routeIds: [] }];
   const visited = new Set;
   for (let i = 0;i < queue.length; i++) {
-    const { nodeId, answers } = queue[i];
+    const { nodeId, answers, routeIds } = queue[i];
     if (nodeId === undefined)
       continue;
     if (nodeId === questionId)
-      return answers;
+      return { answers, routeIds: [...routeIds, nodeId] };
     const isVisited = visited.has(nodeId);
     if (isVisited)
       continue;
@@ -1595,14 +1777,15 @@ function findAnswersFromRoot(root, questionId, edges, graph) {
       for (const choiceId of choicesOf(nodeId, edges)) {
         const isChoiceAQuestion = graph.nodes.get(choiceId)?.kind === "question";
         const nextNodeId = isChoiceAQuestion ? choiceId : choicesOf(choiceId, edges)[0];
-        queue.push({ nodeId: nextNodeId, answers: [...answers, choiceId] });
+        const nextRouteIds = isChoiceAQuestion ? [...routeIds, nodeId] : [...routeIds, nodeId, choiceId];
+        queue.push({ nodeId: nextNodeId, answers: [...answers, choiceId], routeIds: nextRouteIds });
       }
       continue;
     }
     const nexts = choicesOf(nodeId, edges);
     const isSingleChain = nexts.length === 1;
     if (isSingleChain)
-      queue.push({ nodeId: nexts[0], answers });
+      queue.push({ nodeId: nexts[0], answers, routeIds: [...routeIds, nodeId] });
   }
   return;
 }
@@ -1875,230 +2058,6 @@ function syncGutterScroll() {
 codeBox.addEventListener("scroll", syncGutterScroll);
 new ResizeObserver(renderSourceLines).observe(codeBox);
 
-// render.ts
-var outputPointerHeld = null;
-function holdNewDrawingUntilPointerIsUp() {
-  outputPointerHeld = new Promise((resolve) => {
-    function endHold() {
-      outputPointerHeld = null;
-      resolve();
-    }
-    function endHoldAfterClick() {
-      setTimeout(endHold, 0);
-    }
-    document.addEventListener("pointerup", endHoldAfterClick, { once: true, capture: true });
-    document.addEventListener("pointercancel", endHoldAfterClick, { once: true, capture: true });
-  });
-}
-outputBox.addEventListener("pointerdown", holdNewDrawingUntilPointerIsUp, true);
-async function render() {
-  renderSourceLines();
-  errorBox.textContent = "";
-  try {
-    const graph = getEditorGraph();
-    clearInvalidPhonePreview(graph);
-    updateDecisionCounter(graph);
-    const edges = parseEdges(codeBox.value);
-    let phonePathIsStale = false;
-    for (const id of phonePath) {
-      let idIsInDiagram = false;
-      for (const [, to] of edges) {
-        const isTarget = to === id;
-        if (isTarget)
-          idIsInDiagram = true;
-      }
-      if (!idIsInDiagram)
-        phonePathIsStale = true;
-    }
-    if (phonePathIsStale)
-      phonePath.length = 0;
-    const ids = edges.length > 0 ? sliceIds(edges) : [];
-    const reversedIds = [...ids].reverse();
-    let bottomQ = state.phoneFocusNodeId && graph.nodes.get(state.phoneFocusNodeId)?.kind === "question" ? state.phoneFocusNodeId : undefined;
-    if (!bottomQ) {
-      for (const rid of reversedIds) {
-        let outgoingCount = 0;
-        for (const [from] of edges) {
-          if (from === rid)
-            outgoingCount++;
-        }
-        const hasBranch = outgoingCount > 1;
-        if (hasBranch) {
-          bottomQ = rid;
-          break;
-        }
-      }
-    }
-    state.currentBottomQ = bottomQ;
-    const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(state.functionsOnly ? filterToFunctions(codeBox.value) : codeBox.value)));
-    const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
-    const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
-    const myRenderId = state.renderId;
-    const { svg: regularSvg } = await mermaid.render("diagram-" + state.renderId++, mainSource);
-    await outputPointerHeld;
-    if (state.renderId !== myRenderId + 1)
-      return;
-    const hasNodes = graph.nodes.size > 0;
-    const scaleIsUnset = state.diagramScale === null;
-    if (hasNodes) {
-      if (scaleIsUnset)
-        state.diagramScale = 1;
-    }
-    diagramBox.innerHTML = regularSvg;
-    renderPhone(phoneEdges, graph);
-    applyNodeTypeColors(graph);
-    applyNoteDots(graph);
-    renderEditorSelection();
-    applyPathHighlight();
-    if (hasNodes) {
-      const scale = state.diagramScale;
-      const mainZoom = state.mainZoomPercent / 100;
-      const regularSvgEl = diagramBox.querySelector("svg");
-      const regularBox = viewBoxOf(regularSvg);
-      regularSvgEl.style.width = regularBox.width * scale * mainZoom + "px";
-      regularSvgEl.style.height = regularBox.height * scale * mainZoom + "px";
-    }
-    outputBox.scrollLeft = regularViewport.left;
-    outputBox.scrollTop = regularViewport.top;
-    updateNodeInspectorPosition();
-    updateOffscreenArrowHeads();
-    errorLog.textContent = "";
-    errorLog.classList.remove("open");
-  } catch (err) {
-    state.currentDecisionId = null;
-    decisionCounter.textContent = "0 / 0";
-    reportEditorValidationError(err);
-  }
-}
-function applyFunctionsOnlyToggle() {
-  state.functionsOnly = functionsOnlyToggle.checked;
-  render();
-}
-function applyDarkModeToggle() {
-  document.body.classList.toggle("dark", darkModeToggle.checked);
-  mermaid.initialize(getMermaidOptions());
-  render();
-}
-functionsOnlyToggle.addEventListener("change", applyFunctionsOnlyToggle);
-darkModeToggle.addEventListener("change", applyDarkModeToggle);
-
-// diagram-save.ts
-var lastSavedDiagramText = null;
-var declinedDiskText = null;
-var watchedDiagramName = null;
-var pendingSaveCount = 0;
-var saveVersion = 0;
-function setLastSavedDiagramText(text) {
-  lastSavedDiagramText = text;
-}
-function createDiagramWatcher(name, watchUrl = "/api/watch/" + encodeURIComponent(name), diskUrl = "/api/diagrams/" + encodeURIComponent(name)) {
-  if (state.watcher)
-    state.watcher.close();
-  watchedDiagramName = name;
-  declinedDiskText = null;
-  const source = new EventSource(watchUrl);
-  state.watcher = source;
-  const refresh = async () => {
-    const versionAtFetchStart = saveVersion;
-    const saveInFlightAtFetchStart = pendingSaveCount > 0;
-    const diagramResponse = await fetch(diskUrl);
-    const text = buildSourceInCurrentFileFormat(await diagramResponse.text());
-    const isStaleWatcher = state.watcher !== source;
-    if (isStaleWatcher)
-      return;
-    if (saveInFlightAtFetchStart)
-      return;
-    if (pendingSaveCount > 0)
-      return;
-    if (saveVersion !== versionAtFetchStart)
-      return;
-    if (text === lastSavedDiagramText)
-      return;
-    if (text !== codeBox.value) {
-      const hasUnsavedEdits = codeBox.value !== lastSavedDiagramText;
-      if (hasUnsavedEdits) {
-        if (text === declinedDiskText)
-          return;
-        const loadsDiskVersion = window.confirm("This file changed on disk. OK loads the disk version. Cancel keeps your unsaved edits.");
-        if (!loadsDiskVersion) {
-          declinedDiskText = text;
-          return;
-        }
-      }
-      applyTypeMetadata(splitEditorMetadata(text).metadata);
-      codeBox.value = text;
-      resetEditorHistory(text);
-    }
-    lastSavedDiagramText = text;
-    render();
-  };
-  source.onmessage = refresh;
-  source.onopen = refresh;
-}
-var MMD_FILE_TYPES = [{ description: "Mermaid diagram", accept: { "text/plain": [".mmd"] } }];
-async function saveDiagram() {
-  const needsSaveAsDialog = !state.currentName && !state.openedFileHandle && !state.loadedPath;
-  if (needsSaveAsDialog) {
-    try {
-      state.openedFileHandle = await window.showSaveFilePicker({ suggestedName: "diagram.mmd", types: MMD_FILE_TYPES });
-    } catch (error) {
-      const isUserCancel = error.name === "AbortError";
-      if (!isUserCancel)
-        throw error;
-      console.log("User canceled Save");
-      return;
-    }
-  }
-  const fileHandle = state.openedFileHandle;
-  if (fileHandle) {
-    const writable = await fileHandle.createWritable();
-    await writable.write(codeBox.value);
-    await writable.close();
-    setStatus("Saved " + fileHandle.name);
-    return;
-  }
-  const hasNoName = !state.currentName;
-  const hasLoadedPath = !!state.loadedPath;
-  const savesToLoadedPath = hasNoName && hasLoadedPath;
-  if (savesToLoadedPath) {
-    pendingSaveCount++;
-    saveVersion++;
-    try {
-      const openFileResponse = await fetch("/api/open-file?path=" + encodeURIComponent(state.loadedPath), { method: "PUT", body: codeBox.value });
-      if (!openFileResponse.ok)
-        throw new Error(await openFileResponse.text());
-    } finally {
-      pendingSaveCount--;
-    }
-    lastSavedDiagramText = codeBox.value;
-    setStatus("Saved " + state.loadedPath);
-    return;
-  }
-  const name = state.currentName;
-  lastSavedDiagramText = codeBox.value;
-  pendingSaveCount++;
-  saveVersion++;
-  try {
-    await fetch("/api/diagrams/" + encodeURIComponent(name), {
-      method: "PUT",
-      body: codeBox.value
-    });
-  } finally {
-    pendingSaveCount--;
-  }
-  state.currentName = name;
-  setStatus("Saved " + name);
-  loadList();
-  const hasNoWatcher = !state.watcher;
-  if (hasNoWatcher) {
-    createDiagramWatcher(name);
-  } else {
-    const isWatchingSomethingElse = watchedDiagramName !== name;
-    if (isWatchingSomethingElse)
-      createDiagramWatcher(name);
-  }
-}
-
 // editor-rename.ts
 var KIND_PREFIXES = { question: "Q_", block: "B_", choice: "Q_CHOICE_" };
 var CHOICE_PREFIX = KIND_PREFIXES.choice;
@@ -2233,13 +2192,16 @@ function isNodeNameBoxInvalid() {
   return "error" in checkNodeName(graph, node, nodeNameInput.value);
 }
 var hideNoticeTimer;
-function refuseMoveWhileNodeNameIsInvalid() {
-  if (!isNodeNameBoxInvalid())
-    return false;
-  inspectorNotice.textContent = "Fix the bad Node Name first.";
+function showInspectorNotice(text) {
+  inspectorNotice.textContent = text;
   inspectorNotice.hidden = false;
   clearTimeout(hideNoticeTimer);
   hideNoticeTimer = setTimeout(hideInspectorNotice, 4000);
+}
+function refuseMoveWhileNodeNameIsInvalid() {
+  if (!isNodeNameBoxInvalid())
+    return false;
+  showInspectorNotice("Fix the bad Node Name first.");
   return true;
 }
 function hideInspectorNotice() {
@@ -2627,9 +2589,12 @@ function renderNodeInspector() {
     actions.push(createInspectorActionButton("add-decision-after", "add Decision block after"), createInspectorActionButton("insert-decision-after", "Insert decision block after"), createInspectorActionButton("insert-static-after", "Insert static block after"), createInspectorActionButton("insert-static-before", "insert static block before"), createInspectorActionButton("insert-decision-before", "insert Decision & leading choice before"));
   else if (node.kind === "choice")
     actions.push(createInspectorActionButton("add-decision-after", "add Decision block after"), createInspectorActionButton("add-static-after", "add static block after"), createInspectorActionButton("insert-decision-after", "Insert decision block after"), createInspectorActionButton("insert-static-after", "Insert static block after"));
+  disableRefusedButtons(actions, graph, node.id);
   nodeInspectorActions.replaceChildren(...actions);
   const hasDestination = node.kind !== "question";
   destinationRow.hidden = !hasDestination;
+  if (state.pathView)
+    destinationRow.hidden = true;
   destinationSelect.replaceChildren();
   if (hasDestination) {
     destinationSelect.add(new Option("Terminal", ""));
@@ -2655,6 +2620,396 @@ function renderNodeInspector() {
   showDestinationInInput();
   applyInspectorExtraHeight();
   updateNodeInspectorPosition();
+}
+
+// subset-source.ts
+function buildClassLines(source, declaredIds) {
+  const classIndex = buildClassStyleIndex(source);
+  const idsByClass = new Map;
+  for (const id of declaredIds) {
+    const className = classIndex.assignments.get(id);
+    if (!className)
+      continue;
+    const classIds = idsByClass.get(className) ?? [];
+    classIds.push(id);
+    idsByClass.set(className, classIds);
+  }
+  const sourceLines = source.split(`
+`);
+  const lines = [];
+  for (const [className, classIds] of idsByClass) {
+    const classDef = classIndex.defsByName.get(className);
+    if (classDef)
+      lines.push(`  ${sourceLines[classDef.lineIndex].trim()}`);
+    lines.push(`  class ${classIds.join(",")} ${className}`);
+  }
+  return lines;
+}
+function buildSubsetSource(graph, nodeIds, edges) {
+  const directionLine = graph.lines.find((line) => /^\s*(flowchart|graph)\b/.test(line));
+  const lines = [directionLine.trim()];
+  for (const id of nodeIds) {
+    for (const line of graph.lines) {
+      if (parsePropsLine(line)?.blockId === id)
+        lines.push(line);
+    }
+    lines.push(`  ${id}${getDeclarationSuffix(graph.nodes.get(id))}`);
+  }
+  for (const [from, to] of edges) {
+    const edge = graph.edges.find((candidate) => `${candidate.from} ${candidate.to}` === `${from} ${to}`);
+    lines.push(edge.label ? `  ${from} -- "${edge.label}" --> ${to}` : `  ${from} --> ${to}`);
+  }
+  lines.push(...buildClassLines(graph.lines.join(`
+`), new Set(nodeIds)));
+  return lines.join(`
+`) + `
+`;
+}
+function buildPathSource(graph, pathIds) {
+  return buildSubsetSource(graph, [...new Set(pathIds)], buildPathEdges(pathIds));
+}
+
+// path-view.ts
+function buildPathDiagram(graph) {
+  const edges = graph.edges.map((edge) => [edge.from, edge.to]);
+  const decisionIds = [...graph.nodes.values()].filter((node) => node.kind === "question").map((node) => node.id);
+  return { startIds: findRoots(edges), edges, decisionIds };
+}
+function listViewDigits(view, diagram) {
+  const maximums = listDigitMaximums(diagram);
+  const storedDigits = [view.startDigit, ...diagram.decisionIds.map((id) => view.decisionDigits[id] ?? 0)];
+  return storedDigits.map((digit, i) => digit > maximums[i] ? 0 : digit);
+}
+function storeViewDigits(view, diagram, digits) {
+  view.startDigit = digits[0];
+  for (const [index, id] of diagram.decisionIds.entries())
+    view.decisionDigits[id] = digits[index + 1];
+}
+function renderPathViewControls() {
+  const view = state.pathView;
+  pathViewControls.hidden = !view;
+  onePathViewBtn.setAttribute("aria-pressed", String(!!view));
+  onePathViewBtn.disabled = state.functionsOnly;
+  functionsOnlyToggle.disabled = !!view;
+}
+function renderPathNumber(diagram, digits) {
+  viewPathLabel.textContent = `Path 0x${digits.map((digit) => digit.toString(16).toUpperCase()).join("")}`;
+  previousViewPathBtn.disabled = !findNeighbourDigits(diagram, digits, -1);
+  nextViewPathBtn.disabled = !findNeighbourDigits(diagram, digits, 1);
+}
+function buildMainViewSource(graph) {
+  renderPathViewControls();
+  const view = state.pathView;
+  if (!view) {
+    if (state.functionsOnly)
+      return filterToFunctions(codeBox.value);
+    return codeBox.value;
+  }
+  const diagram = buildPathDiagram(graph);
+  const path = walkDigitPath(diagram, listViewDigits(view, diagram));
+  storeViewDigits(view, diagram, path.digits);
+  view.pathIds = path.pathIds;
+  view.shownNodeIds = [...new Set(path.pathIds)];
+  view.protectedIds = path.pathIds;
+  renderPathNumber(diagram, path.digits);
+  return buildPathSource(graph, path.pathIds);
+}
+var VIEW_EDIT_BY_ACTION = {
+  remove: "removeNode",
+  "remove-choices": "removeChoices",
+  "add-choice": "addChoice",
+  "add-static-after": "addStaticAfter",
+  "insert-static-after": "insertStaticAfter"
+};
+function disableRefusedButtons(buttons, graph, nodeId) {
+  for (const button of buttons) {
+    const edit = VIEW_EDIT_BY_ACTION[button.dataset.action];
+    if (!edit)
+      continue;
+    const refusal = findViewEditRefusal(state.pathView, graph, edit, nodeId);
+    if (!refusal)
+      continue;
+    button.disabled = true;
+    button.title = refusal;
+  }
+}
+function refuseEditInPathView(edit, nodeId) {
+  if (!state.pathView)
+    return false;
+  const refusal = findViewEditRefusal(state.pathView, getEditorGraph(), edit, nodeId);
+  if (!refusal)
+    return false;
+  showInspectorNotice(refusal);
+  return true;
+}
+async function closePathView() {
+  state.pathView = null;
+  codeBox.readOnly = false;
+  await render();
+  renderNodeInspector();
+  if (state.selectedEditorNodeId)
+    moveNodeToViewportCenter(outputBox, diagramBox, state.selectedEditorNodeId);
+}
+async function toggleOnePathView() {
+  if (state.pathView) {
+    await closePathView();
+    return;
+  }
+  state.pathView = { kind: "onePath", anchorId: null, startDigit: 0, decisionDigits: {}, pathIds: null, shownNodeIds: [], protectedIds: [] };
+  codeBox.readOnly = true;
+  await render();
+  renderNodeInspector();
+  const selectedId = state.selectedEditorNodeId;
+  const isSelectedShown = state.pathView.shownNodeIds.includes(selectedId);
+  const centeredId = isSelectedShown ? selectedId : state.pathView.pathIds[0];
+  moveNodeToViewportCenter(outputBox, diagramBox, centeredId);
+}
+async function moveToViewPath(step) {
+  const view = state.pathView;
+  const diagram = buildPathDiagram(getEditorGraph());
+  storeViewDigits(view, diagram, findNeighbourDigits(diagram, listViewDigits(view, diagram), step));
+  await render();
+  const selectedId = state.selectedEditorNodeId;
+  const isSelectionHidden = !!selectedId && !view.shownNodeIds.includes(selectedId);
+  if (isSelectionHidden)
+    selectEditorNode(null);
+  else
+    renderNodeInspector();
+  moveNodeToViewportCenter(outputBox, diagramBox, view.pathIds[0]);
+}
+function showPreviousViewPath() {
+  moveToViewPath(-1);
+}
+function showNextViewPath() {
+  moveToViewPath(1);
+}
+onePathViewBtn.addEventListener("click", toggleOnePathView);
+fullDiagramBtn.addEventListener("click", closePathView);
+previousViewPathBtn.addEventListener("click", showPreviousViewPath);
+nextViewPathBtn.addEventListener("click", showNextViewPath);
+
+// render.ts
+var outputPointerHeld = null;
+function holdNewDrawingUntilPointerIsUp() {
+  outputPointerHeld = new Promise((resolve) => {
+    function endHold() {
+      outputPointerHeld = null;
+      resolve();
+    }
+    function endHoldAfterClick() {
+      setTimeout(endHold, 0);
+    }
+    document.addEventListener("pointerup", endHoldAfterClick, { once: true, capture: true });
+    document.addEventListener("pointercancel", endHoldAfterClick, { once: true, capture: true });
+  });
+}
+outputBox.addEventListener("pointerdown", holdNewDrawingUntilPointerIsUp, true);
+async function render() {
+  renderSourceLines();
+  errorBox.textContent = "";
+  try {
+    const graph = getEditorGraph();
+    clearInvalidPhonePreview(graph);
+    updateDecisionCounter(graph);
+    const edges = parseEdges(codeBox.value);
+    let phonePathIsStale = false;
+    for (const id of phonePath) {
+      let idIsInDiagram = false;
+      for (const [, to] of edges) {
+        const isTarget = to === id;
+        if (isTarget)
+          idIsInDiagram = true;
+      }
+      if (!idIsInDiagram)
+        phonePathIsStale = true;
+    }
+    if (phonePathIsStale)
+      phonePath.length = 0;
+    const ids = edges.length > 0 ? sliceIds(edges) : [];
+    const reversedIds = [...ids].reverse();
+    let bottomQ = state.phoneFocusNodeId && graph.nodes.get(state.phoneFocusNodeId)?.kind === "question" ? state.phoneFocusNodeId : undefined;
+    if (!bottomQ) {
+      for (const rid of reversedIds) {
+        let outgoingCount = 0;
+        for (const [from] of edges) {
+          if (from === rid)
+            outgoingCount++;
+        }
+        const hasBranch = outgoingCount > 1;
+        if (hasBranch) {
+          bottomQ = rid;
+          break;
+        }
+      }
+    }
+    state.currentBottomQ = bottomQ;
+    const mainSource = buildSourceWithSizeWrappers(buildSourceWithCodeTags(moveClassLinesToEnd(buildMainViewSource(graph))));
+    const phoneEdges = state.functionsOnly ? parseEdges(filterToFunctions(codeBox.value)) : edges;
+    const regularViewport = { left: outputBox.scrollLeft, top: outputBox.scrollTop };
+    const myRenderId = state.renderId;
+    const { svg: regularSvg } = await mermaid.render("diagram-" + state.renderId++, mainSource);
+    await outputPointerHeld;
+    if (state.renderId !== myRenderId + 1)
+      return;
+    const hasNodes = graph.nodes.size > 0;
+    const scaleIsUnset = state.diagramScale === null;
+    if (hasNodes) {
+      if (scaleIsUnset)
+        state.diagramScale = 1;
+    }
+    diagramBox.innerHTML = regularSvg;
+    renderPhone(phoneEdges, graph);
+    applyNodeTypeColors(graph);
+    applyNoteDots(graph);
+    renderEditorSelection();
+    applyPathHighlight();
+    if (hasNodes) {
+      const scale = state.diagramScale;
+      const mainZoom = state.mainZoomPercent / 100;
+      const regularSvgEl = diagramBox.querySelector("svg");
+      const regularBox = viewBoxOf(regularSvg);
+      regularSvgEl.style.width = regularBox.width * scale * mainZoom + "px";
+      regularSvgEl.style.height = regularBox.height * scale * mainZoom + "px";
+    }
+    outputBox.scrollLeft = regularViewport.left;
+    outputBox.scrollTop = regularViewport.top;
+    updateNodeInspectorPosition();
+    updateOffscreenArrowHeads();
+    errorLog.textContent = "";
+    errorLog.classList.remove("open");
+  } catch (err) {
+    state.currentDecisionId = null;
+    decisionCounter.textContent = "0 / 0";
+    reportEditorValidationError(err);
+  }
+}
+function applyFunctionsOnlyToggle() {
+  state.functionsOnly = functionsOnlyToggle.checked;
+  render();
+}
+function applyDarkModeToggle() {
+  document.body.classList.toggle("dark", darkModeToggle.checked);
+  mermaid.initialize(getMermaidOptions());
+  render();
+}
+functionsOnlyToggle.addEventListener("change", applyFunctionsOnlyToggle);
+darkModeToggle.addEventListener("change", applyDarkModeToggle);
+
+// diagram-save.ts
+var lastSavedDiagramText = null;
+var declinedDiskText = null;
+var watchedDiagramName = null;
+var pendingSaveCount = 0;
+var saveVersion = 0;
+function setLastSavedDiagramText(text) {
+  lastSavedDiagramText = text;
+}
+function createDiagramWatcher(name, watchUrl = "/api/watch/" + encodeURIComponent(name), diskUrl = "/api/diagrams/" + encodeURIComponent(name)) {
+  if (state.watcher)
+    state.watcher.close();
+  watchedDiagramName = name;
+  declinedDiskText = null;
+  const source = new EventSource(watchUrl);
+  state.watcher = source;
+  const refresh = async () => {
+    const versionAtFetchStart = saveVersion;
+    const saveInFlightAtFetchStart = pendingSaveCount > 0;
+    const diagramResponse = await fetch(diskUrl);
+    const text = buildSourceInCurrentFileFormat(await diagramResponse.text());
+    const isStaleWatcher = state.watcher !== source;
+    if (isStaleWatcher)
+      return;
+    if (saveInFlightAtFetchStart)
+      return;
+    if (pendingSaveCount > 0)
+      return;
+    if (saveVersion !== versionAtFetchStart)
+      return;
+    if (text === lastSavedDiagramText)
+      return;
+    if (text !== codeBox.value) {
+      const hasUnsavedEdits = codeBox.value !== lastSavedDiagramText;
+      if (hasUnsavedEdits) {
+        if (text === declinedDiskText)
+          return;
+        const loadsDiskVersion = window.confirm("This file changed on disk. OK loads the disk version. Cancel keeps your unsaved edits.");
+        if (!loadsDiskVersion) {
+          declinedDiskText = text;
+          return;
+        }
+      }
+      applyTypeMetadata(splitEditorMetadata(text).metadata);
+      codeBox.value = text;
+      resetEditorHistory(text);
+    }
+    lastSavedDiagramText = text;
+    render();
+  };
+  source.onmessage = refresh;
+  source.onopen = refresh;
+}
+var MMD_FILE_TYPES = [{ description: "Mermaid diagram", accept: { "text/plain": [".mmd"] } }];
+async function saveDiagram() {
+  const needsSaveAsDialog = !state.currentName && !state.openedFileHandle && !state.loadedPath;
+  if (needsSaveAsDialog) {
+    try {
+      state.openedFileHandle = await window.showSaveFilePicker({ suggestedName: "diagram.mmd", types: MMD_FILE_TYPES });
+    } catch (error) {
+      const isUserCancel = error.name === "AbortError";
+      if (!isUserCancel)
+        throw error;
+      console.log("User canceled Save");
+      return;
+    }
+  }
+  const fileHandle = state.openedFileHandle;
+  if (fileHandle) {
+    const writable = await fileHandle.createWritable();
+    await writable.write(codeBox.value);
+    await writable.close();
+    setStatus("Saved " + fileHandle.name);
+    return;
+  }
+  const hasNoName = !state.currentName;
+  const hasLoadedPath = !!state.loadedPath;
+  const savesToLoadedPath = hasNoName && hasLoadedPath;
+  if (savesToLoadedPath) {
+    pendingSaveCount++;
+    saveVersion++;
+    try {
+      const openFileResponse = await fetch("/api/open-file?path=" + encodeURIComponent(state.loadedPath), { method: "PUT", body: codeBox.value });
+      if (!openFileResponse.ok)
+        throw new Error(await openFileResponse.text());
+    } finally {
+      pendingSaveCount--;
+    }
+    lastSavedDiagramText = codeBox.value;
+    setStatus("Saved " + state.loadedPath);
+    return;
+  }
+  const name = state.currentName;
+  lastSavedDiagramText = codeBox.value;
+  pendingSaveCount++;
+  saveVersion++;
+  try {
+    await fetch("/api/diagrams/" + encodeURIComponent(name), {
+      method: "PUT",
+      body: codeBox.value
+    });
+  } finally {
+    pendingSaveCount--;
+  }
+  state.currentName = name;
+  setStatus("Saved " + name);
+  loadList();
+  const hasNoWatcher = !state.watcher;
+  if (hasNoWatcher) {
+    createDiagramWatcher(name);
+  } else {
+    const isWatchingSomethingElse = watchedDiagramName !== name;
+    if (isWatchingSomethingElse)
+      createDiagramWatcher(name);
+  }
 }
 
 // node-search.ts
@@ -3153,14 +3508,13 @@ async function insertDecisionAfterNode(sourceId, graph) {
   const decisionId = getNextEditorId("Q_NEW", graph);
   const yesId = buildChoiceId(decisionId, "Y");
   const noId = buildChoiceId(decisionId, "N");
-  const newLines = [
-    `  ${decisionId}{{"New Decision"}}`,
-    `  ${yesId}["Yes"]`,
-    `  ${noId}["No"]`,
-    `  ${sourceId} --> ${decisionId}`,
-    `  ${decisionId} --> ${yesId}`,
-    `  ${decisionId} --> ${noId}`
-  ];
+  const isViewOn = state.pathView !== null;
+  const newLines = [`  ${decisionId}{{"New Decision"}}`, `  ${yesId}["Yes"]`];
+  if (!isViewOn)
+    newLines.push(`  ${noId}["No"]`);
+  newLines.push(`  ${sourceId} --> ${decisionId}`, `  ${decisionId} --> ${yesId}`);
+  if (!isViewOn)
+    newLines.push(`  ${decisionId} --> ${noId}`);
   const restoredIds = new Set;
   for (const edge of successors) {
     appendInlineDeclaration(newLines, restoredIds, graph, edge, edge.to);
@@ -3491,6 +3845,8 @@ async function loadDiagram(name) {
   state.openedFileHandle = null;
   statusBox.textContent = state.loadedPath ?? "";
   phonePath.length = 0;
+  state.pathView = null;
+  codeBox.readOnly = false;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
@@ -3538,6 +3894,8 @@ async function showOpenedFile(path, text) {
   state.loadedPath = path;
   statusBox.textContent = path;
   state.pathFolderHandle = null;
+  state.pathView = null;
+  codeBox.readOnly = false;
   state.phoneFocusNodeId = null;
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
@@ -3648,48 +4006,10 @@ function buildDecisionComment(ids, graph) {
     lines.push("%%   none");
   return lines;
 }
-function buildClassLines(declaredIds) {
-  const classIndex = buildClassStyleIndex(codeBox.value);
-  const idsByClass = new Map;
-  for (const id of declaredIds) {
-    const className = classIndex.assignments.get(id);
-    if (!className)
-      continue;
-    const classIds = idsByClass.get(className) ?? [];
-    classIds.push(id);
-    idsByClass.set(className, classIds);
-  }
-  const sourceLines = codeBox.value.split(`
-`);
-  const lines = [];
-  for (const [className, classIds] of idsByClass) {
-    const classDef = classIndex.defsByName.get(className);
-    if (classDef)
-      lines.push(`  ${sourceLines[classDef.lineIndex].trim()}`);
-    lines.push(`  class ${classIds.join(",")} ${className}`);
-  }
-  return lines;
-}
 function buildChosenPathSource(ids) {
   const graph = getEditorGraph();
-  const lines = [...buildDecisionComment(ids, graph), "flowchart TD"];
-  const declaredIds = new Set;
-  for (const id of ids) {
-    const isDeclared = declaredIds.has(id);
-    if (isDeclared)
-      continue;
-    declaredIds.add(id);
-    const size = graph.nodes.get(id).size;
-    if (size)
-      lines.push(`  ${buildPropsLine({ blockId: id, width: size.width, height: size.height })}`);
-    lines.push(`  ${id}${getDeclarationSuffix(graph.nodes.get(id))}`);
-  }
-  for (let i = 0;i + 1 < ids.length; i++)
-    lines.push(`  ${ids[i]} --> ${ids[i + 1]}`);
-  lines.push(...buildClassLines(declaredIds));
-  return lines.join(`
-`) + `
-`;
+  return [...buildDecisionComment(ids, graph), buildPathSource(graph, ids)].join(`
+`);
 }
 async function writeChosenPath() {
   const source = buildChosenPathSource(getChosenPathIds());
@@ -3706,20 +4026,16 @@ async function writeChosenPath() {
 // path-export-all.ts
 function collectPaths(path, usedEdges, edges, paths) {
   const current = path[path.length - 1];
-  let hasUnusedEdge = false;
-  for (const [from, to] of edges) {
-    const edgeKey = `${from}->${to}`;
-    const isUnusedOutgoing = from === current && !usedEdges.has(edgeKey);
-    if (!isUnusedOutgoing)
-      continue;
-    hasUnusedEdge = true;
+  const unusedChoices = findUnusedChoices(current, usedEdges, edges);
+  for (const to of unusedChoices) {
+    const edgeKey = `${current}->${to}`;
     usedEdges.add(edgeKey);
     path.push(to);
     collectPaths(path, usedEdges, edges, paths);
     path.pop();
     usedEdges.delete(edgeKey);
   }
-  if (!hasUnusedEdge)
+  if (!unusedChoices.length)
     paths.push([...path]);
 }
 function listAllPathIds(edges) {
@@ -3734,7 +4050,8 @@ function listAllPathIds(edges) {
 }
 async function writeAllPaths() {
   const sources = [];
-  for (const ids of listAllPathIds(parseEdges(codeBox.value)))
+  const edges = getEditorGraph().edges.map((edge) => [edge.from, edge.to]);
+  for (const ids of listAllPathIds(edges))
     sources.push(buildChosenPathSource(ids));
   if (state.currentName) {
     setStatus(`Writing 0/${sources.length} paths`);
@@ -3792,7 +4109,7 @@ function enableDiagramEdits() {
   destinationRow.inert = false;
   nodeInspectorRemovalPreview.inert = false;
   phoneDiagramBox.classList.remove("writing-all-paths");
-  codeBox.readOnly = false;
+  codeBox.readOnly = state.pathView !== null;
   document.getElementById("exportAllPathsBtn").disabled = false;
 }
 async function writeAllPathsWithEditsDisabled() {
@@ -3847,6 +4164,8 @@ function connectNodesWithShiftClick(clickedId) {
     return;
   }
   if (fromId === clickedId)
+    return;
+  if (refuseEditInPathView("connectNodes", null))
     return;
   const graph = getEditorGraph();
   const newLines = [`  ${fromId} --> ${clickedId}`];
@@ -3913,6 +4232,10 @@ function removeSelectedNodesOnDeleteKey(event) {
   if (!selectedIds.length)
     return;
   event.preventDefault();
+  for (const id of selectedIds) {
+    if (refuseEditInPathView("removeNode", id))
+      return;
+  }
   const newSource = buildSourceWithNodesRemoved(selectedIds);
   selectEditorNode(null);
   executeEditorAction(() => applyEditorSource(newSource));
@@ -4107,6 +4430,8 @@ function applyDestination(destination) {
   appendEditorAction(applyDestinationChange);
 }
 function applyDestinationSelection() {
+  if (refuseEditInPathView("changeDestination", null))
+    return;
   applyDestination(destinationSelect.value);
 }
 
@@ -4209,9 +4534,14 @@ function dispatchInspectorAction(event) {
     if (!state.selectedEditorNodeId)
       return;
     setEditorActionPromise(insertDecisionAfterNode(state.selectedEditorNodeId, getEditorGraph()));
-  } else if (action === "add-decision-after")
-    applyDestination(NEW_DECISION_DESTINATION);
-  else if (action === "add-choice")
+  } else if (action === "add-decision-after") {
+    if (state.pathView) {
+      if (!state.selectedEditorNodeId)
+        return;
+      setEditorActionPromise(insertDecisionAfterNode(state.selectedEditorNodeId, getEditorGraph()));
+    } else
+      applyDestination(NEW_DECISION_DESTINATION);
+  } else if (action === "add-choice")
     addChoiceOnDecision();
   else if (action === "remove") {
     const kind = getEditorGraph().nodes.get(state.selectedEditorNodeId ?? "")?.kind;
@@ -4864,6 +5194,8 @@ async function resetEditorToNewDiagram() {
   state.phoneFocusUsesDecisionContext = false;
   state.phonePreviewChoiceId = null;
   state.diagramScale = null;
+  state.pathView = null;
+  codeBox.readOnly = false;
   state.currentDecisionId = null;
   applyTypeMetadata(null);
   codeBox.value = ["flowchart TD", "  B_NEW[New idea]", ...DEFAULT_CLASS_LINES].join(`
@@ -5155,6 +5487,8 @@ async function addStandaloneDecisionBlock() {
 // viewport-menu.ts
 function openViewportMenu(event) {
   event.preventDefault();
+  if (refuseEditInPathView("addStandaloneBlock", null))
+    return;
   viewportMenu.style.left = event.clientX + "px";
   viewportMenu.style.top = event.clientY + "px";
   viewportMenu.hidden = false;
@@ -5198,4 +5532,4 @@ async function loadLastOpened() {
   showOpenedFile(saved.path, saved.text);
 }
 loadLastOpened();
-Object.assign(window, { render, loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds, setNodeSize });
+Object.assign(window, { render, loadDiagram, showOpenedFile, codeBox, getNodeId, selectEditorNode, addQuestionAfter, addBlockAfter, removeQuestion, removeBlock, addChoice, removeChoice, removeChoices, applyEditorUndo, applyEditorRedo, insertStaticBefore, insertDecisionBefore, listAllPathIds, setNodeSize, findRouteIdsToNode });
