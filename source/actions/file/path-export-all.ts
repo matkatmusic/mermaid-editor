@@ -1,13 +1,13 @@
-import { classesMenuBtn, codeBox, destinationRow, nodeActions, nodeAlignRow, nodeClassRow, nodeInspectorActions, nodeInspectorRemovalPreview, nodeTextInput, openFileBtn, phoneDiagramBox, selectBox } from './dom.ts';
-import type { Edge } from './dom.ts';
+import { classesMenuBtn, codeBox, destinationRow, nodeActions, nodeAlignRow, nodeClassRow, nodeInspectorActions, nodeInspectorRemovalPreview, nodeTextInput, openFileBtn, phoneDiagramBox, selectBox } from '../../../dom.ts';
+import type { Edge } from '../../../dom.ts';
 // import { parseEdges } from './diagram-source.ts';
 // import { findUnusedChoices } from './path-view-model.ts';
-import { findUnusedChoices, isViewLimitingEdits } from './source/model/path-view-model.ts';
-import { getEditorGraph } from './source/model/editor-graph.ts';
-import { setStatus } from './diagram-io.ts';
-import { state } from './state.ts';
-import { findRoots } from './source/model/phone-render.ts';
-import { buildChosenPathSource } from './source/model/path-export.ts';
+import { findUnusedChoices, isViewLimitingEdits } from '../../model/path-view-model.ts';
+import { getEditorGraph } from '../../model/editor-graph.ts';
+import { setStatus } from '../../../diagram-io.ts';
+import { state } from '../../../state.ts';
+import { findRoots } from '../../model/phone-render.ts';
+import { buildChosenPathSource } from '../../model/path-export.ts';
 import { selectPathFolder, writeToOpenedFileFolder, writeToServerDiagrams } from './path-write.ts';
 
 // Depth first: each edge is used once per path; a path ends where no unused edge leaves the node.

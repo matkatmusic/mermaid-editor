@@ -1,11 +1,11 @@
-import { state } from './state.ts';
-import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from './source/model/editor-metadata.ts';
-import { codeBox, selectBox, statusBox } from './dom.ts';
-import { applyMainViewport, loadList, resetEditorHistory, setDrawerOpen } from './diagram-io.ts';
-import { render } from './render.ts';
-import { selectEditorNode } from './source/actions/edit/editor-actions.ts';
-import { getEditorGraph } from './source/model/editor-graph.ts';
-import { applyMainZoom } from './zoom.ts';
+import { state } from '../../../state.ts';
+import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from '../../model/editor-metadata.ts';
+import { codeBox, selectBox, statusBox } from '../../../dom.ts';
+import { applyMainViewport, loadList, resetEditorHistory, setDrawerOpen } from '../../../diagram-io.ts';
+import { render } from '../../../render.ts';
+import { selectEditorNode } from '../edit/editor-actions.ts';
+import { getEditorGraph } from '../../model/editor-graph.ts';
+import { applyMainZoom } from '../../../zoom.ts';
 import { createDiagramWatcher, setLastSavedDiagramText } from './diagram-save.ts';
 
 // The server opens the macOS file dialog, so the full path is known.

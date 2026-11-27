@@ -1,7 +1,7 @@
 import { codeBox, diagramBox, nextDecisionBtn, outputBox, previousDecisionBtn, searchInput, zoomInBtn, zoomOutBtn } from '../../../dom.ts';
 import { moveNodeToViewportCenter } from '../../../decision-nav.ts';
 import { state } from '../../../state.ts';
-import { saveEditorViewState } from '../../../editor-view-state.ts';
+import { saveEditorViewState } from '../file/editor-view-state.ts';
 import { applyEditorSource, executeEditorAction, selectEditorNode } from './editor-actions.ts';
 import { parseEditorGraph } from '../../model/editor-graph-parse.ts';
 import { applyEditorRedo, applyEditorUndo } from './editor-history.ts';

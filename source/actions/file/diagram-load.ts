@@ -1,12 +1,12 @@
-import { codeBox, statusBox } from './dom.ts';
-import { phonePath, state } from './state.ts';
-import { selectEditorNode } from './source/actions/edit/editor-actions.ts';
-import type { EditorGraph } from './source/model/editor-types.ts';
-import { getEditorGraph } from './source/model/editor-graph.ts';
-import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from './source/model/editor-metadata.ts';
-import { render } from './render.ts';
-import { applyMainZoom } from './zoom.ts';
-import { applyMainViewport, loadList, resetEditorHistory } from './diagram-io.ts';
+import { codeBox, statusBox } from '../../../dom.ts';
+import { phonePath, state } from '../../../state.ts';
+import { selectEditorNode } from '../edit/editor-actions.ts';
+import type { EditorGraph } from '../../model/editor-types.ts';
+import { getEditorGraph } from '../../model/editor-graph.ts';
+import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from '../../model/editor-metadata.ts';
+import { render } from '../../../render.ts';
+import { applyMainZoom } from '../../../zoom.ts';
+import { applyMainViewport, loadList, resetEditorHistory } from '../../../diagram-io.ts';
 import { createDiagramWatcher, setLastSavedDiagramText } from './diagram-save.ts';
 
 export async function loadDiagram(name: string) {

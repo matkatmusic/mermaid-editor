@@ -9,7 +9,7 @@ import { parseEdges } from '../../model/diagram-source.ts';
 import { parentOf } from '../../model/graph-slice.ts';
 import { writeChosenPath } from '../../model/path-export.ts';
 import { measureSourceLines } from '../../../source-lines.ts';
-import { saveEditorViewState } from '../../../editor-view-state.ts';
+import { saveEditorViewState } from '../file/editor-view-state.ts';
 import { connectNodesWithShiftClick } from './editor-connect.ts';
 import { toggleNodeInSelection } from './editor-multiselect.ts';
 import { refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';

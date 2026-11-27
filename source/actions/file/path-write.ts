@@ -1,5 +1,5 @@
-import { setStatus } from './diagram-io.ts';
-import { state } from './state.ts';
+import { setStatus } from '../../../diagram-io.ts';
+import { state } from '../../../state.ts';
 
 declare global {
   interface Window {

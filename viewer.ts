@@ -7,10 +7,10 @@ import { removeBlock, removeChoice, removeChoices } from './source/actions/edit/
 import { removeQuestion } from './source/actions/edit/editor-remove-question.ts';
 import { applyEditorRedo, applyEditorUndo } from './source/actions/edit/editor-history.ts';
 import { applyMainZoom } from './zoom.ts';
-import { loadDiagram } from './diagram-load.ts';
+import { loadDiagram } from './source/actions/file/diagram-load.ts';
 import { render } from './render.ts';
-import { showOpenedFile } from './open-file.ts';
-import { listAllPathIds } from './path-export-all.ts';
+import { showOpenedFile } from './source/actions/file/open-file.ts';
+import { listAllPathIds } from './source/actions/file/path-export-all.ts';
 import { setNodeSize } from './source/actions/edit/editor-node-size.ts';
 import { findRouteIdsToNode } from './source/model/phone-render.ts';
 import './source/actions/edit/editor-events.ts';

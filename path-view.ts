@@ -21,7 +21,7 @@ import { render } from './render.ts';
 // import { state } from './state.ts';
 import { phonePath, state } from './state.ts';
 import { choicesOf, parentOf } from './source/model/graph-slice.ts';
-import { saveEditorViewState } from './editor-view-state.ts';
+import { saveEditorViewState } from './source/actions/file/editor-view-state.ts';
 // import { buildSubsetSource } from './subset-source.ts';
 // import { buildPathSource } from './subset-source.ts';
 import { buildPathSource, buildSubsetSource } from './source/model/subset-source.ts';

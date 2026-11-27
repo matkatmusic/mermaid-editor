@@ -4,7 +4,7 @@ import { buildSourceWithMetadata, setEditorActionPromise } from '../../model/edi
 import { codeBox, diagramBox, multiSelectBadge, nodeActions, selectedNodeBox } from '../../../dom.ts';
 import { state } from '../../../state.ts';
 import { render } from '../../../render.ts';
-import { saveDiagram } from '../../../diagram-save.ts';
+import { saveDiagram } from '../file/diagram-save.ts';
 // import { buildSourceWithHexagonDecisions } from './editor-parse.ts';
 import { renderNodeInspector } from '../../../node-inspector.ts';
 import { renderSourceLines } from '../../../source-lines.ts';
