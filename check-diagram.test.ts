@@ -34,3 +34,9 @@ test("test_check_diagram_lists_editor_and_mermaid_problems_and_exits_1", () => {
   assert.ok(stdout.includes("Mermaid:"));
   assert.ok(!stdout.startsWith("OK"));
 });
+
+test("test_check_diagram_names_the_line_of_a_broken_props_line", () => {
+  const { status, stderr } = runCli('flowchart TD\n  %% ==props==: {"blockId":"B_A",}\n  B_A["a"]\n');
+  assert.equal(status, 1);
+  assert.ok(stderr.includes("Line 2: JSON"), stderr);
+});

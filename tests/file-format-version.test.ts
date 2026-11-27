@@ -54,6 +54,7 @@ test("test_a_broken_props_line_in_a_version_2_file_shows_an_error_in_the_page", 
     await loadFileWithText(source);
     const errorText: string = await executeExpression("document.getElementById('error').textContent");
     assert.ok(errorText.includes("JSON"), errorText);
+    assert.equal(await executeExpression("document.querySelector('#error .error-line-link')?.dataset.line"), "2", errorText);
 });
 
 const OPEN_PATH = "/tmp/file-format-open.mmd";

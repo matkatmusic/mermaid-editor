@@ -555,7 +555,12 @@ function parseEditorGraph(source) {
   }
   const propsById = new Map;
   for (let lineIndex = 0;lineIndex < lines.length; lineIndex++) {
-    const props = parsePropsLine(lines[lineIndex]);
+    let props;
+    try {
+      props = parsePropsLine(lines[lineIndex]);
+    } catch (error) {
+      throw new SyntaxError(`Line ${lineIndex + 1}: ${error.message}`, { cause: error });
+    }
     if (!props)
       continue;
     if (!declLines.has(props.blockId)) {

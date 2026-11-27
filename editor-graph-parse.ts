@@ -107,7 +107,13 @@ export function parseEditorGraph(source: string): { graph: EditorGraph; problems
   // }
   const propsById = new Map<string, NodeProps>();
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-    const props = parsePropsLine(lines[lineIndex]);
+    let props: NodeProps | null;
+    try {
+      props = parsePropsLine(lines[lineIndex]);
+    }
+    catch (error) {
+      throw new SyntaxError(`Line ${lineIndex + 1}: ${(error as Error).message}`, { cause: error });
+    }
     if (!props)
       continue;
     if (!declLines.has(props.blockId)) {
