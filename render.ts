@@ -1,4 +1,5 @@
-declare const mermaid: any;
+// declare const mermaid: any;
+declare const mermaid: import('mermaid').Mermaid;
 import { codeBox, darkModeToggle, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, getMermaidOptions, outputBox } from './dom.ts';
 import { getEditorGraph } from './editor-graph.ts';
 import { clearInvalidPhonePreview, updateDecisionCounter } from './decision-nav.ts';
