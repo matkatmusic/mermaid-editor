@@ -7,6 +7,7 @@ import { basename, join } from "node:path";
 import { createServer } from "node:net";
 import { closeCdp, closeCdpPage, openCdp, executeExpression, send, waitMilliseconds, waitForFunction, waitForPort } from "./cdp.ts";
 import { EDITOR_FIXTURE_NAME, editorFixtureSource } from "./fixtures.ts";
+import { killWhenParentExits } from "./kill-when-parent-exits.ts";
 
 export let SERVER_PORT: number;
 let CDP_PORT: number;
@@ -59,6 +60,7 @@ export async function startServerAndChrome(serverPort: number, cdpPort: number):
     const diagramsCopyDir = mkdtempSync(join(tmpdir(), "diagrams-copy-"));
     cpSync(join(process.cwd(), "..", "diagrams"), diagramsCopyDir, { recursive: true });
     const serverProc = spawn("bun", ["server.js", "--port", String(serverPort)], { stdio: "ignore", env: { ...process.env, DIAGRAMS_DIR: diagramsCopyDir, LAST_OPENED_FILE: join(diagramsCopyDir, ".last-opened.json") } });
+    killWhenParentExits(serverProc.pid!);
     await waitForPort(serverPort);
 
     const userDataDir = mkdtempSync(join(tmpdir(), "phone-view-test-"));
@@ -68,6 +70,7 @@ export async function startServerAndChrome(serverPort: number, cdpPort: number):
         `--remote-debugging-port=${cdpPort}`,
         `--user-data-dir=${userDataDir}`,
     ], { stdio: "ignore" });
+    killWhenParentExits(chromeProc.pid!);
     await waitForPort(cdpPort);
     return { serverPort, cdpPort, diagramsCopyDir, serverProc, chromeProc };
 }

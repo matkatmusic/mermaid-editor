@@ -1,8 +1,10 @@
-import { test, expect } from "bun:test";
+import { test, expect, onTestFinished } from "bun:test";
 import { mkdtempSync, renameSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isValidName } from "../server.js";
+// import { killWhenParentExits } from "./kill-when-parent-exits.ts";
+import { startTestServer } from "./start-test-server.js";
 
 test("accepts a plain .mmd name", () => {
   expect(isValidName("my-diagram.mmd")).toBe(true);
@@ -19,10 +21,12 @@ test("rejects a name with a path in it", () => {
 test("last-opened returns the name of the diagram fetched last", async () => {
   const tempDir = mkdtempSync(join(tmpdir(), "last-opened-"));
   writeFileSync(join(tempDir, "a.mmd"), "flowchart TD\n  B_A[\"A\"]\n");
-  const serverProcess = Bun.spawn(["bun", "server.js", "--port", "0"], {
-    stdout: "pipe",
-    env: { ...process.env, DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: join(tempDir, ".last-opened.json") },
-  });
+  // const serverProcess = Bun.spawn(["bun", "server.js", "--port", "0"], {
+  //   stdout: "pipe",
+  //   env: { ...process.env, DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: join(tempDir, ".last-opened.json") },
+  // });
+  // killWhenParentExits(serverProcess.pid);
+  const serverProcess = startTestServer({ DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: join(tempDir, ".last-opened.json") });
   const startupLine = new TextDecoder().decode((await serverProcess.stdout.getReader().read()).value);
   const baseUrl = startupLine.match(/http:\/\/\S+/)[0];
   expect((await fetch(`${baseUrl}/api/last-opened`)).status).toBe(204);
@@ -35,10 +39,12 @@ test("watch route still fires after the file is replaced by rename, twice in a r
   // Scenario: vim saves by writing a temp file then renaming it over the target.
   const tempDir = mkdtempSync(join(tmpdir(), "watch-rename-"));
   writeFileSync(join(tempDir, "a.mmd"), "one");
-  const serverProcess = Bun.spawn(["bun", "server.js", "--port", "0"], {
-    stdout: "pipe",
-    env: { ...process.env, DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: join(tempDir, ".last-opened.json") },
-  });
+  // const serverProcess = Bun.spawn(["bun", "server.js", "--port", "0"], {
+  //   stdout: "pipe",
+  //   env: { ...process.env, DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: join(tempDir, ".last-opened.json") },
+  // });
+  // killWhenParentExits(serverProcess.pid);
+  const serverProcess = startTestServer({ DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: join(tempDir, ".last-opened.json") });
   const startupLine = new TextDecoder().decode((await serverProcess.stdout.getReader().read()).value);
   const baseUrl = startupLine.match(/http:\/\/\S+/)[0];
   const watchResponse = await fetch(`${baseUrl}/api/watch/a.mmd`);
@@ -59,10 +65,12 @@ test("opened-file routes serve the text and fire a change event for the opened p
   const openedPath = join(tempDir, "elsewhere.mmd");
   writeFileSync(openedPath, "one");
   writeFileSync(join(tempDir, ".last-opened.json"), JSON.stringify({ path: openedPath }));
-  const serverProcess = Bun.spawn(["bun", "server.js", "--port", "0"], {
-    stdout: "pipe",
-    env: { ...process.env, DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: join(tempDir, ".last-opened.json") },
-  });
+  // const serverProcess = Bun.spawn(["bun", "server.js", "--port", "0"], {
+  //   stdout: "pipe",
+  //   env: { ...process.env, DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: join(tempDir, ".last-opened.json") },
+  // });
+  // killWhenParentExits(serverProcess.pid);
+  const serverProcess = startTestServer({ DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: join(tempDir, ".last-opened.json") });
   const startupLine = new TextDecoder().decode((await serverProcess.stdout.getReader().read()).value);
   const baseUrl = startupLine.match(/http:\/\/\S+/)[0];
   await fetch(`${baseUrl}/api/last-opened`);
@@ -86,10 +94,12 @@ test("a save names its own file, and the server refuses a path it did not learn"
   writeFileSync(secondPath, "second");
   writeFileSync(unknownPath, "unknown");
   const lastOpenedFile = join(tempDir, ".last-opened.json");
-  const serverProcess = Bun.spawn(["bun", "server.js", "--port", "0"], {
-    stdout: "pipe",
-    env: { ...process.env, DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: lastOpenedFile },
-  });
+  // const serverProcess = Bun.spawn(["bun", "server.js", "--port", "0"], {
+  //   stdout: "pipe",
+  //   env: { ...process.env, DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: lastOpenedFile },
+  // });
+  // killWhenParentExits(serverProcess.pid);
+  const serverProcess = startTestServer({ DIAGRAMS_DIR: tempDir, LAST_OPENED_FILE: lastOpenedFile });
   const startupLine = new TextDecoder().decode((await serverProcess.stdout.getReader().read()).value);
   const baseUrl = startupLine.match(/http:\/\/\S+/)[0];
   // The server learns two paths, one after the other, like two tabs that each used Open File.
@@ -108,3 +118,38 @@ test("a save names its own file, and the server refuses a path it did not learn"
   expect(await Bun.file(secondPath).text()).toBe("second");
   serverProcess.kill();
 });
+
+// The command text must match too, so a reused process number never counts.
+function isRunning(processId, commandMarker) {
+  const listing = Bun.spawnSync(["ps", "-p", String(processId), "-o", "command="]);
+  return listing.stdout.toString().includes(commandMarker);
+}
+
+test("a test server stops when the process that started it is killed", async () => {
+  // Setup: a child process starts a server with the shared start function, reports the server's process number, then stays alive.
+  const starterScript = `
+    // import { killWhenParentExits } from "./tests/kill-when-parent-exits.ts";
+    // const server = Bun.spawn(["bun", "server.js", "--port", "0"], { stdout: "ignore" });
+    // killWhenParentExits(server.pid);
+    import { startTestServer } from "./tests/start-test-server.js";
+    const server = startTestServer({});
+    console.log(server.pid);
+  `;
+  const starter = Bun.spawn(["bun", "-e", starterScript], { stdout: "pipe" });
+  const serverId = Number(new TextDecoder().decode((await starter.stdout.getReader().read()).value));
+  // Cleanup: a failed run must not leave the server that this test started.
+  onTestFinished(() => {
+    if (isRunning(serverId, "server.js --port 0"))
+      process.kill(serverId, "SIGKILL");
+  });
+  // Check: the server runs before the starter dies.
+  expect(isRunning(serverId, "server.js --port 0")).toBe(true);
+  // Action: kill the starter so that it cannot run any cleanup code.
+  starter.kill("SIGKILL");
+  // Check: the server stops within a few seconds.
+  const deadline = Date.now() + 4000;
+  while (isRunning(serverId, "server.js --port 0")) {
+    expect(Date.now()).toBeLessThan(deadline);
+    await Bun.sleep(100);
+  }
+}, 10000);
