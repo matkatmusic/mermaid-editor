@@ -1,5 +1,6 @@
 import { LABEL_MARGIN_X } from './node-size.ts';
-declare const mermaid: any;
+// declare const mermaid: any;
+declare const mermaid: import('mermaid').Mermaid;
 
 export type Edge = [string, string];
 
@@ -16,7 +17,8 @@ const getLabelWrapWidthInPixels = () => {
     // Mermaid measures a label without its negative side margins, so the wrap width is 80 characters minus both margins.
     return width - 2 * LABEL_MARGIN_X;
 };
-export const getMermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1000000, flowchart: { wrappingWidth: getLabelWrapWidthInPixels(), minNodeWidth: 0 }, theme: darkModeToggle.checked ? 'dark' : 'default', themeVariables: darkModeToggle.checked ? { primaryColor: '#ececff', nodeBkg: '#ececff', mainBkg: '#ececff', primaryTextColor: '#000', nodeTextColor: '#000', primaryBorderColor: '#9370db', nodeBorder: '#9370db' } : {} });
+// export const getMermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1000000, flowchart: { wrappingWidth: getLabelWrapWidthInPixels(), minNodeWidth: 0 }, theme: darkModeToggle.checked ? 'dark' : 'default', themeVariables: darkModeToggle.checked ? { primaryColor: '#ececff', nodeBkg: '#ececff', mainBkg: '#ececff', primaryTextColor: '#000', nodeTextColor: '#000', primaryBorderColor: '#9370db', nodeBorder: '#9370db' } : {} });
+export const getMermaidOptions = () => ({ startOnLoad: false, suppressErrorRendering: true, maxTextSize: 1000000, flowchart: { wrappingWidth: getLabelWrapWidthInPixels(), minNodeWidth: 0 }, theme: darkModeToggle.checked ? 'dark' as const : 'default' as const, themeVariables: darkModeToggle.checked ? { primaryColor: '#ececff', nodeBkg: '#ececff', mainBkg: '#ececff', primaryTextColor: '#000', nodeTextColor: '#000', primaryBorderColor: '#9370db', nodeBorder: '#9370db' } : {} });
 mermaid.initialize(getMermaidOptions());
 export const codeBox = document.getElementById('code') as HTMLTextAreaElement;
 export const sourceGutter = document.getElementById('sourceGutter')!;
