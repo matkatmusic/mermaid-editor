@@ -36,7 +36,7 @@ test("test_registerBrowserHooks_fails_with_the_full_command_without_global_setup
     writeFileSync(emptySettingsPath, "");
     // Step 2: run one small browser test file with those settings and collect its output.
     // const child = spawn("node", ["--test", "tests/multi-line-definition-error.test.ts"], { env: childEnvironment });
-    const child = spawn("bun", [`--config=${emptySettingsPath}`, "test", "./tests/multi-line-definition-error.test.ts"], { env: childEnvironment });
+    const child = spawn("bun", [`--config=${emptySettingsPath}`, "test", "./tests/model/multi-line-definition-error.test.ts"], { env: childEnvironment });
     let output = "";
     child.stdout.on("data", (chunk) => {
         output += chunk;

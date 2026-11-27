@@ -1,1 +1,0 @@
-// Retired: this probe measured the hexagon sizes (outer height = label height + 70; outer width = label width + 32 + 4/7 of the outer height). The numbers now live in node-size.ts and tests/node-resize-hexagon.test.ts.
