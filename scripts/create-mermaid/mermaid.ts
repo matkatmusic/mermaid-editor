@@ -27,9 +27,12 @@ const OPERATOR_WORDS: Record<string, string> = {
 const DROPPED_KEYWORDS = new Set(["const", "let", "var", "await", "new"]);
 
 // ponytail: contextual-keyword range markers are runtime-only, not in the public d.ts; look up by name so a renumber can't break us.
-const KIND = ts.SyntaxKind as unknown as Record<string, number>;
-const FIRST_CONTEXTUAL_KEYWORD = KIND.FirstContextualKeyword;
-const LAST_CONTEXTUAL_KEYWORD = KIND.LastContextualKeyword;
+// const KIND = ts.SyntaxKind as unknown as Record<string, number>;
+// const FIRST_CONTEXTUAL_KEYWORD = KIND.FirstContextualKeyword;
+// const LAST_CONTEXTUAL_KEYWORD = KIND.LastContextualKeyword;
+const KIND: Record<string, string | number> = ts.SyntaxKind;
+const FIRST_CONTEXTUAL_KEYWORD = Number(KIND.FirstContextualKeyword);
+const LAST_CONTEXTUAL_KEYWORD = Number(KIND.LastContextualKeyword);
 
 const CONDITION_OPPOSITES: [string, string][] = [
   ["!==", "==="],
