@@ -482,7 +482,7 @@ export async function handlePhoneTapInPathView(button: HTMLButtonElement): Promi
 
 // Copies the command that prints the path on screen with print-path.ts.
 async function copyPrintCommand(pathNumber: string, options: string) {
-    await navigator.clipboard.writeText(`bun mermaid-editor/print-path.ts "${state.loadedPath}" --path ${pathNumber}${options}`);
+    await navigator.clipboard.writeText(`bun mermaid-editor/source/command-line/print-path.ts "${state.loadedPath}" --path ${pathNumber}${options}`);
 }
 
 function copyOnePathCommand() {

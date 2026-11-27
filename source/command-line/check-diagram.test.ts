@@ -5,7 +5,7 @@ import { once } from "node:events";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { waitMilliseconds } from "./tests/cdp.ts";
+import { waitMilliseconds } from "../../tests/cdp.ts";
 
 const cli = join(import.meta.dirname, "check-diagram.ts");
 

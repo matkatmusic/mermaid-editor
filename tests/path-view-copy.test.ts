@@ -87,7 +87,7 @@ test('test_one_path_copy_button_copies_the_command_for_the_shown_path', async ()
     await clickButtonWithMouse('#onePathViewBtn');
     await clickButtonWithMouse('#nextViewPathBtn');
     await clickButtonWithMouse('#copyPathCommandBtn');
-    assert.deepEqual(await readCopiedTexts(), [`bun mermaid-editor/print-path.ts "${file}" --path 0x01`]);
+    assert.deepEqual(await readCopiedTexts(), [`bun mermaid-editor/source/command-line/print-path.ts "${file}" --path 0x01`]);
 });
 
 test('test_copied_one_path_command_prints_the_shown_path_to_its_last_choice', async () => {
@@ -104,7 +104,7 @@ test('test_downstream_copy_button_copies_the_command_for_the_clicked_route', asy
     await clickButtonWithMouse('#downstreamViewBtn');
     await clickFilter('B_NO');
     await clickButtonWithMouse('#copyDownstreamCommandBtn');
-    assert.deepEqual(await readCopiedTexts(), [`bun mermaid-editor/print-path.ts "${file}" --path 0x01 --to B_NO --includeAfter`]);
+    assert.deepEqual(await readCopiedTexts(), [`bun mermaid-editor/source/command-line/print-path.ts "${file}" --path 0x01 --to B_NO --includeAfter`]);
 });
 
 test('test_copied_downstream_command_prints_the_blocks_on_screen', async () => {

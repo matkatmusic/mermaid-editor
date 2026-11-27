@@ -1,10 +1,10 @@
 // Prints one path of a diagram as Mermaid source. A path number is the number that the one-path view shows.
 import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { parseEditorGraph } from './source/model/editor-graph-parse.ts';
-import { buildSourceWithPropsLines } from './source/model/file-format.ts';
-import { buildPathDiagram, findPrintedRoute, listRouteAndDownstreamEdges, parsePathNumber } from './source/model/path-view-model.ts';
-import { buildPathSource, buildSubsetSource } from './source/model/subset-source.ts';
+import { parseEditorGraph } from '../model/editor-graph-parse.ts';
+import { buildSourceWithPropsLines } from '../model/file-format.ts';
+import { buildPathDiagram, findPrintedRoute, listRouteAndDownstreamEdges, parsePathNumber } from '../model/path-view-model.ts';
+import { buildPathSource, buildSubsetSource } from '../model/subset-source.ts';
 
 const USAGE = 'Usage: bun print-path.ts <diagram.mmd> --path 0x01A [--to <blockId>] [--includeAfter]';
 

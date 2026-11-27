@@ -3,12 +3,12 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseEditorGraph } from "./source/model/editor-graph-parse.ts";
-import { closeCdp, closeCdpPage, executeExpression, openCdp, waitForPort } from "./tests/cdp.ts";
-import { killWhenParentExits } from "./tests/kill-when-parent-exits.ts";
+import { parseEditorGraph } from "../model/editor-graph-parse.ts";
+import { closeCdp, closeCdpPage, executeExpression, openCdp, waitForPort } from "../../tests/cdp.ts";
+import { killWhenParentExits } from "../../tests/kill-when-parent-exits.ts";
 
 const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const MERMAID_PATH = join(import.meta.dirname, "node_modules/mermaid/dist/mermaid.min.js");
+const MERMAID_PATH = join(import.meta.dirname, "../../node_modules/mermaid/dist/mermaid.min.js");
 
 function getFreePort() {
   return new Promise<number>((resolve) => {

@@ -63,7 +63,7 @@ The editor reads the start of each node name to know what the node is. Each kind
 Run this command to check that a `.mmd` file follows the node-name rules above and is valid Mermaid:
 
 ```sh
-bun /Users/matkatmusicllc/Programming/relationship-mermaid/mermaid-editor/check-diagram.ts <file.mmd>
+bun /Users/matkatmusicllc/Programming/relationship-mermaid/mermaid-editor/source/command-line/check-diagram.ts <file.mmd>
 ```
 
 - If the file is correct, the command prints `OK <file>` and exits with code 0.
