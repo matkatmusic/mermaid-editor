@@ -2,14 +2,17 @@ import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
-import { computeHashPort, registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
+// import { basename, join } from "node:path";
+import { join } from "node:path";
+// import { computeHashPort, registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
+import { registerBrowserHooks, SERVER_PORT } from "./browser-harness.ts";
 import { executeExpression, send, waitForFunction, waitMilliseconds } from "./cdp.ts";
 import { EDITOR_FIXTURE_NAME } from "./fixtures.ts";
 
 registerBrowserHooks(import.meta.url);
 
-const CDP_PORT = Number(process.env.SHARED_CDP_PORT) || Number(process.env.CDP_PORT) || computeHashPort(basename(import.meta.url), 30000, 10000);
+// const CDP_PORT = Number(process.env.SHARED_CDP_PORT) || Number(process.env.CDP_PORT) || computeHashPort(basename(import.meta.url), 30000, 10000);
+const CDP_PORT = Number(process.env.SHARED_CDP_PORT);
 const SHARED_DIAGRAMS_DIR = process.env.SHARED_DIAGRAMS_DIR!;
 
 interface SecondPage {

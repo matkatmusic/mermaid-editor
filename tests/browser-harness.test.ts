@@ -1,10 +1,24 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeHashPort } from "./browser-harness.ts";
+import { computeHashPort, findFreePort } from "./browser-harness.ts";
 import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
 // import { createServer, type AddressInfo } from "node:net";
+import { createServer } from "node:net";
 import { createInterface } from "node:readline";
 import { waitMilliseconds } from "./cdp.ts";
+
+test("test_findFreePort_returns_a_port_that_can_be_opened", async () => {
+    // Step 1: ask for a free port.
+    const port = await findFreePort();
+    // Step 2: open a server on that port.
+    const probe = createServer();
+    probe.listen(port);
+    await once(probe, "listening");
+    // Step 3: the server listens, so close it.
+    assert.ok(probe.listening);
+    probe.close();
+});
 
 test("test_compute_hash_port_is_stable_and_stays_inside_the_range", () => {
   const first = computeHashPort("example.test.ts", 20000, 10000);

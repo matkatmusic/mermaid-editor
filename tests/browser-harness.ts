@@ -5,7 +5,8 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { cpSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { createServer } from "node:net";
+// import { createServer } from "node:net";
+import { createServer, type AddressInfo } from "node:net";
 import { closeCdp, closeCdpPage, openCdp, executeExpression, send, waitMilliseconds, waitForFunction, waitForPort } from "./cdp.ts";
 import { EDITOR_FIXTURE_NAME, editorFixtureSource } from "./fixtures.ts";
 import { killWhenParentExits } from "./kill-when-parent-exits.ts";
@@ -23,6 +24,17 @@ export function computeHashPort(fileName: string, base: number, range: number): 
   for (let i = 0; i < fileName.length; i++)
     hash = (hash * 31 + fileName.charCodeAt(i)) >>> 0;
   return base + (hash % range);
+}
+
+// Port 0 asks the system for a free port, so two runs never collide on one fixed port.
+export function findFreePort(): Promise<number> {
+    return new Promise<number>((resolve) => {
+        const probe = createServer();
+        probe.listen(0, () => {
+            const { port } = probe.address() as AddressInfo;
+            probe.close(() => resolve(port));
+        });
+    });
 }
 
 function isPortFree(port: number) {

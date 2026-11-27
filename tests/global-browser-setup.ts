@@ -2,7 +2,8 @@ import { execFile } from "node:child_process";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { computeHashPort, startServerAndChrome, type BrowserSession } from "./browser-harness.ts";
+// import { computeHashPort, startServerAndChrome, type BrowserSession } from "./browser-harness.ts";
+import { findFreePort, startServerAndChrome, type BrowserSession } from "./browser-harness.ts";
 import { countTestProcesses, type TestProcesses } from "./test-process-count.ts";
 
 const executeFile = promisify(execFile);
@@ -35,8 +36,10 @@ function formatProcessCountMessage(): string {
 
 // Runs once before all test files (node --test --test-global-setup): one server and one Chrome for the whole run.
 export async function globalSetup() {
-    const serverPort = Number(process.env.SERVER_PORT) || computeHashPort("global-browser-setup", 20000, 10000);
-    const cdpPort = Number(process.env.CDP_PORT) || computeHashPort("global-browser-setup", 30000, 10000);
+    // const serverPort = Number(process.env.SERVER_PORT) || computeHashPort("global-browser-setup", 20000, 10000);
+    // const cdpPort = Number(process.env.CDP_PORT) || computeHashPort("global-browser-setup", 30000, 10000);
+    const serverPort = Number(process.env.SERVER_PORT) || await findFreePort();
+    const cdpPort = Number(process.env.CDP_PORT) || await findFreePort();
     // Remove viewer.js so that only the server start can supply it.
     rmSync(join(process.cwd(), "viewer.js"), { force: true });
     session = await startServerAndChrome(serverPort, cdpPort);
