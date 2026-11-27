@@ -1,7 +1,8 @@
 let ws: WebSocket;
 let targetId: string;
 let nextId = 1;
-const pending = new Map<number, (value: any) => void>();
+// const pending = new Map<number, (value: any) => void>();
+const pending = new Map<number, (value: unknown) => void>();
 
 function reportUnansweredSend(id: number, method: string, reject: (error: Error) => void) {
   const stillPending = pending.delete(id);
@@ -9,10 +10,13 @@ function reportUnansweredSend(id: number, method: string, reject: (error: Error)
     reject(new Error(`CDP ${method} got no reply within 15000ms`));
 }
 
-export function send(method: string, params: Record<string, unknown> = {}) {
-  return new Promise<any>((resolve, reject) => {
+// export function send(method: string, params: Record<string, unknown> = {}) {
+export function send<Result = unknown>(method: string, params: Record<string, unknown> = {}) {
+  // return new Promise<any>((resolve, reject) => {
+  return new Promise<Result>((resolve, reject) => {
     const id = nextId++;
-    pending.set(id, resolve);
+    // pending.set(id, resolve);
+    pending.set(id, resolve as (value: unknown) => void);
     setTimeout(reportUnansweredSend, 15000, id, method, reject).unref();
     ws.send(JSON.stringify({ id, method, params }));
   });
@@ -33,8 +37,10 @@ export async function waitForPort(port: number, timeoutMs = 5000) {
   throw new Error(`port ${port} did not open within ${timeoutMs}ms`);
 }
 
-export async function executeExpression(expression: string) {
-  const { result } = await send("Runtime.evaluate", {
+// export async function executeExpression(expression: string) {
+export async function executeExpression<Value = unknown>(expression: string): Promise<Value> {
+  // const { result } = await send("Runtime.evaluate", {
+  const { result } = await send<{ result: { value: Value } }>("Runtime.evaluate", {
     expression,
     awaitPromise: true,
     returnByValue: true,
@@ -64,7 +70,8 @@ export async function waitForFunction(name: string, timeoutMs = 5000) {
 }
 
 function receiveMessage(event: MessageEvent) {
-  const message = JSON.parse(event.data as string);
+  // const message = JSON.parse(event.data as string);
+  const message = JSON.parse(event.data as string) as { id: number; result: unknown };
   const hasId = !!message.id;
   const isPending = pending.has(message.id);
   const isAnswer = hasId && isPending;
@@ -76,7 +83,8 @@ function receiveMessage(event: MessageEvent) {
 
 export async function openCdp(cdpPort: number) {
   const targetResponse = await fetch(`http://localhost:${cdpPort}/json/new?about:blank`, { method: "PUT" });
-  const target = await targetResponse.json();
+  // const target = await targetResponse.json();
+  const target = await targetResponse.json() as { id: string; webSocketDebuggerUrl: string };
   targetId = target.id;
   ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
