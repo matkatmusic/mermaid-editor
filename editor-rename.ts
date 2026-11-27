@@ -1,9 +1,9 @@
 import { codeBox, inspectorNotice, nodeInspector, nodeNameCheck, nodeNameInput } from './dom.ts';
-import { buildPropsLine, parsePropsLine } from './node-props.ts';
-import type { EditorGraph, EditorNode, EditorNodeKind } from './editor-types.ts';
+import { buildPropsLine, parsePropsLine } from './source/model/node-props.ts';
+import type { EditorGraph, EditorNode, EditorNodeKind } from './source/model/editor-types.ts';
 import { phonePath, state } from './state.ts';
 import { applyEditorSource, appendEditorAction } from './editor-actions.ts';
-import { getEditorGraph } from './editor-graph.ts';
+import { getEditorGraph } from './source/model/editor-graph.ts';
 
 const KIND_PREFIXES: Record<EditorNodeKind, string> = { question: 'Q_', block: 'B_', choice: 'Q_CHOICE_' };
 const CHOICE_PREFIX = KIND_PREFIXES.choice;

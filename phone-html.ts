@@ -1,16 +1,16 @@
 import { codeBox, phoneDiagramBox } from './dom.ts';
 import type { Edge } from './dom.ts';
-import type { EditorGraph, EditorNode } from './editor-types.ts';
+import type { EditorGraph, EditorNode } from './source/model/editor-types.ts';
 import { phonePath, state } from './state.ts';
-import { choicesOf } from './graph-slice.ts';
-import { buildClassStyleIndex, findNodeStyle, type ClassStyleIndex } from './class-style-index.ts';
+import { choicesOf } from './source/model/graph-slice.ts';
+import { buildClassStyleIndex, findNodeStyle, type ClassStyleIndex } from './source/model/class-style-index.ts';
 // import { isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './phone-render.ts';
-import { findRoots, isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './phone-render.ts';
-import { buildRows } from './phone-rows.ts';
-import { decodeLabelQuotes } from './editor-parse.ts';
-import { getNodeAlign } from './node-align.ts';
-import { CODE_BLOCK_STYLE, CODE_LINE_BREAK_PATTERN, FENCED_CODE_BLOCK_PATTERN } from './label-code.ts';
-import { isViewLimitingEdits } from './path-view-model.ts';
+import { findRoots, isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './source/model/phone-render.ts';
+import { buildRows } from './source/model/phone-rows.ts';
+import { decodeLabelQuotes } from './source/model/editor-parse.ts';
+import { getNodeAlign } from './source/model/node-align.ts';
+import { CODE_BLOCK_STYLE, CODE_LINE_BREAK_PATTERN, FENCED_CODE_BLOCK_PATTERN } from './source/model/label-code.ts';
+import { isViewLimitingEdits } from './source/model/path-view-model.ts';
 import { findUndoDecisionId } from './path-view.ts';
 
 // How long after a click the phone keeps the animated border on the clicked node; matches the CSS animation length.

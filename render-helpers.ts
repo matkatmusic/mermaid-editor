@@ -2,7 +2,7 @@ import { codeBox, diagramBox, errorBox, errorLog } from './dom.ts';
 import { renderErrorMessageWithLineLinks } from './error-line-links.ts';
 import type { Edge } from './dom.ts';
 import { chosenAnswers } from './state.ts';
-import { parseEdges } from './diagram-source.ts';
+import { parseEdges } from './source/model/diagram-source.ts';
 
 export function findTrail(edges: Edge[]) {
   const bright = new Set<string>();

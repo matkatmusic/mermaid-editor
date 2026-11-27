@@ -1,6 +1,6 @@
 import { codeBox } from './dom.ts';
 import { state } from './state.ts';
-import { buildSourceWithMetadata } from './editor-metadata.ts';
+import { buildSourceWithMetadata } from './source/model/editor-metadata.ts';
 import { saveDiagram } from './diagram-save.ts';
 import { renderSourceLines } from './source-lines.ts';
 

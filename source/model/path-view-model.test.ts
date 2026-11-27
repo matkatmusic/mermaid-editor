@@ -7,7 +7,7 @@ import { addFilterClick, buildPathEdges, collectDownstreamEdges, findNeighbourDi
 import type { PathDiagram, PathView, ViewEdit } from './path-view-model.ts';
 import { findPrintedRoute, findRoots, findRouteDigits, formatPathNumber, listRouteAndDownstreamEdges, parsePathNumber } from './path-view-model.ts';
 import { parseEditorGraph } from './editor-graph-parse.ts';
-import type { Edge } from './dom.ts';
+import type { Edge } from '../../dom.ts';
 
 test('test_path_edges_list_each_arrow_of_a_looping_path_once', () => {
     // The path goes round the loop A, B twice before it leaves to C.

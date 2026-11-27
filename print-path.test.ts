@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseEditorGraph } from './editor-graph-parse.ts';
+import { parseEditorGraph } from './source/model/editor-graph-parse.ts';
 
 const cli = join(import.meta.dirname, 'print-path.ts');
 

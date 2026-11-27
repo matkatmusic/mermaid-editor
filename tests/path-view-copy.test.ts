@@ -9,7 +9,7 @@ import { executeExpression, waitMilliseconds } from './cdp.ts';
 import { openEditorDrawer, resetEditorFixture } from './editor-helpers.ts';
 import { clickNodeWithMouse } from './real-input.ts';
 import { PATH_VIEW_SOURCE, clickButtonWithMouse, readShownNodeIds } from './path-view-helpers.ts';
-import { parseEditorGraph } from '../editor-graph-parse.ts';
+import { parseEditorGraph } from '../source/model/editor-graph-parse.ts';
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 

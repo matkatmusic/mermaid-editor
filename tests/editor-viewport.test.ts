@@ -5,7 +5,7 @@ import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { EDITOR_FIXTURE_NAME, SCROLL_FIXTURE_NAME, editorFixtureSource, scrollFixtureSource } from "./fixtures.ts";
 import { dispatchNodeClick, openEditorDrawer, getOutputScrollTop, setEditorSource } from "./editor-helpers.ts";
 import { inspectorFocus, inspectorPlacement } from "./inspector-helpers.ts";
-import type { EditorMetadata } from "../editor-types.ts";
+import type { EditorMetadata } from "../source/model/editor-types.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 

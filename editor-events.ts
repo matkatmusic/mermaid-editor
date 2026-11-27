@@ -1,13 +1,13 @@
 import { codeBox, diagramBox, drawer, outputBox, phoneDiagramBox } from './dom.ts';
 import { getNodeId } from './render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
-import { getEditorGraph } from './editor-graph.ts';
+import { getEditorGraph } from './source/model/editor-graph.ts';
 import { phonePath, state } from './state.ts';
 import { render } from './render.ts';
-import { findAnswersLeadingTo, isPhoneShowingHistory, selectPhonePathToNode } from './phone-render.ts';
-import { parseEdges } from './diagram-source.ts';
-import { parentOf } from './graph-slice.ts';
-import { writeChosenPath } from './path-export.ts';
+import { findAnswersLeadingTo, isPhoneShowingHistory, selectPhonePathToNode } from './source/model/phone-render.ts';
+import { parseEdges } from './source/model/diagram-source.ts';
+import { parentOf } from './source/model/graph-slice.ts';
+import { writeChosenPath } from './source/model/path-export.ts';
 import { measureSourceLines } from './source-lines.ts';
 import { saveEditorViewState } from './editor-view-state.ts';
 import { connectNodesWithShiftClick } from './editor-connect.ts';

@@ -1,7 +1,7 @@
 import { state } from './state.ts';
-import { getEditorGraph } from './editor-graph.ts';
-import { setEditorActionPromise } from './editor-metadata.ts';
-import { buildSourceWithLinesReplaced } from './source-edit.ts';
+import { getEditorGraph } from './source/model/editor-graph.ts';
+import { setEditorActionPromise } from './source/model/editor-metadata.ts';
+import { buildSourceWithLinesReplaced } from './source/model/source-edit.ts';
 import { applyEditorSource, selectEditorNode } from './editor-actions.ts';
 import { refuseEditInPathView } from './path-view.ts';
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseEditorGraph } from './editor-graph-parse.ts';
 // import { buildSubsetSource } from './subset-source.ts';
 import { buildPathSource, buildSubsetSource } from './subset-source.ts';
-import type { Edge } from './dom.ts';
+import type { Edge } from '../../dom.ts';
 
 const SOURCE = [
     'flowchart LR',

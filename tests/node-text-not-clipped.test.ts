@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { registerBrowserHooks } from "./browser-harness.ts";
 import { executeExpression, waitMilliseconds } from "./cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "./editor-helpers.ts";
-import { buildSourceWithPropsLines } from "../file-format.ts";
+import { buildSourceWithPropsLines } from "../source/model/file-format.ts";
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 const PUZZLE_SOURCE = readFileSync(join(process.cwd(), "tests", "puzzle-solver-rules-v2.fixture.mmd"), "utf8");
 const FENCE = "#96;#96;#96;";

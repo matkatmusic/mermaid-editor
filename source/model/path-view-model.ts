@@ -1,4 +1,4 @@
-import type { Edge } from './dom.ts';
+import type { Edge } from '../../dom.ts';
 import type { EditorGraph } from './editor-types.ts';
 
 // Each arrow between two neighbor blocks of the path, once.

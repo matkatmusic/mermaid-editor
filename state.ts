@@ -1,6 +1,6 @@
 import { codeBox } from './dom.ts';
-import type { PendingRemoval } from './editor-types.ts';
-import type { PathView } from './path-view-model.ts';
+import type { PendingRemoval } from './source/model/editor-types.ts';
+import type { PathView } from './source/model/path-view-model.ts';
 
 export const MAIN_ZOOM_STEP = 10;
 export const MIN_MAIN_ZOOM = 20;

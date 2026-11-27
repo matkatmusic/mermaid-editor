@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filterToFunctions, isFunctionLabel, parseRoutingGraph } from "../function-routing.ts";
+import { filterToFunctions, isFunctionLabel, parseRoutingGraph } from "../source/model/function-routing.ts";
 
 const SAMPLE = [
   "flowchart TD",

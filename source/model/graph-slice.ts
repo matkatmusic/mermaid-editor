@@ -1,6 +1,6 @@
-import { codeBox } from './dom.ts';
-import type { Edge } from './dom.ts';
-import { phonePath, state } from './state.ts';
+import { codeBox } from '../../dom.ts';
+import type { Edge } from '../../dom.ts';
+import { phonePath, state } from '../../state.ts';
 import { choicesOf } from './path-view-model.ts';
 
 export function parentOf(id: string, edges: Edge[]) {

@@ -1,7 +1,7 @@
-import type { EditorGraph } from './editor-types.ts';
+import type { EditorGraph } from './source/model/editor-types.ts';
 import { codeBox, diagramBox } from './dom.ts';
 import { getNodeId } from './render-helpers.ts';
-import { buildClassStyleIndex, findNodeStyle } from './class-style-index.ts';
+import { buildClassStyleIndex, findNodeStyle } from './source/model/class-style-index.ts';
 
 // Retired: colors used to come from state.typeColors/state.nodeTypes metadata (a second system
 // that fought mermaid's own `classDef`/`class` lines). Color now comes only from those lines.

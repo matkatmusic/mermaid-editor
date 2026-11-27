@@ -1,6 +1,6 @@
-import type { EditorNode } from './editor-types.ts';
+import type { EditorNode } from './source/model/editor-types.ts';
 import { classPickerBtn, classPickerLabel, classPickerList, classPickerSwatch, codeBox } from './dom.ts';
-import { findClassDef, findClassOfNode, parseClassDefs } from './class-lines.ts';
+import { findClassDef, findClassOfNode, parseClassDefs } from './source/model/class-lines.ts';
 
 export function renderClassPicker(node: EditorNode) {
   const source = codeBox.value;

@@ -1,12 +1,12 @@
 // declare const mermaid: any;
 declare const mermaid: import('mermaid').Mermaid;
 import { codeBox, darkModeToggle, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, getMermaidOptions, outputBox } from './dom.ts';
-import { getEditorGraph } from './editor-graph.ts';
+import { getEditorGraph } from './source/model/editor-graph.ts';
 import { clearInvalidPhonePreview, updateDecisionCounter } from './decision-nav.ts';
-import { parseEdges } from './diagram-source.ts';
-import { filterToFunctions } from './function-routing.ts';
-import { moveClassLinesToEnd } from './class-lines.ts';
-import { sliceIds } from './graph-slice.ts';
+import { parseEdges } from './source/model/diagram-source.ts';
+import { filterToFunctions } from './source/model/function-routing.ts';
+import { moveClassLinesToEnd } from './source/model/class-lines.ts';
+import { sliceIds } from './source/model/graph-slice.ts';
 import { phonePath, state } from './state.ts';
 import { applyNodeTypeColors, applyNoteDots } from './node-type-colors.ts';
 import { renderEditorSelection } from './editor-actions.ts';
@@ -15,8 +15,8 @@ import { /* baseScale, */ viewBoxOf } from './zoom.ts';
 import { renderPhone } from './phone-html.ts';
 import { updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { renderSourceLines } from './source-lines.ts';
-import { buildSourceWithCodeTags } from './label-code.ts';
-import { buildSourceWithSizeWrappers } from './node-size.ts';
+import { buildSourceWithCodeTags } from './source/model/label-code.ts';
+import { buildSourceWithSizeWrappers } from './source/model/node-size.ts';
 import { updateOffscreenArrowHeads } from './offscreen-arrow-heads.ts';
 import { buildMainViewSource } from './path-view.ts';
 

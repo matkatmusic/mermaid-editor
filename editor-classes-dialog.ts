@@ -1,7 +1,7 @@
 import { classesCloseBtn, classesDialog, classesError, classesList, classesMenuBtn, classesNewBtn, codeBox } from './dom.ts';
-import { setEditorActionPromise } from './editor-metadata.ts';
+import { setEditorActionPromise } from './source/model/editor-metadata.ts';
 import { removeClass, renameClass, setClassColors } from './class-defs.ts';
-import { parseClassDefs } from './class-lines.ts';
+import { parseClassDefs } from './source/model/class-lines.ts';
 import { openClassEditor } from './editor-class-events.ts';
 import { renderClassesDialog } from './editor-classes-render.ts';
 

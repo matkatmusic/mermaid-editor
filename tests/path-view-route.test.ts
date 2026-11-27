@@ -5,7 +5,7 @@ import { executeExpression, waitMilliseconds } from './cdp.ts';
 import { openEditorDrawer } from './editor-helpers.ts';
 import { clickNodeWithMouse } from './real-input.ts';
 import { loadPathViewSource } from './path-view-helpers.ts';
-import { parseEditorGraph } from '../editor-graph-parse.ts';
+import { parseEditorGraph } from '../source/model/editor-graph-parse.ts';
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 

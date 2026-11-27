@@ -3,7 +3,7 @@ import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { state } from './state.ts';
 import { saveEditorViewState } from './editor-view-state.ts';
 import { applyEditorSource, executeEditorAction, selectEditorNode } from './editor-actions.ts';
-import { parseEditorGraph } from './editor-graph-parse.ts';
+import { parseEditorGraph } from './source/model/editor-graph-parse.ts';
 import { applyEditorRedo, applyEditorUndo } from './editor-history.ts';
 import { getSelectedNodeIds } from './editor-multiselect.ts';
 import { refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';

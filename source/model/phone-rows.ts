@@ -1,6 +1,6 @@
-import type { Edge } from './dom.ts';
+import type { Edge } from '../../dom.ts';
 import type { EditorGraph } from './editor-types.ts';
-import { state } from './state.ts';
+import { state } from '../../state.ts';
 import { siblingIds, sliceIds } from './graph-slice.ts';
 import { buildHistoryRows, type Row } from './phone-render.ts';
 

@@ -1,7 +1,7 @@
 import { codeBox } from './dom.ts';
 import { appendEditorAction, applyEditorSource } from './editor-actions.ts';
-import { buildSourceWithNodeAlign, getNodeAlign } from './node-align.ts';
-import type { Alignment, Justification } from './node-align.ts';
+import { buildSourceWithNodeAlign, getNodeAlign } from './source/model/node-align.ts';
+import type { Alignment, Justification } from './source/model/node-align.ts';
 
 // The stored value of the other row is read when the queued action runs, so a text edit queued before it cannot be overwritten.
 export function setNodeJustification(id: string, justification: Justification) {

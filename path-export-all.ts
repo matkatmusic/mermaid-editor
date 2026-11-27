@@ -2,12 +2,12 @@ import { classesMenuBtn, codeBox, destinationRow, nodeActions, nodeAlignRow, nod
 import type { Edge } from './dom.ts';
 // import { parseEdges } from './diagram-source.ts';
 // import { findUnusedChoices } from './path-view-model.ts';
-import { findUnusedChoices, isViewLimitingEdits } from './path-view-model.ts';
-import { getEditorGraph } from './editor-graph.ts';
+import { findUnusedChoices, isViewLimitingEdits } from './source/model/path-view-model.ts';
+import { getEditorGraph } from './source/model/editor-graph.ts';
 import { setStatus } from './diagram-io.ts';
 import { state } from './state.ts';
-import { findRoots } from './phone-render.ts';
-import { buildChosenPathSource } from './path-export.ts';
+import { findRoots } from './source/model/phone-render.ts';
+import { buildChosenPathSource } from './source/model/path-export.ts';
 import { selectPathFolder, writeToOpenedFileFolder, writeToServerDiagrams } from './path-write.ts';
 
 // Depth first: each edge is used once per path; a path ends where no unused edge leaves the node.

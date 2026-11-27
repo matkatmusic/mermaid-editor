@@ -2,7 +2,7 @@ import { buildClassStyleIndex } from './class-style-index.ts';
 import { getDeclarationSuffix } from './editor-parse.ts';
 import { parsePropsLine } from './node-props.ts';
 import { buildPathEdges } from './path-view-model.ts';
-import type { Edge } from './dom.ts';
+import type { Edge } from '../../dom.ts';
 import type { EditorGraph } from './editor-types.ts';
 
 // Copies each used classDef line verbatim, then one class line per class for the declared nodes.

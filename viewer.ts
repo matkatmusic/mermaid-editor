@@ -12,7 +12,7 @@ import { render } from './render.ts';
 import { showOpenedFile } from './open-file.ts';
 import { listAllPathIds } from './path-export-all.ts';
 import { setNodeSize } from './editor-node-size.ts';
-import { findRouteIdsToNode } from './phone-render.ts';
+import { findRouteIdsToNode } from './source/model/phone-render.ts';
 import './editor-events.ts';
 import './main-events.ts';
 import './node-resize.ts';

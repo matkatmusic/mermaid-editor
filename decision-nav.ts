@@ -1,12 +1,12 @@
-import type { EditorGraph, EditorNode } from './editor-types.ts';
-import { getEditorGraph } from './editor-graph.ts';
+import type { EditorGraph, EditorNode } from './source/model/editor-types.ts';
+import { getEditorGraph } from './source/model/editor-graph.ts';
 import { state } from './state.ts';
 import { decisionCounter, diagramBox, outputBox } from './dom.ts';
 import { reportEditorValidationError } from './render-helpers.ts';
 import { setStatus } from './diagram-io.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { render } from './render.ts';
-import { findNearestFeedingChoice } from './decision-search.ts';
+import { findNearestFeedingChoice } from './source/model/decision-search.ts';
 import { isNodeDrawn } from './path-view.ts';
 
 function compareLineIndex(a: EditorNode, b: EditorNode) {

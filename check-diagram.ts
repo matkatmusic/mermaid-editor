@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseEditorGraph } from "./editor-graph-parse.ts";
+import { parseEditorGraph } from "./source/model/editor-graph-parse.ts";
 import { closeCdp, closeCdpPage, executeExpression, openCdp, waitForPort } from "./tests/cdp.ts";
 import { killWhenParentExits } from "./tests/kill-when-parent-exits.ts";
 

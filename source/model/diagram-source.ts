@@ -1,5 +1,5 @@
-import { codeBox, darkModeToggle } from './dom.ts';
-import type { Edge } from './dom.ts';
+import { codeBox, darkModeToggle } from '../../dom.ts';
+import type { Edge } from '../../dom.ts';
 
 export function chunkSource(shown: Set<string>, siblings: string[], edges: Edge[]) {
   const initiallyHidden = [];

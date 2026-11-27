@@ -1,6 +1,6 @@
 import { codeBox } from './dom.ts';
 import { applyEditorSource } from './editor-actions.ts';
-import { buildSourceWithAssignedClass, buildSourceWithClassColors, buildSourceWithCreatedClass, buildSourceWithDeletedClass, buildSourceWithRenamedClass } from './class-source.ts';
+import { buildSourceWithAssignedClass, buildSourceWithClassColors, buildSourceWithCreatedClass, buildSourceWithDeletedClass, buildSourceWithRenamedClass } from './source/model/class-source.ts';
 
 export async function setNodeClass(nodeId: string, className: string | null) {
   await applyEditorSource(buildSourceWithAssignedClass(codeBox.value, nodeId, className));

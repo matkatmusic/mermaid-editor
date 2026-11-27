@@ -1,8 +1,8 @@
 import { EditorValidationError } from './editor-types.ts';
 import type { EditorGraph } from './editor-types.ts';
 // import type { EditorEdge, EditorNode, EditorNodeKind } from './editor-types.ts';
-import { codeBox } from './dom.ts';
-import { reportEditorValidationError } from './render-helpers.ts';
+import { codeBox } from '../../dom.ts';
+import { reportEditorValidationError } from '../../render-helpers.ts';
 import { parseEditorGraph } from './editor-graph-parse.ts';
 // import { getDeclarationRequirement, parseEditorEdgeLine, parseEditorToken, validateDeclaration } from './editor-parse.ts';
 

@@ -1,8 +1,8 @@
 import { MAIN_ZOOM_STEP, chosenAnswers, phonePath, state } from './state.ts';
-import { applyTypeMetadata } from './editor-metadata.ts';
+import { applyTypeMetadata } from './source/model/editor-metadata.ts';
 import { codeBox, drawer, drawerToggle, nextDecisionBtn, openFileBtn, outputBox, phoneDiagramBox, previousDecisionBtn, searchClearBtn, searchInput, searchNextBtn, searchPreviousBtn, selectBox, statusBox, zoomInBtn, zoomOutBtn, zoomResetBtn } from './dom.ts';
 import { applyMainViewport, loadList, resetEditorHistory, setDrawerOpen } from './diagram-io.ts';
-import { getEditorGraph } from './editor-graph.ts';
+import { getEditorGraph } from './source/model/editor-graph.ts';
 import { loadDiagram } from './diagram-load.ts';
 import { saveDiagram } from './diagram-save.ts';
 import { openFileFromDialog } from './open-file.ts';

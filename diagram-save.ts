@@ -1,6 +1,6 @@
 import { codeBox } from './dom.ts';
 import { state } from './state.ts';
-import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from './editor-metadata.ts';
+import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from './source/model/editor-metadata.ts';
 import { render } from './render.ts';
 import { loadList, resetEditorHistory, setStatus } from './diagram-io.ts';
 // import { rewriteDecisionsAsHexagons } from './editor-actions.ts';

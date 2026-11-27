@@ -1,7 +1,7 @@
 import { EDITOR_METADATA_FENCE, EDITOR_METADATA_WARNING } from './editor-types.ts';
 import type { EditorMetadata } from './editor-types.ts';
-import { state } from './state.ts';
-import { outputBox } from './dom.ts';
+import { state } from '../../state.ts';
+import { outputBox } from '../../dom.ts';
 import { buildSourceWithPropsLines, FILE_FORMAT_VERSION } from './file-format.ts';
 
 declare global {

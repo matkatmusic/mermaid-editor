@@ -1,7 +1,7 @@
 import { applyEditorSource, selectEditorNode } from './editor-actions.ts';
-import { getEditorGraph } from './editor-graph.ts';
+import { getEditorGraph } from './source/model/editor-graph.ts';
 import { setInspectorTextFocus } from './node-inspector-focus.ts';
-import { buildChoiceId, buildSourceWithLinesReplaced, getNextEditorId } from './source-edit.ts';
+import { buildChoiceId, buildSourceWithLinesReplaced, getNextEditorId } from './source/model/source-edit.ts';
 
 export async function addStandaloneStaticBlock() {
   const graph = getEditorGraph();

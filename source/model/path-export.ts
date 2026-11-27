@@ -1,11 +1,11 @@
-import { codeBox } from './dom.ts';
+import { codeBox } from '../../dom.ts';
 import { parseEdges } from './diagram-source.ts';
 import { getEditorGraph } from './editor-graph.ts';
 // import { decodeLabelQuotes, getDeclarationSuffix } from './editor-parse.ts';
 import { decodeLabelQuotes } from './editor-parse.ts';
 import { buildHistoryRows } from './phone-render.ts';
-import { state } from './state.ts';
-import { writeToOpenedFileFolder, writeToServerDiagrams } from './path-write.ts';
+import { state } from '../../state.ts';
+import { writeToOpenedFileFolder, writeToServerDiagrams } from '../../path-write.ts';
 // import { buildClassStyleIndex } from './class-style-index.ts';
 // import { buildClassLines } from './subset-source.ts';
 // import { buildPropsLine } from './node-props.ts';
