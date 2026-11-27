@@ -108,7 +108,8 @@ async function initSetup(fileName: string) {
   await waitForFunction("loadDiagram");
   // Step: on a fresh page load, the default diagram is already showing.
   const start = Date.now();
-  let codeValue = await executeExpression("codeBox.value");
+  // let codeValue = await executeExpression("codeBox.value");
+  let codeValue = await executeExpression<string>("codeBox.value");
   while (true) {
     const isWithinWait = Date.now() - start < 5000;
     const hasRaiseIssue = codeValue.includes("RAISE_ISSUE");
@@ -116,7 +117,8 @@ async function initSetup(fileName: string) {
     if (!keepWaiting)
       break;
     await waitMilliseconds(100);
-    codeValue = await executeExpression("codeBox.value");
+    // codeValue = await executeExpression("codeBox.value");
+    codeValue = await executeExpression<string>("codeBox.value");
   }
   assert.ok(codeValue.includes("RAISE_ISSUE"));
   await executeExpression("loadDiagram('accountability.mmd')");
