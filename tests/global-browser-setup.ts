@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { rmSync } from "node:fs";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import { computeHashPort, startServerAndChrome, type BrowserSession } from "./browser-harness.ts";
 import { countTestProcesses, type TestProcesses } from "./test-process-count.ts";
@@ -35,6 +37,8 @@ function formatProcessCountMessage(): string {
 export async function globalSetup() {
     const serverPort = Number(process.env.SERVER_PORT) || computeHashPort("global-browser-setup", 20000, 10000);
     const cdpPort = Number(process.env.CDP_PORT) || computeHashPort("global-browser-setup", 30000, 10000);
+    // Remove viewer.js so that only the server start can supply it.
+    rmSync(join(process.cwd(), "viewer.js"), { force: true });
     session = await startServerAndChrome(serverPort, cdpPort);
     process.env.SHARED_SERVER_PORT = String(session.serverPort);
     process.env.SHARED_CDP_PORT = String(session.cdpPort);

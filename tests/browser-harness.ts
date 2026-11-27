@@ -1,6 +1,7 @@
 import { before, after } from "node:test";
 import assert from "node:assert/strict";
-import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+// import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { cpSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -55,7 +56,8 @@ export async function startServerAndChrome(serverPort: number, cdpPort: number):
             problems.push(`CDP_PORT ${cdpPort} is busy`);
         throw new Error(`pick free ports; ${problems.join(", ")}`);
     }
-    spawnSync("bun", ["build", "viewer.ts", "--outfile", "viewer.js"], { stdio: "inherit" });
+    // No build here: the server builds viewer.js when it starts, so the browser tests prove that build.
+    // spawnSync("bun", ["build", "viewer.ts", "--outfile", "viewer.js"], { stdio: "inherit" });
     // The server saves into a temp copy so tests never overwrite the real diagrams.
     const diagramsCopyDir = mkdtempSync(join(tmpdir(), "diagrams-copy-"));
     cpSync(join(process.cwd(), "..", "diagrams"), diagramsCopyDir, { recursive: true });
