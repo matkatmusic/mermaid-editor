@@ -161,7 +161,8 @@ test("test_a_written_path_copies_the_size_lines_of_the_nodes_in_the_path_only", 
     await waitForRender();
     await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
     await waitMilliseconds(500);
-    const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json());
+    // const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json());
+    const names = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json() as Promise<string[]>);
     const pathName = names.find((name) => name.includes("-path-"))!;
     assert.ok(pathName, JSON.stringify(names));
     const pathSource = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${pathName}`).then((response) => response.text());

@@ -29,7 +29,8 @@ test("test_decision_comment_lines_in_a_written_path_show_real_backticks_and_quot
     await waitForRender();
     await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
     await waitMilliseconds(500);
-    const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json());
+    // const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json());
+    const names = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json() as Promise<string[]>);
     const pathName = names.find((name) => name.includes("-path-"))!;
     assert.ok(pathName, JSON.stringify(names));
     const pathSource = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${pathName}`).then((response) => response.text());

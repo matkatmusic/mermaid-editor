@@ -21,7 +21,9 @@ test("test_split_workspace_always_renders_regular_and_phone_views_with_distinct_
       phoneHasBlocks: document.querySelectorAll('#phoneDiagram [data-node-id]').length > 0,
       regularWidthStyle: document.querySelector('#diagram svg')?.style.width,
     };
-  })())`).then(JSON.parse);
+  })())`)
+    // .then(JSON.parse);
+    .then((json) => JSON.parse(json) as { hasToggle: boolean; workspaceShare: number; phoneShare: number; phoneExtraWidth: number; regularSvg: boolean; phoneHasBlocks: boolean; regularWidthStyle: string });
   assert.equal(layout.hasToggle, false);
   // The phone area is now only as wide as the phone, so there is no fixed 65/35 split.
   // assert.ok(Math.abs(layout.workspaceShare - 0.65) < 0.02);
@@ -35,7 +37,8 @@ test("test_split_workspace_always_renders_regular_and_phone_views_with_distinct_
   // const removedUi = await executeExpression(
   const removedUi = await executeExpression<string>(
     "JSON.stringify({logBtn: !!document.getElementById('logBtn'), undoBtn: !!document.getElementById('undoBtn'), logBox: !!document.getElementById('logBox'), phoneBar: !!document.getElementById('phoneBar')})"
-  ).then(JSON.parse);
+  // ).then(JSON.parse);
+  ).then((json) => JSON.parse(json) as { logBtn: boolean; undoBtn: boolean; logBox: boolean; phoneBar: boolean });
   assert.deepEqual(removedUi, { logBtn: false, undoBtn: false, logBox: false, phoneBar: false });
 
   // Step: click opens editor selection; phone choice advances the phone path and picks the next open decision.
@@ -62,7 +65,9 @@ test("test_phone_view_shows_the_start_slice", async () => {
       separatorCount: document.querySelectorAll('#phoneDiagram .phone-separator').length,
       maskedCount: document.querySelectorAll('#phoneDiagram .phone-decision-past').length,
     };
-  })())`).then(JSON.parse);
+  })())`)
+    // .then(JSON.parse);
+    .then((json) => JSON.parse(json) as { activeId?: string; separatorCount: number; maskedCount: number });
   assert.equal(state.activeId, 'Q_THEM_DONE_SPEAKING');
   assert.equal(state.separatorCount, 0);
   assert.equal(state.maskedCount, 0);
@@ -73,7 +78,9 @@ test("test_phone_view_shows_the_start_slice", async () => {
     const questionWidths = Array.from(document.querySelectorAll('#phoneDiagram .phone-question')).map(el => el.getBoundingClientRect().width);
     const blockWidths = Array.from(document.querySelectorAll('#phoneDiagram .phone-block')).map(el => el.getBoundingClientRect().width);
     return { paneWidth, questionWidths, blockWidths };
-  })())`).then(JSON.parse);
+  })())`)
+    // .then(JSON.parse);
+    .then((json) => JSON.parse(json) as { paneWidth: number; questionWidths: number[]; blockWidths: number[] });
   for (const width of widths.questionWidths)
     assert.ok(Math.abs(width - widths.paneWidth) < 1, JSON.stringify(widths));
   for (const width of widths.blockWidths)
@@ -83,7 +90,9 @@ test("test_phone_view_shows_the_start_slice", async () => {
   const choiceWidths = await executeExpression<string>(`JSON.stringify((() => {
     const choices = Array.from(document.querySelectorAll('#phoneDiagram [data-active-question] ~ .phone-choice-row .phone-choice'));
     return { widths: choices.map(el => el.getBoundingClientRect().width) };
-  })())`).then(JSON.parse);
+  })())`)
+    // .then(JSON.parse);
+    .then((json) => JSON.parse(json) as { widths: number[] });
   assert.equal(choiceWidths.widths.length, 2);
   assert.ok(Math.abs(choiceWidths.widths[0] - choiceWidths.widths[1]) < 1, JSON.stringify(choiceWidths));
 });
@@ -106,7 +115,9 @@ test("test_clicking_a_decision_choice_masks_it_and_opens_the_next_decision", asy
       chosen: !!pastWrap.querySelector('[data-node-id="Q_CHOICE_THEM_DONE_SPEAKING_Y"].phone-choice-chosen'),
       declined: !!pastWrap.querySelector('[data-node-id="Q_CHOICE_THEM_DONE_SPEAKING_N"].phone-choice-declined'),
     };
-  })())`).then(JSON.parse);
+  })())`)
+    // .then(JSON.parse);
+    .then((json) => JSON.parse(json) as { activeId?: string; separatorCount: number; pastIsMasked: boolean; chosen: boolean; declined: boolean });
   assert.equal(state.activeId, 'Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID');
   assert.equal(state.separatorCount, 1);
   assert.equal(state.pastIsMasked, true);

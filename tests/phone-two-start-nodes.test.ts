@@ -40,6 +40,7 @@ test('test_phone_choice_button_walks_a_decision_under_the_second_start_node', as
   const phoneErrors: string[] = await executeExpression<string>("JSON.stringify(window.capturedErrors.filter(message => !message.includes('No file opened')))").then(JSON.parse);
   assert.deepEqual(phoneErrors, []);
   // assert.deepEqual(await executeExpression("JSON.stringify(phonePath)").then(JSON.parse), [buttonIds[0]]);
-  assert.deepEqual(await executeExpression<string>("JSON.stringify(phonePath)").then(JSON.parse), [buttonIds[0]]);
+  // assert.deepEqual(await executeExpression<string>("JSON.stringify(phonePath)").then(JSON.parse), [buttonIds[0]]);
+  assert.deepEqual(await executeExpression<string>("JSON.stringify(phonePath)").then((json) => JSON.parse(json) as string[]), [buttonIds[0]]);
   assert.ok((await listPhoneNodeIds()).includes('B_LAUNCH'));
 });

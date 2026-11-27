@@ -60,13 +60,14 @@ async function readCheck(): Promise<string> {
 
 async function readKindRow() {
   // return executeExpression(`JSON.stringify({
+  // })`).then(JSON.parse);
   return executeExpression<string>(`JSON.stringify({
     static: document.getElementById('nodeKindStatic').checked,
     question: document.getElementById('nodeKindQuestion').checked,
     choice: document.getElementById('nodeKindChoice').checked,
     disabled: ['nodeKindStatic', 'nodeKindQuestion', 'nodeKindChoice'].every((id) => document.getElementById(id).disabled),
     parent: document.getElementById('nodeParentLabel').textContent.trim(),
-  })`).then(JSON.parse);
+  })`).then((json) => JSON.parse(json) as { static: boolean; question: boolean; choice: boolean; disabled: boolean; parent: string });
 }
 
 function countWholeWord(source: string, word: string) {

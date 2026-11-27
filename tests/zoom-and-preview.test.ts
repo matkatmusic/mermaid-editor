@@ -15,7 +15,8 @@ test('test_main_view_click_shows_the_path_to_the_clicked_node_in_the_phone', asy
   assert.equal(await executeExpression('phonePreviewChoiceId'), null);
   assert.equal(await executeExpression('phoneFocusNodeId'), null);
   // assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
-  assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
+  // assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
+  assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then((json) => JSON.parse(json) as string[]), ['Q_CHOICE_FIRST_Y']);
   for (const id of ['Q_FIRST', 'Q_CHOICE_FIRST_Y', 'B_ONE', 'B_TWO', 'Q_NEXT', 'Q_CHOICE_NEXT_Y', 'Q_CHOICE_NEXT_N'])
     assert.equal(await executeExpression(`!!document.querySelector('#phoneDiagram [data-node-id="${id}"]')`), true, id);
   assert.equal(await executeExpression("currentBottomQ"), 'Q_NEXT');
@@ -24,7 +25,8 @@ test('test_main_view_click_shows_the_path_to_the_clicked_node_in_the_phone', asy
   await dispatchNodeClick('Q_CHOICE_FIRST_N');
   await waitForRender();
   // assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_N']);
-  assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_N']);
+  // assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_N']);
+  assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then((json) => JSON.parse(json) as string[]), ['Q_CHOICE_FIRST_N']);
 
   // The start node alone gives an empty path.
   await dispatchNodeClick('B_ROOT');
@@ -35,7 +37,8 @@ test('test_main_view_click_shows_the_path_to_the_clicked_node_in_the_phone', asy
   await dispatchNodeClick('Q_NEXT');
   await waitForRender();
   // assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
-  assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
+  // assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
+  assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then((json) => JSON.parse(json) as string[]), ['Q_CHOICE_FIRST_Y']);
   assert.equal(await executeExpression("document.querySelector('#phoneDiagram [data-active-question]').dataset.nodeId"), 'Q_NEXT');
 });
 
@@ -53,7 +56,8 @@ test('test_header_zoom_controls_resize_only_the_main_mermaid_diagram', async () 
       level: document.getElementById('zoomLevel').textContent,
       buttons: Array.from(document.querySelectorAll('#mainZoomControls button')).map(button => button.id),
     };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { regularWidth: number; regularHeight: number; outputWidth: number; drawerWidth: number; level: string; buttons: string[] });
+  // })())`).then(JSON.parse);
   const initial = await dimensions();
   assert.deepEqual(initial.buttons, ['zoomInBtn', 'zoomOutBtn', 'zoomResetBtn']);
   assert.equal(initial.level, '100%');
@@ -90,7 +94,8 @@ test('test_previous_selections_stay_masked_through_each_phone_choice', async () 
       activeId: document.querySelector('#phoneDiagram [data-active-question]')?.dataset.nodeId,
       separatorCount: document.querySelectorAll('#phoneDiagram .phone-separator').length,
     };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { firstMasked: boolean; activeId?: string; separatorCount: number });
+  // })())`).then(JSON.parse);
   assert.equal(firstState.firstMasked, true);
   assert.equal(firstState.activeId, 'Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID');
   assert.equal(firstState.separatorCount, 1);
@@ -105,7 +110,8 @@ test('test_previous_selections_stay_masked_through_each_phone_choice', async () 
       phonePath: phonePath.slice(),
       currentBottomQ,
     };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { firstMasked: boolean; secondMasked: boolean; separatorCount: number; phonePath: string[]; currentBottomQ?: string });
+  // })())`).then(JSON.parse);
   assert.deepEqual(secondState.phonePath, ['Q_CHOICE_THEM_DONE_SPEAKING_Y', 'Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N']);
   assert.equal(secondState.currentBottomQ, 'Q_CLARIFY_ISSUE_COUNT');
   assert.equal(secondState.firstMasked, true);
@@ -122,7 +128,8 @@ test('test_add_and_insert_actions_preserve_the_zoom_scale_in_the_regular_view', 
   const scales = () => executeExpression<string>(`JSON.stringify((() => {
     const svg = document.querySelector('#diagram svg');
     return { regular: Number.parseFloat(svg.style.height) / svg.viewBox.baseVal.height };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { regular: number });
+  // })())`).then(JSON.parse);
   await executeExpression("document.getElementById('zoomResetBtn').click(); document.getElementById('zoomInBtn').click()");
   const initial = await scales();
 

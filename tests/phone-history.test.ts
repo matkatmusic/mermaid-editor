@@ -106,7 +106,8 @@ test("test_multiple_past_decisions_are_all_masked_while_scrolling", async () => 
       separatorCount: document.querySelectorAll('#phoneDiagram .phone-separator').length,
       activeId: document.querySelector('#phoneDiagram [data-active-question]')?.dataset.nodeId,
     };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { maskedCount: number; separatorCount: number; activeId?: string });
+  // })())`).then(JSON.parse);
   assert.equal(state.maskedCount, 2);
   assert.equal(state.separatorCount, 1);
   assert.ok(state.activeId);
@@ -128,7 +129,8 @@ test("test_clicking_the_no_answer_masks_the_decision_with_both_options_visible",
       chosenIsNo: !!pastWrap.querySelector('[data-node-id="Q_CHOICE_THEM_DONE_SPEAKING_N"].phone-choice-chosen'),
       declinedIsYes: !!pastWrap.querySelector('[data-node-id="Q_CHOICE_THEM_DONE_SPEAKING_Y"].phone-choice-declined'),
     };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { pastIsMasked: boolean; chosenIsNo: boolean; declinedIsYes: boolean });
+  // })())`).then(JSON.parse);
   assert.equal(state.pastIsMasked, true);
   assert.equal(state.chosenIsNo, true);
   assert.equal(state.declinedIsYes, true);

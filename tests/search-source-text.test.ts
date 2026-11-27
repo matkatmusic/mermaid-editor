@@ -65,7 +65,8 @@ test("test_search_works_in_the_source_text_when_the_diagram_has_a_parse_error", 
   await clickSearchButton("searchClearBtn");
   assert.equal((await searchState()).value, "");
   // assert.deepEqual(await executeExpression("JSON.stringify(window.capturedErrors)").then(JSON.parse), []);
-  assert.deepEqual(await executeExpression<string>("JSON.stringify(window.capturedErrors)").then(JSON.parse), []);
+  // assert.deepEqual(await executeExpression<string>("JSON.stringify(window.capturedErrors)").then(JSON.parse), []);
+  assert.deepEqual(await executeExpression<string>("JSON.stringify(window.capturedErrors)").then((json) => JSON.parse(json) as string[]), []);
 });
 
 test("test_search_opens_the_closed_drawer_to_show_the_match", async () => {

@@ -16,7 +16,8 @@ test("test_write_chosen_path_writes_numbered_path_files_next_to_the_diagram", as
   // Step: the first Write chosen path click writes accountability-path-0.mmd.
   await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   await waitMilliseconds(500);
-  const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json());
+  // const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json());
+  const names = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json() as Promise<string[]>);
   assert.ok(names.includes("accountability-path-0.mmd"), JSON.stringify(names));
   // Step: the file holds only the chosen path, without the untaken choice.
   const pathSource = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/accountability-path-0.mmd`).then((r) => r.text());
@@ -31,7 +32,8 @@ test("test_write_chosen_path_writes_numbered_path_files_next_to_the_diagram", as
   // Step: a second click writes the next number instead of overwriting.
   await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   await waitMilliseconds(500);
-  const namesAfterSecond: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json());
+  // const namesAfterSecond: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json());
+  const namesAfterSecond = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json() as Promise<string[]>);
   assert.ok(namesAfterSecond.includes("accountability-path-1.mmd"), JSON.stringify(namesAfterSecond));
   await executeExpression("document.getElementById('resetBtn').click()");
   await waitForRender();

@@ -77,7 +77,8 @@ test('test_route_to_a_choice_ends_at_that_choice', async () => {
 test('test_route_through_a_decision_that_leads_to_a_decision_lists_each_id_once', async () => {
     await loadPathViewSource(DECISION_CHAIN_SOURCE);
     // const routeIds = await executeExpression(`JSON.stringify(${buildRouteCall('B_END', DECISION_CHAIN_SOURCE)})`).then(JSON.parse);
-    const routeIds = await executeExpression<string>(`JSON.stringify(${buildRouteCall('B_END', DECISION_CHAIN_SOURCE)})`).then(JSON.parse);
+    // const routeIds = await executeExpression<string>(`JSON.stringify(${buildRouteCall('B_END', DECISION_CHAIN_SOURCE)})`).then(JSON.parse);
+    const routeIds = await executeExpression<string>(`JSON.stringify(${buildRouteCall('B_END', DECISION_CHAIN_SOURCE)})`).then((json) => JSON.parse(json) as string[]);
     assert.deepEqual(routeIds, ['Q_ASK', 'Q_NEXT', 'Q_CHOICE_NEXT_YES', 'B_END']);
 });
 

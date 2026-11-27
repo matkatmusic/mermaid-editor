@@ -19,7 +19,8 @@ test("test_diagram_loop_appends_the_repeated_nodes_instead_of_stopping", async (
       questionCount: document.querySelectorAll('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]').length,
       hasActive: !!document.querySelector('#phoneDiagram [data-active-question]'),
     };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { listenCount: number; questionCount: number; hasActive: boolean });
+  // })())`).then(JSON.parse);
   assert.equal(state.listenCount, 2);
   assert.equal(state.questionCount, 2);
   assert.equal(state.hasActive, true);
@@ -70,7 +71,8 @@ test("test_phone_choice_width_splits_the_viewport_by_choice_count", async () => 
   const widths = await executeExpression<string>(`JSON.stringify((() => {
     const choices = Array.from(document.querySelectorAll('#phoneDiagram .phone-choice-row .phone-choice'));
     return { widths: choices.map(el => el.getBoundingClientRect().width) };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { widths: number[] });
+  // })())`).then(JSON.parse);
   assert.equal(widths.widths.length, 3);
   for (const width of widths.widths)
     assert.ok(Math.abs(width - widths.widths[0]) < 1, JSON.stringify(widths));

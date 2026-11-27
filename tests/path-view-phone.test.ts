@@ -59,9 +59,11 @@ const CHOOSE_YES = '[data-choose="Q_CHOICE_ASK_YES"]';
 const CHOOSE_NO = '[data-choose="Q_CHOICE_ASK_NO"]';
 const REVERT_TO_NO = '[data-revert$=":Q_CHOICE_ASK_NO"]';
 
-function readJson(expression: string) {
+// function readJson(expression: string) {
+function readJson<Shape>(expression: string): Promise<Shape> {
     // return executeExpression(`JSON.stringify(${expression})`).then(JSON.parse);
-    return executeExpression<string>(`JSON.stringify(${expression})`).then(JSON.parse);
+    // return executeExpression<string>(`JSON.stringify(${expression})`).then(JSON.parse);
+    return executeExpression<string>(`JSON.stringify(${expression})`).then((json) => JSON.parse(json) as Shape);
 }
 
 function readPhoneIds(selector: string): Promise<string[]> {
@@ -108,7 +110,8 @@ test('test_phone_click_on_a_block_outside_the_view_raises_no_error', async () =>
     // The phone shows only drawn blocks, so the row for a hidden block is made by hand.
     await executeExpression("(() => { const row = document.createElement('div'); row.className = 'phone-block'; row.dataset.nodeId = 'B_NO'; document.getElementById('phoneDiagram').append(row); row.click(); })()");
     await waitMilliseconds(500);
-    assert.deepEqual(await readJson('window.capturedErrors'), []);
+    // assert.deepEqual(await readJson('window.capturedErrors'), []);
+    assert.deepEqual(await readJson<string[]>('window.capturedErrors'), []);
 });
 
 test('test_phone_choice_tap_in_a_view_moves_the_main_view_to_that_path', async () => {
@@ -146,14 +149,16 @@ test('test_phone_choice_tap_in_the_downstream_view_filters_on_that_choice', asyn
     await turnDownstreamToggleOn();
     await clickBlock('Q_ASK');
     await tapPhone(CHOOSE_NO);
-    assert.deepEqual(await readJson('pathView.clickedIds'), ['Q_ASK', 'Q_CHOICE_ASK_NO']);
+    // assert.deepEqual(await readJson('pathView.clickedIds'), ['Q_ASK', 'Q_CHOICE_ASK_NO']);
+    assert.deepEqual(await readJson<string[]>('pathView.clickedIds'), ['Q_ASK', 'Q_CHOICE_ASK_NO']);
     assert.equal(await readErrorLog(), '');
 });
 
 test('test_phone_choice_tap_with_no_filter_starts_the_filter', async () => {
     await turnDownstreamToggleOn();
     await tapPhone(CHOOSE_NO);
-    assert.deepEqual(await readJson('pathView.clickedIds'), ['Q_CHOICE_ASK_NO']);
+    // assert.deepEqual(await readJson('pathView.clickedIds'), ['Q_CHOICE_ASK_NO']);
+    assert.deepEqual(await readJson<string[]>('pathView.clickedIds'), ['Q_CHOICE_ASK_NO']);
 });
 
 // test('test_phone_revert_tap_with_no_filter_starts_the_filter', async () => {
@@ -168,7 +173,8 @@ test('test_phone_revert_tap_in_the_downstream_view_filters_on_its_decision', asy
     await turnDownstreamToggleOn();
     await clickBlock('B_YES');
     await tapPhone(REVERT_TO_NO);
-    assert.deepEqual(await readJson('pathView.clickedIds'), ['Q_ASK']);
+    // assert.deepEqual(await readJson('pathView.clickedIds'), ['Q_ASK']);
+    assert.deepEqual(await readJson<string[]>('pathView.clickedIds'), ['Q_ASK']);
     assert.equal(await readErrorLog(), '');
 });
 
@@ -177,7 +183,8 @@ test('test_back_after_a_phone_revert_tap_restores_the_earlier_click_list', async
     await clickBlock('B_YES');
     await tapPhone(REVERT_TO_NO);
     await clickButtonWithMouse('#backDownstreamViewBtn');
-    assert.deepEqual(await readJson('pathView.clickedIds'), ['B_YES']);
+    // assert.deepEqual(await readJson('pathView.clickedIds'), ['B_YES']);
+    assert.deepEqual(await readJson<string[]>('pathView.clickedIds'), ['B_YES']);
 });
 
 test('test_phone_choice_tap_on_an_earlier_decision_switches_the_branch', async () => {
@@ -185,7 +192,8 @@ test('test_phone_choice_tap_on_an_earlier_decision_switches_the_branch', async (
     await clickBlock('B_YES');
     await clickButtonWithMouse('#nextDecisionBtn');
     await tapPhone(CHOOSE_NO);
-    assert.deepEqual(await readJson('pathView.clickedIds'), ['Q_ASK', 'Q_CHOICE_ASK_NO']);
+    // assert.deepEqual(await readJson('pathView.clickedIds'), ['Q_ASK', 'Q_CHOICE_ASK_NO']);
+    assert.deepEqual(await readJson<string[]>('pathView.clickedIds'), ['Q_ASK', 'Q_CHOICE_ASK_NO']);
     assert.ok((await readShownNodeIds()).includes('B_NO'));
     assert.equal(await readErrorLog(), '');
 });
@@ -196,7 +204,8 @@ test('test_back_after_a_branch_switch_restores_the_dropped_clicks', async () => 
     await clickButtonWithMouse('#nextDecisionBtn');
     await tapPhone(CHOOSE_NO);
     await clickButtonWithMouse('#backDownstreamViewBtn');
-    assert.deepEqual(await readJson('pathView.clickedIds'), ['B_YES']);
+    // assert.deepEqual(await readJson('pathView.clickedIds'), ['B_YES']);
+    assert.deepEqual(await readJson<string[]>('pathView.clickedIds'), ['B_YES']);
 });
 
 test('test_phone_undo_with_a_filter_does_the_view_back', async () => {
@@ -204,14 +213,16 @@ test('test_phone_undo_with_a_filter_does_the_view_back', async () => {
     await clickBlock('Q_ASK');
     await clickBlock('B_NO');
     await tapPhone('[data-undo]');
-    assert.deepEqual(await readJson('pathView.clickedIds'), ['Q_ASK']);
+    // assert.deepEqual(await readJson('pathView.clickedIds'), ['Q_ASK']);
+    assert.deepEqual(await readJson<string[]>('pathView.clickedIds'), ['Q_ASK']);
 });
 
 test('test_phone_reset_with_a_filter_does_the_view_reset', async () => {
     await turnDownstreamToggleOn();
     await clickBlock('B_YES');
     await tapPhone('[data-reset-decisions]');
-    assert.deepEqual(await readJson('[pathView.clickedIds, pathView.clickHistory]'), [[], []]);
+    // assert.deepEqual(await readJson('[pathView.clickedIds, pathView.clickHistory]'), [[], []]);
+    assert.deepEqual(await readJson<[string[], string[][]]>('[pathView.clickedIds, pathView.clickHistory]'), [[], []]);
     assert.equal(await executeExpression("document.getElementById('downstreamViewBtn').getAttribute('aria-pressed')"), 'true');
 });
 
@@ -221,7 +232,8 @@ test('test_phone_undo_with_no_filter_removes_the_last_phone_answer', async () =>
     await clickButtonWithMouse('#downstreamViewBtn');
     await tapPhone('[data-undo]');
     assert.deepEqual(await readPhoneIds('.phone-choice-chosen'), []);
-    assert.deepEqual(await readJson('pathView.clickedIds'), []);
+    // assert.deepEqual(await readJson('pathView.clickedIds'), []);
+    assert.deepEqual(await readJson<string[]>('pathView.clickedIds'), []);
 });
 
 // test('test_phone_undo_tap_in_the_one_path_view_keeps_the_shown_path', async () => {
@@ -268,7 +280,8 @@ test('test_phone_revert_tap_with_no_filter_starts_no_filter', async () => {
     await tapPhone(CHOOSE_YES);
     await clickButtonWithMouse('#downstreamViewBtn');
     await tapPhone(REVERT_TO_NO);
-    assert.deepEqual(await readJson('pathView.clickedIds'), []);
+    // assert.deepEqual(await readJson('pathView.clickedIds'), []);
+    assert.deepEqual(await readJson<string[]>('pathView.clickedIds'), []);
     assert.deepEqual(await readPhoneIds('.phone-choice-chosen'), ['Q_CHOICE_ASK_NO']);
 });
 
@@ -318,7 +331,8 @@ test('test_phone_undo_with_a_filter_and_no_answered_decision_does_the_view_back'
     await clickBlock('B_START');
     assert.equal(await isPhoneButtonDisabled('[data-undo]'), false);
     await tapPhone('[data-undo]');
-    assert.deepEqual(await readJson('pathView.clickedIds'), []);
+    // assert.deepEqual(await readJson('pathView.clickedIds'), []);
+    assert.deepEqual(await readJson<string[]>('pathView.clickedIds'), []);
 });
 
 test('test_phone_view_shows_the_start_after_back_empties_the_filter', async () => {

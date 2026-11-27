@@ -59,7 +59,8 @@ test("test_clicking_a_deep_decision_then_choosing_keeps_the_path_to_it_visible_i
     await waitMilliseconds(1000);
     // Step: the phone history starts at the start node and holds the path down to the clicked decision.
     // const idsAfterClick = await executeExpression("JSON.stringify([...document.querySelectorAll('#phoneHistory [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
-    const idsAfterClick = await executeExpression<string>("JSON.stringify([...document.querySelectorAll('#phoneHistory [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
+    // const idsAfterClick = await executeExpression<string>("JSON.stringify([...document.querySelectorAll('#phoneHistory [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
+    const idsAfterClick = await executeExpression<string>("JSON.stringify([...document.querySelectorAll('#phoneHistory [data-node-id]')].map(el => el.dataset.nodeId))").then((json) => JSON.parse(json) as string[]);
     assert.equal(idsAfterClick[0], "B_LAUNCH");
     // Step: choose "after"; the walk continues to the next open decision.
     await executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${CHOSEN_CHOICE_ID}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
