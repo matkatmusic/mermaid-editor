@@ -1,4 +1,5 @@
-declare const mermaid: any;
+// declare const mermaid: any;
+declare const mermaid: import('mermaid').Mermaid;
 import { diagramBox, outputBox, phoneDiagramBox, zoomInBtn, zoomLevel, zoomOutBtn, zoomResetBtn } from './dom.ts';
 import type { Edge } from './dom.ts';
 import { MAX_MAIN_ZOOM, MIN_MAIN_ZOOM, /* PHONE_INNER, */ phonePath, state } from './state.ts';
