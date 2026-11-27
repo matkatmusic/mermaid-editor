@@ -14,8 +14,9 @@ test('test_functions_only_toggle_exists_and_is_unchecked_by_default', async () =
   // Step: the checkbox is in the page and unchecked.
   assert.equal(await executeExpression("document.getElementById('functionsOnlyToggle').type"), 'checkbox');
   assert.equal(await executeExpression("document.getElementById('functionsOnlyToggle').checked"), false);
-  // Step: dom.ts exports it as a typed constant.
-  assert.ok(readFileSync(join(process.cwd(), 'dom.ts'), 'utf8').includes("export const functionsOnlyToggle = document.getElementById('functionsOnlyToggle') as HTMLInputElement;"));
+  // Disabled for task #127: source text checks are not wanted.
+  // // Step: dom.ts exports it as a typed constant.
+  // assert.ok(readFileSync(join(process.cwd(), 'dom.ts'), 'utf8').includes("export const functionsOnlyToggle = document.getElementById('functionsOnlyToggle') as HTMLInputElement;"));
   // Step: state.functionsOnly defaults to false.
   assert.equal(await executeExpression('state.functionsOnly'), false);
 });

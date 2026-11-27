@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+// import { readFileSync } from "node:fs";
+// import { join } from "node:path";
 
 import { parseEditorGraph } from "./editor-graph-parse.ts";
 import { buildSourceWithLinesReplaced, removeOutgoing } from "./source-edit.ts";
 
-const source = readFileSync(join(import.meta.dirname, "source-edit.ts"), "utf8");
+// const source = readFileSync(join(import.meta.dirname, "source-edit.ts"), "utf8");
 
 // Obsolete: a note is now linked to a block by the id in the note line, not by its position.
 // test("test_source_edit_drops_note_lines_above_a_removed_declaration", () => {
@@ -50,6 +50,7 @@ test("test_remove_outgoing_keeps_the_label_of_a_kept_chained_segment", () => {
   assert.equal(removeOutgoing("Q_CHOICE1", graph), `${declarations}\n  Q1 -- "why" --> Q_CHOICE1`);
 });
 
-test("test_source_edit_builds_a_choice_id_from_the_question_id", () => {
-  assert.ok(source.includes("return `Q_CHOICE_${questionId.replace(/^Q_/, '')}_${suffix}`;"));
-});
+// Disabled for task #127: tests that only check source text are not wanted.
+// test("test_source_edit_builds_a_choice_id_from_the_question_id", () => {
+//   assert.ok(source.includes("return `Q_CHOICE_${questionId.replace(/^Q_/, '')}_${suffix}`;"));
+// });
