@@ -99,7 +99,8 @@ test("test_a_written_path_keeps_each_decision_in_its_own_shape", async () => {
     }
     await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
     await waitMilliseconds(500);
-    const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json());
+    // const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json());
+    const names = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json() as Promise<string[]>);
     const pathName = names.filter((name) => name.includes("-path-")).sort().pop()!;
     const pathSource = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${pathName}`).then((response) => response.text());
     assert.ok(pathSource.includes('  Q_DIAMOND{"Diamond?"}'), pathSource);
