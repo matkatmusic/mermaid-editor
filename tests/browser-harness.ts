@@ -8,23 +8,23 @@ import { basename, join } from "node:path";
 // import { createServer } from "node:net";
 import { createServer, type AddressInfo } from "node:net";
 import { closeCdp, closeCdpPage, openCdp, executeExpression, send, waitMilliseconds, waitForFunction, waitForPort } from "./cdp.ts";
-import { EDITOR_FIXTURE_NAME, editorFixtureSource } from "./fixtures.ts";
+// import { EDITOR_FIXTURE_NAME, editorFixtureSource } from "./fixtures.ts";
 import { killWhenParentExits } from "./kill-when-parent-exits.ts";
 
 export let SERVER_PORT: number;
 let CDP_PORT: number;
 const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
-let serverProc: ChildProcess;
-let chromeProc: ChildProcess;
+// let serverProc: ChildProcess;
+// let chromeProc: ChildProcess;
 
-// ponytail: hash-derived port per test file name, so test files never share ports.
-export function computeHashPort(fileName: string, base: number, range: number): number {
-  let hash = 0;
-  for (let i = 0; i < fileName.length; i++)
-    hash = (hash * 31 + fileName.charCodeAt(i)) >>> 0;
-  return base + (hash % range);
-}
+// // ponytail: hash-derived port per test file name, so test files never share ports.
+// export function computeHashPort(fileName: string, base: number, range: number): number {
+//   let hash = 0;
+//   for (let i = 0; i < fileName.length; i++)
+//     hash = (hash * 31 + fileName.charCodeAt(i)) >>> 0;
+//   return base + (hash % range);
+// }
 
 // Port 0 asks the system for a free port, so two runs never collide on one fixed port.
 export function findFreePort(): Promise<number> {
@@ -98,20 +98,26 @@ function resetSharedDiagramsDir(diagramsCopyDir: string) {
 }
 
 async function initSetup(fileName: string) {
-  // Scenario: start the real server and headless Chrome, then connect via CDP to drive the page like a user.
-  // With --test-global-setup the server and Chrome already run, so this file only resets the diagrams and opens a page.
+  // Scenario: connect via CDP to the real server and headless Chrome of the run, to drive the page like a user.
+  // Only the global setup starts the server and Chrome: this file resets the diagrams and opens a page.
   const sharedDiagramsDir = process.env.SHARED_DIAGRAMS_DIR;
-  if (sharedDiagramsDir) {
-    SERVER_PORT = Number(process.env.SHARED_SERVER_PORT);
-    CDP_PORT = Number(process.env.SHARED_CDP_PORT);
-    resetSharedDiagramsDir(sharedDiagramsDir);
-  } else {
-    SERVER_PORT = Number(process.env.SERVER_PORT) || computeHashPort(fileName, 20000, 10000);
-    CDP_PORT = Number(process.env.CDP_PORT) || computeHashPort(fileName, 30000, 10000);
-    const session = await startServerAndChrome(SERVER_PORT, CDP_PORT);
-    serverProc = session.serverProc;
-    chromeProc = session.chromeProc;
+  if (!sharedDiagramsDir) {
+    throw new Error(`${fileName} needs the global setup. Run: node --test --test-global-setup=tests/global-browser-setup.ts <file>`);
   }
+  SERVER_PORT = Number(process.env.SHARED_SERVER_PORT);
+  CDP_PORT = Number(process.env.SHARED_CDP_PORT);
+  resetSharedDiagramsDir(sharedDiagramsDir);
+  // if (sharedDiagramsDir) {
+  //   SERVER_PORT = Number(process.env.SHARED_SERVER_PORT);
+  //   CDP_PORT = Number(process.env.SHARED_CDP_PORT);
+  //   resetSharedDiagramsDir(sharedDiagramsDir);
+  // } else {
+  //   SERVER_PORT = Number(process.env.SERVER_PORT) || computeHashPort(fileName, 20000, 10000);
+  //   CDP_PORT = Number(process.env.CDP_PORT) || computeHashPort(fileName, 30000, 10000);
+  //   const session = await startServerAndChrome(SERVER_PORT, CDP_PORT);
+  //   serverProc = session.serverProc;
+  //   chromeProc = session.chromeProc;
+  // }
 
   await openCdp(CDP_PORT);
   await send("Page.enable");
@@ -141,7 +147,7 @@ async function initSetup(fileName: string) {
 
 function clearSetupFailure() {}
 
-// Each test file calls this once to start its own server and Chrome.
+// Each test file calls this once to open its own page in the server and Chrome of the run.
 export function registerBrowserHooks(testFileUrl: string, afterSetup?: () => Promise<void>) {
   const fileName = basename(testFileUrl);
   let setupDone: Promise<void> = Promise.resolve();
@@ -155,15 +161,15 @@ export function registerBrowserHooks(testFileUrl: string, afterSetup?: () => Pro
 
   const closeSession = async () => {
     await setupDone.catch(clearSetupFailure); // after() can run before before() finishes when no test matches
-    if (serverProc) {
-      const restoreFixture = fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: "PUT", body: editorFixtureSource, signal: AbortSignal.timeout(2000) });
-      await restoreFixture.catch(clearSetupFailure);
-    }
+    // if (serverProc) {
+    //   const restoreFixture = fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: "PUT", body: editorFixtureSource, signal: AbortSignal.timeout(2000) });
+    //   await restoreFixture.catch(clearSetupFailure);
+    // }
     closeCdp();
     if (process.env.SHARED_DIAGRAMS_DIR)
       await closeCdpPage(CDP_PORT);
-    chromeProc?.kill("SIGKILL");
-    serverProc?.kill();
+    // chromeProc?.kill("SIGKILL");
+    // serverProc?.kill();
   };
   after(closeSession);
 }
