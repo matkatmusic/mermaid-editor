@@ -96,6 +96,9 @@ export async function openCdp(cdpPort: number) {
 
 export async function closeCdpPage(cdpPort: number) {
   await fetch(`http://localhost:${cdpPort}/json/close/${targetId}`);
+  // Chrome replies before the tab is gone, and a live tab still reads its watched file from the server.
+  while ((await (await fetch(`http://localhost:${cdpPort}/json/list`)).text()).includes(targetId))
+    await waitMilliseconds(20);
 }
 
 export function closeCdp() {
