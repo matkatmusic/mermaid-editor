@@ -19,10 +19,12 @@ test("test_class_picker_creates_and_assigns_a_class_and_recolors_both_views", as
   await executeExpression("window.editorActionPromise");
   await waitForRender();
   // Step: both the main SVG and the phone block recolor from the new class's fill.
-  const colors = await executeExpression(`JSON.stringify((() => {
+  // const colors = await executeExpression(`JSON.stringify((() => {
+  //   })())`).then(JSON.parse);
+  const colors = await executeExpression<string>(`JSON.stringify((() => {
     const rect = document.querySelector('#diagram [id*="flowchart-B_Start-"] rect');
     return { regular: getComputedStyle(rect).fill, phone: document.querySelector('#phoneDiagram [data-node-id="B_Start"]').style.background };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { regular: string; phone: string });
   assert.equal(colors.regular, 'rgb(18, 52, 86)');
   assert.equal(colors.phone, 'rgb(18, 52, 86)');
   // Step: the class lives in classDef/class lines, not typeColors/nodeTypes metadata.
@@ -44,10 +46,12 @@ test("test_class_picker_always_shows_the_nodes_actual_class", async () => {
   await waitMilliseconds(500);
   // Step: B_SELF_RESTATE_ISSUE is classed "action" in accountability.mmd's classDef lines.
   await dispatchNodeClick("B_SELF_RESTATE_ISSUE");
-  const picker = await executeExpression(`JSON.stringify({
+  // const picker = await executeExpression(`JSON.stringify({
+  //   })`).then(JSON.parse);
+  const picker = await executeExpression<string>(`JSON.stringify({
     label: document.getElementById('classPickerLabel').textContent,
     swatch: document.getElementById('classPickerSwatch').style.background,
-  })`).then(JSON.parse);
+  })`).then((json) => JSON.parse(json) as { label: string; swatch: string });
   assert.equal(picker.label, 'action');
   assert.ok(picker.swatch.length > 0);
   // Step: a differently classed node shows its own class, not a stale "forwards".
@@ -75,7 +79,9 @@ test("test_assigning_a_class_to_a_newly_inserted_decision_colors_it", async () =
 test("test_unclassed_nodes_get_diagonal_stripes_in_both_views", async () => {
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  B_ONE["One"]\n  B_TWO["Two"]\n  B_ONE --> B_TWO\n  classDef greenish fill:#00ff00,stroke:#006600\n  class B_TWO greenish');
-  const stripes = await executeExpression(`JSON.stringify((() => {
+  // const stripes = await executeExpression(`JSON.stringify((() => {
+  //   })())`).then(JSON.parse);
+  const stripes = await executeExpression<string>(`JSON.stringify((() => {
     const oneRect = document.querySelector('#diagram [id*="flowchart-B_ONE-"] rect');
     const twoRect = document.querySelector('#diagram [id*="flowchart-B_TWO-"] rect');
     return {
@@ -84,7 +90,7 @@ test("test_unclassed_nodes_get_diagonal_stripes_in_both_views", async () => {
       onePhone: document.querySelector('#phoneDiagram [data-node-id="B_ONE"]').style.background,
       twoPhone: document.querySelector('#phoneDiagram [data-node-id="B_TWO"]').style.background,
     };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { oneFill: string; twoFill: string; onePhone: string; twoPhone: string });
   assert.match(stripes.oneFill, /url\(.*unclassed-stripe-pattern.*\)/);
   assert.equal(stripes.twoFill, 'rgb(0, 255, 0)');
   assert.match(stripes.onePhone, /repeating-linear-gradient/);
@@ -98,10 +104,12 @@ test("test_classes_dialog_renames_recolors_and_deletes_a_class", async () => {
   await setEditorSource('flowchart TD\n  B_ONE["One"]\n  classDef mine fill:#ff0000,stroke:#000000\n  class B_ONE mine');
   await executeExpression("document.getElementById('classesMenuBtn').click()");
   await waitMilliseconds(100);
-  const initialRow = await executeExpression(`JSON.stringify((() => {
+  // const initialRow = await executeExpression(`JSON.stringify((() => {
+  //   })())`).then(JSON.parse);
+  const initialRow = await executeExpression<string>(`JSON.stringify((() => {
     const row = document.querySelector('.classes-row');
     return { name: row.querySelector('.classes-name').value, fill: row.querySelector('.classes-fill').value };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { name: string; fill: string });
   assert.deepEqual(initialRow, { name: 'mine', fill: '#ff0000' });
   // Step: renaming the class in the dialog rewrites both the classDef and the class line.
   await executeExpression(`(() => {
@@ -111,7 +119,8 @@ test("test_classes_dialog_renames_recolors_and_deletes_a_class", async () => {
   })()`);
   await executeExpression("window.editorActionPromise");
   await waitMilliseconds(200);
-  let source = await executeExpression("codeBox.value");
+  // let source = await executeExpression("codeBox.value");
+  let source = await executeExpression<string>("codeBox.value");
   assert.match(source, /classDef renamed fill:#ff0000,stroke:#000000/);
   assert.match(source, /class B_ONE renamed/);
   // Step: deleting the class from the dialog comments out its classDef; the node becomes unclassed.
@@ -120,7 +129,8 @@ test("test_classes_dialog_renames_recolors_and_deletes_a_class", async () => {
   await executeExpression("document.querySelector('.classes-row .classes-delete').click()");
   await executeExpression("window.editorActionPromise");
   await waitMilliseconds(200);
-  source = await executeExpression("codeBox.value");
+  // source = await executeExpression("codeBox.value");
+  source = await executeExpression<string>("codeBox.value");
   assert.match(source, /%% classDef renamed fill:#ff0000,stroke:#000000/);
   // Step: an open modal makes the rest of the page inert, so later tests could not focus anything.
   await executeExpression("document.getElementById('classesCloseBtn').click()");

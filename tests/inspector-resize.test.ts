@@ -12,7 +12,9 @@ const TWO_BLOCKS = ["flowchart TD", '  B_START["Start"]', '  B_END["End"]', "  B
 type Measured = { centerColumnHeight: number; inspectorHeight: number; inspectorTop: number; outputBottom: number; outputHeight: number; textHeight: number; notesHeight: number; handleX: number; handleY: number; handleCursor: string };
 
 async function measure(): Promise<Measured> {
-    return JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // return JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // })())`));
+    return JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const inspector = document.getElementById('nodeInspector').getBoundingClientRect();
         const output = document.getElementById('output').getBoundingClientRect();
         const handle = document.getElementById('nodeInspectorResizeHandle');
@@ -24,7 +26,7 @@ async function measure(): Promise<Measured> {
             notesHeight: document.getElementById('nodeNotesInput').getBoundingClientRect().height,
             handleX: handleRect.left + handleRect.width / 2, handleY: handleRect.top + handleRect.height / 2, handleCursor: getComputedStyle(handle).cursor,
         };
-    })())`));
+    })())`)) as Measured;
 }
 
 async function selectBlockWithNoDragHistory() {

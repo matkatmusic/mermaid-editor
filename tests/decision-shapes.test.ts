@@ -31,7 +31,8 @@ async function loadFixture() {
 }
 
 async function readSourceLines(): Promise<string[]> {
-    return (await executeExpression("codeBox.value")).split("\n");
+    // return (await executeExpression("codeBox.value")).split("\n");
+    return (await executeExpression<string>("codeBox.value")).split("\n");
 }
 
 async function typeIntoNodeTextAndPressEnter(id: string, text: string) {

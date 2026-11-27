@@ -25,7 +25,8 @@ async function waitForClassAction() {
 }
 
 async function listPopupClassNames(): Promise<string[]> {
-    return JSON.parse(await executeExpression("JSON.stringify([...document.querySelectorAll('#classesList .classes-row')].map(row => row.dataset.className))"));
+    // return JSON.parse(await executeExpression("JSON.stringify([...document.querySelectorAll('#classesList .classes-row')].map(row => row.dataset.className))"));
+    return JSON.parse(await executeExpression<string>("JSON.stringify([...document.querySelectorAll('#classesList .classes-row')].map(row => row.dataset.className))")) as string[];
 }
 
 test("test_classes_popup_shows_a_renamed_class_in_a_new_document_that_has_no_file_to_save_into", async () => {
@@ -70,11 +71,12 @@ test("test_classes_popup_rebuilds_its_rows_after_a_recolor_in_a_new_document_tha
         fill.dispatchEvent(new Event('change', { bubbles: true }));
     })()`);
     await waitForClassAction();
-    const result = JSON.parse(await executeExpression(`JSON.stringify({
+    // const result = JSON.parse(await executeExpression(`JSON.stringify({ ... })`));
+    const result = JSON.parse(await executeExpression<string>(`JSON.stringify({
         oldRowStillShown: window.rowBeforeRecolor.isConnected,
         sourceHasNewFill: codeBox.value.includes('classDef alpha fill:#123456'),
         shownFill: document.querySelector('#classesList .classes-row[data-class-name="alpha"] .classes-fill').value,
-    })`));
+    })`)) as { oldRowStillShown: boolean; sourceHasNewFill: boolean; shownFill: string };
     await executeExpression("document.getElementById('classesCloseBtn').click()");
     // Step: the source holds the new fill, and the popup rebuilt its rows from it.
     assert.equal(result.sourceHasNewFill, true, JSON.stringify(result));

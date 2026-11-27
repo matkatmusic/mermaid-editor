@@ -18,7 +18,8 @@ async function startErrorLinkTest() {
 }
 
 async function clickLinkWithMouse(containerId: string) {
-  const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+  // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+  const center: { x: number; y: number } = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
     const rect = document.querySelector('#${containerId} button[data-line="${BAD_LINE_NUMBER}"]').getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   })())`));
@@ -27,8 +28,10 @@ async function clickLinkWithMouse(containerId: string) {
   await waitForRender();
 }
 
-async function readSourceSelection() {
-  return JSON.parse(await executeExpression(`JSON.stringify({
+// async function readSourceSelection() {
+async function readSourceSelection(): Promise<{ activeId: string; selectedText: string; lineText: string; isDrawerOpen: boolean; scrollTop: number }> {
+  // return JSON.parse(await executeExpression(`JSON.stringify({
+  return JSON.parse(await executeExpression<string>(`JSON.stringify({
     activeId: document.activeElement.id,
     selectedText: codeBox.value.slice(codeBox.selectionStart, codeBox.selectionEnd),
     lineText: codeBox.value.split('\\n')[${BAD_LINE_NUMBER - 1}],

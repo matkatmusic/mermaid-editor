@@ -15,7 +15,11 @@ async function startMultiSelectTest() {
     await waitMilliseconds(500);
 }
 
-async function getBadgeState() {
+// The page sends only `exists` when the badge is missing.
+type BadgeState = { exists: boolean; scrollTop: number; hidden: boolean; visible: boolean; text: string; left: number; top: number; offsetLeft: number; offsetTop: number };
+
+// async function getBadgeState() {
+async function getBadgeState(): Promise<BadgeState> {
     return JSON.parse(await executeExpression(`JSON.stringify((() => {
         const badge = document.getElementById('multiSelectBadge');
         if (!badge)
@@ -103,7 +107,8 @@ test("test_badge_has_the_highest_z_index_on_the_page", async () => {
     await startMultiSelectTest();
     await clickNodeWithMouse("B_A");
     await clickNodeWithMouse("B_B", Modifier.Meta);
-    const zIndexes = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const zIndexes = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const zIndexes: { badge: number; highestOther: number; named: Record<string, number> } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const read = (element) => Number.parseInt(getComputedStyle(element).zIndex, 10);
         const others = [...document.querySelectorAll('body *')].filter((element) => element.id !== 'multiSelectBadge' && !Number.isNaN(read(element)));
         const highestOther = Math.max(...others.map(read));

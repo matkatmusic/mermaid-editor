@@ -12,7 +12,8 @@ test('test_decision_navigation_steps_through_every_decision_in_source_order_and_
   await setEditorSource('flowchart TD\n  B_START["Start"]\n  Q_FIRST{"First decision"}\n  Q_CHOICE_FIRST_YES["Yes"]\n  Q_CHOICE_FIRST_NO["No"]\n  B_MIDDLE["Middle"]\n  Q_SECOND{"Second decision"}\n  Q_CHOICE_SECOND_YES["Yes"]\n  Q_CHOICE_SECOND_NO["No"]\n  B_START --> Q_FIRST\n  Q_FIRST --> Q_CHOICE_FIRST_YES --> B_MIDDLE --> Q_SECOND\n  Q_FIRST --> Q_CHOICE_FIRST_NO\n  Q_SECOND --> Q_CHOICE_SECOND_YES\n  Q_SECOND --> Q_CHOICE_SECOND_NO');
   // Step: the counter follows standalone brace-shaped decisions in source order.
   const initialCounter = await executeExpression("document.getElementById('decisionCounter').textContent");
-  const initialError = await executeExpression("document.getElementById('error').textContent");
+  // const initialError = await executeExpression("document.getElementById('error').textContent");
+  const initialError = await executeExpression<string>("document.getElementById('error').textContent");
   assert.equal(initialCounter, '1 / 2', initialError);
   assert.equal(await executeExpression("document.getElementById('nextDecisionBtn').nextElementSibling?.id"), 'decisionCounter');
   // Step: navigating sets the current decision and advances the counter.

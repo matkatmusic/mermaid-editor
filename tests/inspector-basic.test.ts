@@ -74,10 +74,12 @@ test("test_double_clicking_a_node_focuses_and_selects_the_text_input", async () 
   // Step: double-click the LetGo block node.
   await dispatchNodeDblclick("B_LetGo");
   // Step: the Text input is focused and its whole value is selected.
-  const focus = await executeExpression(`JSON.stringify((() => {
+  // const focus = await executeExpression(`JSON.stringify((() => {
+  // })())`).then(JSON.parse);
+  const focus = await executeExpression<string>(`JSON.stringify((() => {
     const input = document.getElementById('nodeTextInput');
     return { focused: document.activeElement === input, start: input.selectionStart, end: input.selectionEnd, length: input.value.length };
-  })())`).then(JSON.parse);
+  })())`).then((json) => JSON.parse(json) as { focused: boolean; start: number | null; end: number | null; length: number });
   assert.equal(focus.focused, true);
   assert.equal(focus.start, 0);
   assert.equal(focus.end, focus.length);
@@ -92,7 +94,8 @@ test("test_cancel_discards_uncommitted_text_and_closes_the_inspector", async () 
   // Step: press Cancel; the inspector closes and the source is unchanged.
   await executeExpression("document.getElementById('nodeInspectorDismissBtn').click()");
   assert.equal((await inspectorState()).hidden, true);
-  const source = await executeExpression("codeBox.value");
+  // const source = await executeExpression("codeBox.value");
+  const source = await executeExpression<string>("codeBox.value");
   assert.ok(source.includes('Q_Q1{"Can I be calm?"}'));
   // Step: reopening Q1 shows the saved label, not the typed text.
   await dispatchNodeClick("Q_Q1");
@@ -107,7 +110,8 @@ test("test_escape_discards_uncommitted_text_and_closes_the_inspector", async () 
   // Step: press Escape in the input; the inspector closes and the source is unchanged.
   await executeExpression("document.getElementById('nodeTextInput').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
   assert.equal((await inspectorState()).hidden, true);
-  const source = await executeExpression("codeBox.value");
+  // const source = await executeExpression("codeBox.value");
+  const source = await executeExpression<string>("codeBox.value");
   assert.ok(source.includes('Q_Q1{"Can I be calm?"}'));
 });
 
@@ -132,6 +136,7 @@ test("test_clicking_another_node_retargets_the_inspector_and_discards_text", asy
   assert.equal(state.hidden, false);
   assert.equal(state.title, "static block");
   assert.equal(state.text, "Let it go");
-  const source = await executeExpression("codeBox.value");
+  // const source = await executeExpression("codeBox.value");
+  const source = await executeExpression<string>("codeBox.value");
   assert.ok(source.includes('Q_Q1{"Can I be calm?"}'));
 });

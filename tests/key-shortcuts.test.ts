@@ -37,11 +37,13 @@ async function recordDefaultPreventedOnKeydown() {
 test("test_cmd_s_saves_the_diagram_while_typing_in_the_source_editor", async () => {
   await startShortcutTest('flowchart TD\n  B_UNIQUE_SAVE_MARK["mark"]');
   // Step: before the key, the file on disk does not hold the typed text.
-  const fileBefore = await executeExpression(`fetch('/api/diagrams/${EDITOR_FIXTURE_NAME}').then((response) => response.text())`);
+  // const fileBefore = await executeExpression(`fetch('/api/diagrams/${EDITOR_FIXTURE_NAME}').then((response) => response.text())`);
+  const fileBefore = await executeExpression<string>(`fetch('/api/diagrams/${EDITOR_FIXTURE_NAME}').then((response) => response.text())`);
   assert.ok(!fileBefore.includes("B_UNIQUE_SAVE_MARK"));
   await executeExpression("codeBox.focus()");
   await pressKey(KeyName.S, Modifier.Meta);
-  const fileAfter = await executeExpression(`fetch('/api/diagrams/${EDITOR_FIXTURE_NAME}').then((response) => response.text())`);
+  // const fileAfter = await executeExpression(`fetch('/api/diagrams/${EDITOR_FIXTURE_NAME}').then((response) => response.text())`);
+  const fileAfter = await executeExpression<string>(`fetch('/api/diagrams/${EDITOR_FIXTURE_NAME}').then((response) => response.text())`);
   assert.ok(fileAfter.includes("B_UNIQUE_SAVE_MARK"));
 });
 
@@ -57,8 +59,10 @@ test("test_cmd_f_puts_the_cursor_in_search_nodes_and_selects_its_text", async ()
   await startShortcutTest(THREE_BLOCKS);
   await executeExpression("document.getElementById('searchInput').value = 'hello'; codeBox.focus()");
   await pressKey(KeyName.F, Modifier.Meta);
-  const state = await executeExpression("JSON.stringify({ id: document.activeElement.id, start: searchInput.selectionStart, end: searchInput.selectionEnd })");
-  assert.deepEqual(JSON.parse(state), { id: "searchInput", start: 0, end: 5 });
+  // const state = await executeExpression("JSON.stringify({ id: document.activeElement.id, start: searchInput.selectionStart, end: searchInput.selectionEnd })");
+  const state = await executeExpression<string>("JSON.stringify({ id: document.activeElement.id, start: searchInput.selectionStart, end: searchInput.selectionEnd })");
+  // assert.deepEqual(JSON.parse(state), { id: "searchInput", start: 0, end: 5 });
+  assert.deepEqual(JSON.parse(state) as { id: string; start: number | null; end: number | null }, { id: "searchInput", start: 0, end: 5 });
 });
 
 // Task 54
@@ -96,7 +100,8 @@ test("test_arrow_down_centers_the_newly_selected_node", async () => {
   for (let step = 0; step < 14; step++)
     await pressKey(KeyName.ArrowDown);
   assert.equal(await executeExpression("selectedEditorNodeId"), "B_N19");
-  const offsetFromCenter = await executeExpression(`(() => {
+  // const offsetFromCenter = await executeExpression(`(() => {
+  const offsetFromCenter = await executeExpression<number>(`(() => {
     const output = document.getElementById('output').getBoundingClientRect();
     const node = document.querySelector('#diagram [id*="flowchart-B_N19-"]').getBoundingClientRect();
     return Math.abs(node.top + node.height / 2 - (output.top + output.height / 2));

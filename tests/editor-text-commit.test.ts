@@ -14,7 +14,8 @@ test("test_node_text_tab_writes_text", async () => {
   await executeExpression("(() => { const input = document.getElementById('nodeTextInput'); input.value = 'Can I breathe?'; input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })); })()");
   await executeExpression("window.editorActionPromise");
   // Step: the diagram source has the new text.
-  const source = await executeExpression("codeBox.value");
+  // const source = await executeExpression("codeBox.value");
+  const source = await executeExpression<string>("codeBox.value");
   assert.ok(source.includes('Q_Q1{"Can I breathe?"}'));
 });
 
@@ -25,12 +26,14 @@ test("test_node_text_click_away_writes_text_and_keeps_clicked_node_selected", as
   await executeExpression("(() => { const input = document.getElementById('nodeTextInput'); input.focus(); input.select(); })()");
   await send("Input.insertText", { text: "Can I pause?" });
   // Step: click the LetGo block node with a real mouse click, which blurs the Text input.
-  const point = JSON.parse(await executeExpression("JSON.stringify((() => { const el = document.querySelector('[id*=\"flowchart-B_LetGo-\"]'); el.scrollIntoView({ block: 'center', inline: 'center' }); const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })())"));
+  // const point = JSON.parse(await executeExpression("JSON.stringify((() => { const el = document.querySelector('[id*=\"flowchart-B_LetGo-\"]'); el.scrollIntoView({ block: 'center', inline: 'center' }); const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })())"));
+  const point = JSON.parse(await executeExpression<string>("JSON.stringify((() => { const el = document.querySelector('[id*=\"flowchart-B_LetGo-\"]'); el.scrollIntoView({ block: 'center', inline: 'center' }); const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })())")) as { x: number; y: number };
   await send("Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "left", clickCount: 1 });
   await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: point.x, y: point.y, button: "left", clickCount: 1 });
   await executeExpression("window.editorActionPromise");
   // Step: the source has Q1's new text, and the clicked node is the selected one.
-  const source = await executeExpression("codeBox.value");
+  // const source = await executeExpression("codeBox.value");
+  const source = await executeExpression<string>("codeBox.value");
   assert.ok(source.includes('Q_Q1{"Can I pause?"}'));
   const inspector = await inspectorState();
   assert.equal(inspector.title, "static block");

@@ -17,7 +17,8 @@ test("test_class_picker_menu_grows_to_fit_the_longest_class_name_and_keeps_every
   // Step: open the class picker menu.
   await executeExpression("document.getElementById('classPickerBtn').click()");
   await waitMilliseconds(200);
-  const measurements = JSON.parse(await executeExpression(`JSON.stringify({
+  // const measurements = JSON.parse(await executeExpression(`JSON.stringify({
+  const measurements: { buttonWidth: number; listWidth: number; swatchWidths: number[]; rowsWithWrappedText: number; longRowTextHeight: number; shortRowTextHeight: number } = JSON.parse(await executeExpression<string>(`JSON.stringify({
     buttonWidth: document.getElementById('classPickerBtn').getBoundingClientRect().width,
     listWidth: document.getElementById('classPickerList').getBoundingClientRect().width,
     swatchWidths: Array.from(document.querySelectorAll('#classPickerList .class-swatch')).map(swatch => swatch.getBoundingClientRect().width),

@@ -18,8 +18,10 @@ async function openClassPickerWithManyClasses() {
     await waitMilliseconds(200);
 }
 
-async function measureClassPickerList() {
-    return JSON.parse(await executeExpression(`JSON.stringify((() => {
+// async function measureClassPickerList() {
+async function measureClassPickerList(): Promise<{ listTop: number; listBottom: number; scrollHeight: number; clientHeight: number; rows: { text: string; top: number; bottom: number }[]; windowHeight: number }> {
+    // return JSON.parse(await executeExpression(`JSON.stringify((() => {
+    return JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const list = document.getElementById('classPickerList');
         const listRect = list.getBoundingClientRect();
         const rows = [...list.querySelectorAll('.class-picker-row')].map((row) => { const rect = row.getBoundingClientRect(); return { text: row.textContent.trim(), top: rect.top, bottom: rect.bottom }; });

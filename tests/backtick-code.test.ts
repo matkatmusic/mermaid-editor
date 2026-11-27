@@ -17,7 +17,8 @@ async function startBacktickTest() {
 
 test("test_main_diagram_shows_text_in_backticks_as_a_code_span_without_the_backticks", async () => {
     await startBacktickTest();
-    const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const measured: { labelTop: number; labelBottom: number; nodeTop: number; nodeBottom: number; codeTops: number[]; codeTexts: string[]; nodeText: string; fontFamily: string; backgroundColor: string; paddingLeft: number; codeRights: number[]; nodeRight: number; codeLefts: number[]; nodeLeft: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const node = document.querySelector('#diagram [id*="flowchart-B_A-"]');
         const codes = [...node.querySelectorAll('code')];
         const style = getComputedStyle(codes[0]);
@@ -40,7 +41,8 @@ test("test_main_diagram_shows_text_in_backticks_as_a_code_span_without_the_backt
 
 test("test_a_single_backtick_without_a_partner_stays_as_it_is", async () => {
     await startBacktickTest();
-    const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const measured: { codeCount: number; nodeText: string } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const node = document.querySelector('#diagram [id*="flowchart-B_B-"]');
         return { codeCount: node.querySelectorAll('code').length, nodeText: node.textContent.trim() };
     })())`));
@@ -50,7 +52,8 @@ test("test_a_single_backtick_without_a_partner_stays_as_it_is", async () => {
 
 test("test_the_file_and_the_node_text_box_keep_the_raw_backticks", async () => {
     await startBacktickTest();
-    assert.ok((await executeExpression("codeBox.value")).includes('B_A["Use `bytes` and `count` here"]'));
+    // assert.ok((await executeExpression("codeBox.value")).includes('B_A["Use `bytes` and `count` here"]'));
+    assert.ok((await executeExpression<string>("codeBox.value")).includes('B_A["Use `bytes` and `count` here"]'));
     await clickNodeWithMouse("B_A");
     await waitMilliseconds(300);
     assert.equal(await executeExpression("document.getElementById('nodeTextInput').value"), "Use `bytes` and `count` here");
@@ -60,7 +63,8 @@ test("test_phone_view_shows_text_in_backticks_as_a_code_span_without_the_backtic
     await startBacktickTest();
     await clickNodeWithMouse("B_A");
     await waitMilliseconds(500);
-    const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const measured: { codeTexts: string[]; blockText: string; fontFamily: string; backgroundColor: string } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const block = document.querySelector('#phoneDiagram [data-node-id="B_A"]');
         const codes = [...block.querySelectorAll('code')];
         const style = getComputedStyle(codes[0]);

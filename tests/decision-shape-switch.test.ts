@@ -40,18 +40,22 @@ interface SwitchState {
 }
 
 async function readSwitchState(): Promise<SwitchState> {
-    return JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // return JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // })())`));
+    return JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const row = document.getElementById('decisionShapeRow');
         const rect = row.getBoundingClientRect();
         return { isShown: !row.hidden && rect.width > 0 && rect.height > 0, isOnDiamondSide: document.getElementById('decisionShapeSwitch').checked };
-    })())`));
+    })())`)) as SwitchState;
 }
 
 async function clickSwitchWithMouse() {
-    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // })())`));
+    const center = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const rect = document.getElementById('decisionShapeSwitch').getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    })())`));
+    })())`)) as { x: number; y: number };
     await send("Input.dispatchMouseEvent", { type: "mousePressed", x: center.x, y: center.y, button: "left", clickCount: 1 });
     await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: center.x, y: center.y, button: "left", clickCount: 1 });
     await executeExpression("window.editorActionPromise");
@@ -59,7 +63,8 @@ async function clickSwitchWithMouse() {
 }
 
 async function readSourceLines(): Promise<string[]> {
-    return (await executeExpression("codeBox.value")).split("\n");
+    // return (await executeExpression("codeBox.value")).split("\n");
+    return (await executeExpression<string>("codeBox.value")).split("\n");
 }
 
 async function countShapePoints(id: string): Promise<number> {
@@ -96,7 +101,8 @@ test("test_switch_knob_is_on_the_hexagon_side_for_a_double_brace_decision", asyn
 test("test_clicking_the_switch_turns_a_diamond_decision_into_a_hexagon_and_changes_only_that_line", async () => {
     await loadFixtureAndSelect("Q_DIAMOND");
     const linesBefore = await readSourceLines();
-    const historyLengthBefore = await executeExpression("editorHistory.length");
+    // const historyLengthBefore = await executeExpression("editorHistory.length");
+    const historyLengthBefore = await executeExpression<number>("editorHistory.length");
     await clickSwitchWithMouse();
     const linesAfter = await readSourceLines();
     const changedLineNumbers = linesBefore.map((line, index) => (line === linesAfter[index] ? -1 : index)).filter((index) => index >= 0);

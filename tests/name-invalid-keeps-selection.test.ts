@@ -25,8 +25,10 @@ async function assertSelectionStayedWithErrorAndNotice() {
     assert.equal(await executeExpression("multiSelectedNodeIds.length"), 0);
     assert.equal(await executeExpression("document.getElementById('nodeNameInput').value"), "BAD-NAME");
     assert.equal(await executeExpression("document.getElementById('nodeNameCheck').classList.contains('error')"), true);
-    assert.ok((await executeExpression("document.getElementById('nodeNameCheck').textContent")).includes("cannot contain"));
-    const notice = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // assert.ok((await executeExpression("document.getElementById('nodeNameCheck').textContent")).includes("cannot contain"));
+    assert.ok((await executeExpression<string>("document.getElementById('nodeNameCheck').textContent")).includes("cannot contain"));
+    // const notice = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const notice: { visible: boolean; text: string } = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const element = document.getElementById('inspectorNotice');
         const rect = element.getBoundingClientRect();
         return { visible: rect.width > 0 && rect.height > 0, text: element.textContent };

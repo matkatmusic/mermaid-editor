@@ -26,7 +26,8 @@ async function typeNodeTextAndPressEnter(id: string, text: string) {
 }
 
 async function getCodeSpanTexts(selector: string): Promise<string[]> {
-    return JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('${selector} code')].map((code) => code.textContent))`));
+    // return JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('${selector} code')].map((code) => code.textContent))`));
+    return JSON.parse(await executeExpression<string>(`JSON.stringify([...document.querySelectorAll('${selector} code')].map((code) => code.textContent))`)) as string[];
 }
 
 test("test_typed_backticks_are_saved_as_entities_and_the_file_parses", async () => {
@@ -34,7 +35,8 @@ test("test_typed_backticks_are_saved_as_entities_and_the_file_parses", async () 
     await loadFixture();
     await typeNodeTextAndPressEnter("B_A", USER_LABEL);
     // The file holds #96; for every backtick.
-    const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    // const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    const lines: string[] = (await executeExpression<string>("codeBox.value")).split("\n");
     assert.ok(lines.includes(`  B_A["${FILE_LABEL}"]`), lines.join("|"));
     // The editor shows no error and Mermaid parses the file text as it is.
     assert.equal(await executeExpression("document.getElementById('error').textContent"), "");
@@ -67,7 +69,8 @@ test("test_saving_the_same_node_text_again_leaves_the_file_identical", async () 
 test("test_a_backtick_in_the_middle_of_node_text_is_saved_as_an_entity", async () => {
     await loadFixture();
     await typeNodeTextAndPressEnter("B_A", "Use `x` now");
-    const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    // const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    const lines: string[] = (await executeExpression<string>("codeBox.value")).split("\n");
     assert.ok(lines.includes('  B_A["Use #96;x#96; now"]'), lines.join("|"));
     assert.deepEqual(await getCodeSpanTexts('#diagram [id*="flowchart-B_A-"]'), ["x"]);
 });

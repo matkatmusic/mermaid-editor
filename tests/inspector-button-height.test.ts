@@ -19,7 +19,8 @@ test("test_inspector_buttons_are_twenty_to_twenty_five_percent_shorter_and_keep_
     await waitMilliseconds(500);
     await clickNodeWithMouse("B_A");
     await waitMilliseconds(300);
-    const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const measured: { count: number; heights: number[]; fontSizes: number[]; walkBackHeight: number } = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const buttons = [...document.querySelectorAll('#nodeInspectorActions button')];
         const walkBack = document.getElementById('walkBackBtn');
         return { count: buttons.length, heights: buttons.map((button) => button.getBoundingClientRect().height), fontSizes: buttons.map((button) => parseFloat(getComputedStyle(button).fontSize)), walkBackHeight: walkBack.getBoundingClientRect().height };

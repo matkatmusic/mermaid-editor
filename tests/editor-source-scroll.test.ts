@@ -11,7 +11,8 @@ const FAR_NODE_ID = "B_SELF_CREATE_SYNTHETIC_IMPACT_STATEMENT";
 
 async function selectedLineBounds() {
   // Measure the soft-wrapped selected line with a hidden copy of the textarea text.
-  return executeExpression(`JSON.stringify((() => {
+  // return executeExpression(`JSON.stringify((() => {
+  return executeExpression<string>(`JSON.stringify((() => {
     const style = getComputedStyle(codeBox);
     const mirror = document.createElement('div');
     for (const name of ['fontFamily', 'fontSize', 'lineHeight', 'letterSpacing', 'tabSize', 'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight', 'borderLeftWidth', 'borderRightWidth', 'boxSizing'])
@@ -30,7 +31,9 @@ async function selectedLineBounds() {
     const bottom = top + marker.offsetHeight;
     mirror.remove();
     return { top, bottom, viewTop: codeBox.scrollTop, viewBottom: codeBox.scrollTop + codeBox.clientHeight };
-  })())`).then(JSON.parse);
+  })())`)
+    // })())`).then(JSON.parse);
+    .then((json) => JSON.parse(json) as { top: number; bottom: number; viewTop: number; viewBottom: number });
 }
 
 test("test_clicking_a_node_scrolls_the_source_to_its_declaration_only_when_the_drawer_is_open", async () => {

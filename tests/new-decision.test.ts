@@ -12,9 +12,11 @@ test('test_new_decision_button_and_destination_option_have_identical_source_and_
   await resetEditorFixture();
   await setEditorSource(fixture);
   await dispatchNodeClick('B_B');
-  const buttonHistoryLength = await executeExpression('editorHistory.length');
+  // const buttonHistoryLength = await executeExpression('editorHistory.length');
+  const buttonHistoryLength = await executeExpression<number>('editorHistory.length');
   await clickInspectorAction('add-decision-after');
-  const buttonSource = await executeExpression('codeBox.value');
+  // const buttonSource = await executeExpression('codeBox.value');
+  const buttonSource = await executeExpression<string>('codeBox.value');
   assert.ok(buttonSource.includes('B_A --> B_B'));
   assert.ok(buttonSource.includes('B_B --> Q_NEW_1'));
   assert.ok(buttonSource.includes('Q_NEW_1{{"New Decision"}}'));
@@ -44,10 +46,12 @@ test('test_new_decision_text_enter_commits_the_new_decision', async () => {
   await setEditorSource('flowchart TD\n  B_START["Start"]');
   await dispatchNodeClick('B_START');
   await chooseDestination('new-decision');
-  const historyBeforeText = await executeExpression('editorHistory.length');
+  // const historyBeforeText = await executeExpression('editorHistory.length');
+  const historyBeforeText = await executeExpression<number>('editorHistory.length');
   await executeExpression(`(() => { const input = document.getElementById('nodeTextInput'); input.value = 'Decide next'; input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`);
   await executeExpression('window.editorActionPromise');
-  const source = await executeExpression('codeBox.value');
+  // const source = await executeExpression('codeBox.value');
+  const source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('Q_NEW_1{{"Decide next"}}'));
   assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_Y'));
   assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_N'));
@@ -59,9 +63,11 @@ test('test_add_choice_on_inspector_appends_a_new_terminal_choice_without_touchin
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  Q_Q{"Q"}\n  Q_CHOICE_Q_A["A"]\n  B_END["End"]\n  Q_Q --> Q_CHOICE_Q_A\n  Q_CHOICE_Q_A --> B_END');
   await dispatchNodeClick('Q_Q');
-  const beforeCount = await executeExpression('getEditorGraph().edges.filter(e => e.from === "Q_Q").length');
+  // const beforeCount = await executeExpression('getEditorGraph().edges.filter(e => e.from === "Q_Q").length');
+  const beforeCount = await executeExpression<number>('getEditorGraph().edges.filter(e => e.from === "Q_Q").length');
   await clickInspectorAction('add-choice');
-  const source = await executeExpression('codeBox.value');
+  // const source = await executeExpression('codeBox.value');
+  const source = await executeExpression<string>('codeBox.value');
   // Step: a brand-new terminal choice is appended, growing Q's branch count by one.
   assert.ok(source.includes('Q_CHOICE_Q_NEW["New choice"]'));
   assert.ok(source.includes('Q_Q --> Q_CHOICE_Q_NEW'));
@@ -79,14 +85,16 @@ test('test_add_choice_on_inspector_selects_the_new_choice', async () => {
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  B_START["Start"]\n  Q_DECISION{"Q"}\n  Q_CHOICE_DECISION_YES["Yes"]\n  B_END["End"]\n  B_START --> Q_DECISION\n  Q_DECISION --> Q_CHOICE_DECISION_YES\n  Q_CHOICE_DECISION_YES --> B_END');
   await dispatchNodeClick('Q_DECISION');
-  const historyBefore = await executeExpression('editorHistory.length');
+  // const historyBefore = await executeExpression('editorHistory.length');
+  const historyBefore = await executeExpression<number>('editorHistory.length');
   await clickInspectorAction('add-choice');
   // Step: the inspector is open and the new choice is the selected node.
   const state = await inspectorState();
   assert.equal(state.hidden, false);
   assert.equal(state.text, 'New choice');
   assert.equal((await inspectorFocus()).selectedId, 'Q_CHOICE_DECISION_NEW');
-  const source = await executeExpression('codeBox.value');
+  // const source = await executeExpression('codeBox.value');
+  const source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('Q_CHOICE_DECISION_NEW["New choice"]'));
   assert.ok(source.includes('Q_DECISION --> Q_CHOICE_DECISION_NEW'));
   // Step: the add-choice commit is exactly one new undo entry.

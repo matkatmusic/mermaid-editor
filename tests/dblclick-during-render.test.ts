@@ -21,7 +21,8 @@ test("test_double_click_works_when_the_render_of_the_first_click_ends_between_th
       return result;
     };
   })()`);
-  const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+  // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+  const center: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
     const node = document.querySelector('#diagram [id*="flowchart-B_MIDDLE-"]');
     node.scrollIntoView({ block: 'center', inline: 'center' });
     const rect = node.getBoundingClientRect();
@@ -41,7 +42,8 @@ test("test_double_click_works_when_the_render_of_the_first_click_ends_between_th
   await waitMilliseconds(300);
   await releaseMouse(2);
   await waitMilliseconds(600);
-  const selection = JSON.parse(await executeExpression(`JSON.stringify({
+  // const selection = JSON.parse(await executeExpression(`JSON.stringify({
+  const selection: { activeId: string; value: string; start: number | null; end: number | null } = JSON.parse(await executeExpression(`JSON.stringify({
     activeId: document.activeElement.id,
     value: document.getElementById('nodeTextInput').value,
     start: document.getElementById('nodeTextInput').selectionStart,

@@ -14,6 +14,20 @@ function buildSourceWithClasses(classCount: number) {
     return `flowchart TD\n  B_ONE["One"]\n  B_TWO["Two"]\n  B_ONE --> B_TWO\n${classLines.join("\n")}`;
 }
 
+type PopupMeasurement = {
+    isOpen: boolean;
+    rowCount: number;
+    hasNewRow: boolean;
+    dialogTop: number;
+    dialogBottom: number;
+    dialogClientHeight: number;
+    dialogScrollHeight: number;
+    newRowTop: number | null;
+    newRowBottom: number | null;
+    isNewRowInsideDialog: boolean;
+    windowHeight: number;
+};
+
 const MEASURE_POPUP = `JSON.stringify((() => {
     const dialog = document.getElementById('classesDialog');
     const dialogRect = dialog.getBoundingClientRect();
@@ -57,7 +71,8 @@ async function measureAfterCreatingFromPopup(startingClassCount: number) {
     await waitForRender();
     await openClassesPopup();
     await createClassFromPopup();
-    return JSON.parse(await executeExpression(MEASURE_POPUP));
+    // return JSON.parse(await executeExpression(MEASURE_POPUP));
+    return JSON.parse(await executeExpression<string>(MEASURE_POPUP)) as PopupMeasurement;
 }
 
 test("test_classes_popup_shows_the_new_class_when_it_started_with_4_classes", async () => {
@@ -79,7 +94,8 @@ test("test_classes_popup_shows_the_new_class_when_it_started_with_5_classes", as
     // Step: after close and reopen the new row is still in the popup.
     await closeClassesPopup();
     await openClassesPopup();
-    const reopened = JSON.parse(await executeExpression(MEASURE_POPUP));
+    // const reopened = JSON.parse(await executeExpression(MEASURE_POPUP));
+    const reopened = JSON.parse(await executeExpression<string>(MEASURE_POPUP)) as PopupMeasurement;
     await closeClassesPopup();
     assert.ok(reopened.isNewRowInsideDialog, JSON.stringify(reopened));
 });
@@ -92,10 +108,12 @@ test("test_classes_popup_shows_the_new_class_in_a_new_document_that_has_no_file_
     await waitForRender();
     // Step: open File > Classes and count the rows.
     await openClassesPopup();
-    const rowCountBefore = await executeExpression("document.querySelectorAll('#classesList .classes-row').length");
+    // const rowCountBefore = await executeExpression("document.querySelectorAll('#classesList .classes-row').length");
+    const rowCountBefore = await executeExpression<number>("document.querySelectorAll('#classesList .classes-row').length");
     // Step: create a class with the popup's New... button, with the popup open the whole time.
     await createClassFromPopup();
-    const measured = JSON.parse(await executeExpression(MEASURE_POPUP));
+    // const measured = JSON.parse(await executeExpression(MEASURE_POPUP));
+    const measured = JSON.parse(await executeExpression<string>(MEASURE_POPUP)) as PopupMeasurement;
     await closeClassesPopup();
     // Step: the new row is in the popup right away, even though saving the file is not possible.
     assert.equal(measured.rowCount, rowCountBefore + 1, JSON.stringify(measured));

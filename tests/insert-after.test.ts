@@ -12,9 +12,11 @@ test('test_new_static_button_and_destination_option_have_identical_terminal_orph
   await resetEditorFixture();
   await setEditorSource(fixture);
   await dispatchNodeClick('Q_CHOICE_Q_A');
-  const buttonHistoryLength = await executeExpression('editorHistory.length');
+  // const buttonHistoryLength = await executeExpression('editorHistory.length');
+  const buttonHistoryLength = await executeExpression<number>('editorHistory.length');
   await clickInspectorAction('add-static-after');
-  const buttonSource = await executeExpression('codeBox.value');
+  // const buttonSource = await executeExpression('codeBox.value');
+  const buttonSource = await executeExpression<string>('codeBox.value');
   assert.ok(buttonSource.includes('Q_CHOICE_Q_A --> B_NEW_1'));
   assert.ok(buttonSource.includes('B_NEW_1["New static block"]'));
   assert.ok(!buttonSource.includes('Q_CHOICE_Q_A --> B_B'));
@@ -27,7 +29,8 @@ test('test_new_static_button_and_destination_option_have_identical_terminal_orph
   await resetEditorFixture();
   await setEditorSource(fixture);
   await dispatchNodeClick('Q_CHOICE_Q_A');
-  const menuHistoryLength = await executeExpression('editorHistory.length');
+  // const menuHistoryLength = await executeExpression('editorHistory.length');
+  const menuHistoryLength = await executeExpression<number>('editorHistory.length');
   await chooseDestination('new-static');
   assert.equal(await executeExpression('codeBox.value'), buttonSource);
   assert.deepEqual(await inspectorFocus(), { activeId: 'nodeTextInput', selectedId: 'B_NEW_1' });
@@ -41,7 +44,8 @@ test('test_insert_static_after_splices_a_static_or_choice_node_without_dropping_
   await setEditorSource(fixture);
   await dispatchNodeClick('B_B');
   await clickInspectorAction('insert-static-after');
-  let source = await executeExpression('codeBox.value');
+  // let source = await executeExpression('codeBox.value');
+  let source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('B_A --> B_B'));
   assert.ok(source.includes('B_B --> B_NEW_1'));
   assert.ok(source.includes('B_NEW_1["New static block"]'));
@@ -53,7 +57,8 @@ test('test_insert_static_after_splices_a_static_or_choice_node_without_dropping_
   await setEditorSource('flowchart TD\n  Q_PICK{"Q"}\n  Q_CHOICE_PICK_A["A"]\n  B_C["C"]\n  Q_PICK --> Q_CHOICE_PICK_A\n  Q_CHOICE_PICK_A --> B_C');
   await dispatchNodeClick('Q_CHOICE_PICK_A');
   await clickInspectorAction('insert-static-after');
-  source = await executeExpression('codeBox.value');
+  // source = await executeExpression('codeBox.value');
+  source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('Q_PICK --> Q_CHOICE_PICK_A'));
   assert.ok(source.includes('Q_CHOICE_PICK_A --> B_NEW_1'));
   assert.ok(source.includes('B_NEW_1 --> B_C'));
@@ -66,7 +71,8 @@ test('test_insert_static_after_a_terminal_node_matches_terminal_add_static_behav
   await setEditorSource('flowchart TD\n  B_A["A"]');
   await dispatchNodeClick('B_A');
   await clickInspectorAction('insert-static-after');
-  const source = await executeExpression('codeBox.value');
+  // const source = await executeExpression('codeBox.value');
+  const source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('B_A --> B_NEW_1'));
   assert.ok(source.includes('B_NEW_1["New static block"]'));
   assert.ok(!source.includes('B_NEW_1 -->'));
@@ -78,7 +84,8 @@ test('test_insert_decision_after_splices_blocks_and_choices_with_one_terminal_br
   await setEditorSource('flowchart TD\n  B_A["A"]\n  B_B["B"]\n  B_C["C"]\n  B_A --> B_B\n  B_B --> B_C');
   await dispatchNodeClick('B_B');
   await clickInspectorAction('insert-decision-after');
-  let source = await executeExpression('codeBox.value');
+  // let source = await executeExpression('codeBox.value');
+  let source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('B_A --> B_B'));
   assert.ok(source.includes('B_B --> Q_NEW_1'));
   assert.ok(source.includes('Q_NEW_1{{"New Decision"}}'));
@@ -95,7 +102,8 @@ test('test_insert_decision_after_splices_blocks_and_choices_with_one_terminal_br
   await setEditorSource('flowchart TD\n  Q_PICK{"Q"}\n  Q_CHOICE_PICK_A["A"]\n  B_C["C"]\n  Q_PICK --> Q_CHOICE_PICK_A\n  Q_CHOICE_PICK_A --> B_C');
   await dispatchNodeClick('Q_CHOICE_PICK_A');
   await clickInspectorAction('insert-decision-after');
-  source = await executeExpression('codeBox.value');
+  // source = await executeExpression('codeBox.value');
+  source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('Q_PICK --> Q_CHOICE_PICK_A'));
   assert.ok(source.includes('Q_CHOICE_PICK_A --> Q_NEW_1'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_Y --> B_C'));
@@ -109,7 +117,8 @@ test('test_insert_decision_after_a_terminal_node_creates_two_terminal_choices', 
   await setEditorSource('flowchart TD\n  B_A["A"]');
   await dispatchNodeClick('B_A');
   await clickInspectorAction('insert-decision-after');
-  const source = await executeExpression('codeBox.value');
+  // const source = await executeExpression('codeBox.value');
+  const source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('B_A --> Q_NEW_1'));
   assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_Y'));
   assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_N'));
@@ -124,7 +133,8 @@ test('test_new_static_text_enter_keeps_selection_and_focuses_destination', async
   await chooseDestination('new-static');
   await executeExpression(`(() => { const input = document.getElementById('nodeTextInput'); input.value = 'Follow up'; input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`);
   await executeExpression('window.editorActionPromise');
-  assert.ok((await executeExpression('codeBox.value')).includes('B_NEW_1["Follow up"]'));
+  // assert.ok((await executeExpression('codeBox.value')).includes('B_NEW_1["Follow up"]'));
+  assert.ok((await executeExpression<string>('codeBox.value')).includes('B_NEW_1["Follow up"]'));
   assert.deepEqual(await inspectorFocus(), { activeId: 'destinationInput', selectedId: 'B_NEW_1' });
   await assertEditorSourceIsSavedAndValid();
 });

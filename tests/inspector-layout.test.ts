@@ -9,8 +9,16 @@ registerBrowserHooks(import.meta.url, openEditorDrawer);
 
 const SOURCE = ["flowchart TD", '  B_START["Start"]', '  Q_ASK{"Ask?"}', '  Q_CHOICE_ASK_YES["Yes"]', '  B_END["End"]', "  B_START --> Q_ASK", "  Q_ASK --> Q_CHOICE_ASK_YES --> B_END"].join("\n");
 
-async function measureInspector() {
-  return executeExpression(`JSON.stringify((() => {
+// async function measureInspector() {
+async function measureInspector(): Promise<{
+  nodeTextLabelFont: number; kindLabelFont: number; parentFont: number;
+  kindRow: ItemBox & { height: number }; nameInput: ItemBox & { height: number }; nameCheck: ItemBox & { height: number };
+  textInput: ItemBox & { height: number }; notesInput: ItemBox & { height: number }; textHint: ItemBox & { height: number }; notesHint: ItemBox & { height: number };
+  classPicker: ItemBox & { height: number }; destination: ItemBox & { height: number };
+  firstAction: ItemBox & { height: number };
+}> {
+  // return executeExpression(`JSON.stringify((() => {
+  return executeExpression<string>(`JSON.stringify((() => {
     const box = (element) => { const rect = element.getBoundingClientRect(); return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, height: rect.height }; };
     const byId = (id) => box(document.getElementById(id));
     const fontSize = (element) => parseFloat(getComputedStyle(element).fontSize);
@@ -74,7 +82,8 @@ test("test_walk_back_button_sits_on_the_remove_button_line_and_has_a_tooltip", a
   const measured = await selectChoiceAndMeasure();
   assert.ok(measured.firstAction.height > 0);
   // Step: measure the Walk back button, the Remove button and the Destination picker.
-  const walkBack = JSON.parse(await executeExpression(`JSON.stringify((() => {
+  // const walkBack = JSON.parse(await executeExpression(`JSON.stringify((() => {
+  const walkBack: { walkBackTop: number; removeTop: number; isInActionsRow: boolean; isInDestinationRow: boolean; title: string } = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
     const walkBackBtn = document.getElementById('walkBackBtn');
     const removeBtn = document.querySelector('#nodeInspectorActions button[data-action="remove"]');
     return {
@@ -99,7 +108,8 @@ for (const nodeId of ["Q_CHOICE_ASK_YES", "B_" + "LONG_".repeat(30) + "END"]) {
     await clickNodeWithMouse(nodeId);
     await waitMilliseconds(300);
     // Step: measure the Node Name input, the result text and the inspector.
-    const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const measured: { input: ItemBox; result: ItemBox; inspector: ItemBox; text: string } = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
       const box = (id) => { const rect = document.getElementById(id).getBoundingClientRect(); return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right }; };
       return { input: box('nodeNameInput'), result: box('nodeNameCheck'), inspector: box('nodeInspector'), text: document.getElementById('nodeNameCheck').textContent };
     })())`));
@@ -113,13 +123,18 @@ for (const nodeId of ["Q_CHOICE_ASK_YES", "B_" + "LONG_".repeat(30) + "END"]) {
   });
 }
 
-async function selectNodeAndMeasureKindRow(id: string) {
+// async function selectNodeAndMeasureKindRow(id: string) {
+async function selectNodeAndMeasureKindRow(id: string): Promise<{
+  items: { staticLabel: ItemBox; decisionLabel: ItemBox; choiceLabel: ItemBox; shapeSwitchLabel: ItemBox };
+  shapeSwitchShown: boolean; alignButtons: ItemBox[]; inspector: ItemBox;
+}> {
   await resetEditorFixture();
   await setEditorSource(SOURCE);
   await waitMilliseconds(500);
   await clickNodeWithMouse(id);
   await waitMilliseconds(300);
-  return executeExpression(`JSON.stringify((() => {
+  // return executeExpression(`JSON.stringify((() => {
+  return executeExpression<string>(`JSON.stringify((() => {
     const box = (element) => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }; };
     const labelOf = (checkboxId) => box(document.getElementById(checkboxId).closest('label'));
     const items = {

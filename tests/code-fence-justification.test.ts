@@ -77,7 +77,8 @@ async function selectBlock() {
 }
 
 async function clickAlignButtonWithMouse(attributeName: "justification" | "alignment", value: string) {
-    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const center: { x: number; y: number } = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const button = document.querySelector('#nodeAlignRow button[data-${attributeName}="${value}"]');
         button.scrollIntoView({ block: 'center', inline: 'center' });
         const rect = button.getBoundingClientRect();
@@ -90,7 +91,8 @@ async function clickAlignButtonWithMouse(attributeName: "justification" | "align
 }
 
 async function readPropsLines(): Promise<string[]> {
-    return (await executeExpression("codeBox.value")).split("\n").filter((line: string) => line.includes("==props=="));
+    // return (await executeExpression("codeBox.value")).split("\n").filter((line: string) => line.includes("==props=="));
+    return (await executeExpression<string>("codeBox.value")).split("\n").filter((line: string) => line.includes("==props=="));
 }
 
 test("test_a_click_on_align_bottom_writes_no_justification_for_a_code_fence_block", async () => {
@@ -103,7 +105,8 @@ test("test_a_click_on_align_bottom_writes_no_justification_for_a_code_fence_bloc
 test("test_the_inspector_shows_left_pressed_for_a_code_fence_block_without_a_justification", async () => {
     await loadFenceBlock();
     await selectBlock();
-    const pressed = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#nodeAlignRow button[aria-pressed="true"]')].map((button) => button.dataset.justification ?? button.dataset.alignment))`));
+    // const pressed = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#nodeAlignRow button[aria-pressed="true"]')].map((button) => button.dataset.justification ?? button.dataset.alignment))`));
+    const pressed: string[] = JSON.parse(await executeExpression<string>(`JSON.stringify([...document.querySelectorAll('#nodeAlignRow button[aria-pressed="true"]')].map((button) => button.dataset.justification ?? button.dataset.alignment))`));
     assert.deepEqual(pressed.sort(), ["center", "left"]);
 });
 

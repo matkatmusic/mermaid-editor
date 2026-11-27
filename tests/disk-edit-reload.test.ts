@@ -24,7 +24,8 @@ test("test_disk_edit_loads_silently_when_the_webapp_has_no_unsaved_edits", async
   await writeDiskText((await readDiskText()) + "\n%% disk edit silent");
   await waitMilliseconds(700);
   // Step: the webapp shows the disk text and asked no question.
-  assert.ok((await executeExpression("codeBox.value")).includes("%% disk edit silent"));
+  // assert.ok((await executeExpression("codeBox.value")).includes("%% disk edit silent"));
+  assert.ok((await executeExpression<string>("codeBox.value")).includes("%% disk edit silent"));
   assert.equal(await executeExpression("window.confirmCalls"), 0);
 });
 

@@ -52,7 +52,8 @@ test("test_save_of_node_text_with_a_br_space_slash_form_writes_br_slash", async 
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
     await waitMilliseconds(500);
-    const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    // const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    const lines: string[] = (await executeExpression<string>("codeBox.value")).split("\n");
     assert.ok(lines.includes('  B_C["Five<br/>Six!"]'), lines.join("|"));
 });
 
@@ -67,6 +68,7 @@ test("test_save_of_a_note_with_a_br_form_writes_br_slash", async () => {
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
     await waitMilliseconds(500);
-    const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    // const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    const lines: string[] = (await executeExpression<string>("codeBox.value")).split("\n");
     assert.ok(lines.includes('  %% ==props==: {"blockId":"B_N0","note":"One<br/>Two!"}'), lines.join("|"));
 });

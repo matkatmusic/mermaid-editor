@@ -5,6 +5,7 @@ import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { EDITOR_FIXTURE_NAME, SCROLL_FIXTURE_NAME, editorFixtureSource, scrollFixtureSource } from "./fixtures.ts";
 import { dispatchNodeClick, openEditorDrawer, getOutputScrollTop, setEditorSource } from "./editor-helpers.ts";
 import { inspectorFocus, inspectorPlacement } from "./inspector-helpers.ts";
+import type { EditorMetadata } from "../editor-types.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 
@@ -14,7 +15,8 @@ test("test_inspector_keeps_the_diagram_scroll_position", async () => {
   await executeExpression(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
   await waitMilliseconds(500);
   // Step: the accountability diagram overflows #output, so scrolling is real.
-  const overflow = await executeExpression("JSON.stringify({sh: document.getElementById('output').scrollHeight, ch: document.getElementById('output').clientHeight})").then(JSON.parse);
+  // const overflow = await executeExpression("JSON.stringify({sh: document.getElementById('output').scrollHeight, ch: document.getElementById('output').clientHeight})").then(JSON.parse);
+  const overflow: { sh: number; ch: number } = await executeExpression<string>("JSON.stringify({sh: document.getElementById('output').scrollHeight, ch: document.getElementById('output').clientHeight})").then(JSON.parse);
   assert.ok(overflow.sh > overflow.ch);
   await executeExpression("document.getElementById('output').scrollTop = 150");
   // Step: selecting a node keeps the scroll position, and the card remains drawer-anchored.
@@ -45,7 +47,8 @@ test("test_save_persists_and_load_restores_editor_metadata_trailer", async () =>
   const saved = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${SCROLL_FIXTURE_NAME}`).then((r) => r.text());
   const trailer = saved.match(/%%%%====\n%% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE\n%% (\{[^\n]+\})\n%%%%====$/);
   assert.ok(trailer);
-  const savedMetadata = JSON.parse(trailer[1]);
+  // const savedMetadata = JSON.parse(trailer[1]);
+  const savedMetadata = JSON.parse(trailer[1]) as EditorMetadata;
   assert.deepEqual({
     lastSelectedNodeId: savedMetadata.lastSelectedNodeId,
     outputScrollLeft: savedMetadata.outputScrollLeft,
@@ -85,7 +88,8 @@ test("test_load_uses_the_first_node_position_when_scroll_metadata_is_missing", a
   const sourceWithoutScroll = `${body}\n%%%%====\n%% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE\n%% {"lastSelectedNodeId":null}\n%%%%====`;
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: 'PUT', body: sourceWithoutScroll });
   await setEditorSource(body);
-  const oldViewport = await executeExpression(`JSON.stringify((() => {
+  // const oldViewport = await executeExpression(`JSON.stringify((() => {
+  const oldViewport: { left: number; top: number } = await executeExpression<string>(`JSON.stringify((() => {
     const output = document.getElementById('output');
     output.scrollLeft = output.scrollWidth;
     output.scrollTop = output.scrollHeight;
@@ -95,7 +99,8 @@ test("test_load_uses_the_first_node_position_when_scroll_metadata_is_missing", a
   assert.ok(oldViewport.top > 0);
 
   await executeExpression(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
-  const restored = await executeExpression(`JSON.stringify((() => {
+  // const restored = await executeExpression(`JSON.stringify((() => {
+  const restored: { left: number; top: number; firstVisible: boolean } = await executeExpression<string>(`JSON.stringify((() => {
     const output = document.getElementById('output');
     const pane = output.getBoundingClientRect();
     const first = document.querySelector('#diagram [id*="flowchart-B_FIRST-"]').getBoundingClientRect();
@@ -113,6 +118,7 @@ test("test_load_uses_the_first_node_position_when_scroll_metadata_is_missing", a
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: 'PUT', body: sourceWithZeroScroll });
   await executeExpression(`(() => { const output = document.getElementById('output'); output.scrollLeft = output.scrollWidth; output.scrollTop = output.scrollHeight; })()`);
   await executeExpression(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
-  assert.deepEqual(await executeExpression(`JSON.stringify({ left: document.getElementById('output').scrollLeft, top: document.getElementById('output').scrollTop })`).then(JSON.parse), { left: 0, top: 0 });
+  // assert.deepEqual(await executeExpression(`JSON.stringify({ left: document.getElementById('output').scrollLeft, top: document.getElementById('output').scrollTop })`).then(JSON.parse), { left: 0, top: 0 });
+  assert.deepEqual(await executeExpression<string>(`JSON.stringify({ left: document.getElementById('output').scrollLeft, top: document.getElementById('output').scrollTop })`).then(JSON.parse) as { left: number; top: number }, { left: 0, top: 0 });
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: 'PUT', body: editorFixtureSource });
 });

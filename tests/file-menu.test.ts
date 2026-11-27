@@ -26,10 +26,12 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
   await waitForRender();
 
   // Step: the four actions are no longer bare toolbar buttons and now live inside #fileMenu.
-  const placement = await executeExpression(`JSON.stringify({
+  // const placement = await executeExpression(`JSON.stringify({
+  // })`).then(JSON.parse);
+  const placement = await executeExpression<string>(`JSON.stringify({
     bareInHeader: ['newBtn','saveBtn','openFileBtn','resetBtn'].map(id => !!document.querySelector('#header > #' + id)),
     inMenu: ['newBtn','saveBtn','openFileBtn','resetBtn'].map(id => !!document.querySelector('#fileMenu #' + id)),
-  })`).then(JSON.parse);
+  })`).then((text) => JSON.parse(text) as { bareInHeader: boolean[]; inMenu: boolean[] });
   assert.deepEqual(placement.bareInHeader, [false, false, false, false]);
   assert.deepEqual(placement.inMenu, [true, true, true, true]);
 
@@ -44,7 +46,9 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
   assert.equal(await executeExpression("document.getElementById('fileMenu').open"), false);
 
   // Step: Save entry PUTs the diagram to the server and closes the menu.
-  const saved = await executeExpression(`(async () => {
+  // const saved = await executeExpression(`(async () => {
+  // })()`).then(JSON.parse);
+  const saved = await executeExpression<string>(`(async () => {
     let posted = null;
     const originalFetch = window.fetch;
     window.fetch = (url, opts) => { if (opts && opts.method === 'PUT') posted = String(url); return originalFetch(url, opts); };
@@ -53,12 +57,14 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
     await new Promise(r => setTimeout(r, 200));
     window.fetch = originalFetch;
     return JSON.stringify({ posted, open: document.getElementById('fileMenu').open });
-  })()`).then(JSON.parse);
+  })()`).then((text) => JSON.parse(text) as { posted: string | null; open: boolean });
   assert.ok(saved.posted && saved.posted.includes('/api/diagrams/'));
   assert.equal(saved.open, false);
 
   // Step: Open file entry shows the OS open dialog and closes the menu.
-  const opened = await executeExpression(`(() => {
+  // const opened = await executeExpression(`(() => {
+  // })()`).then(JSON.parse);
+  const opened = await executeExpression<string>(`(() => {
     let clicked = false;
     const originalFetch = window.fetch;
     window.fetch = (url, opts) => { if (url === '/api/open-file') { clicked = true; return new Promise(() => {}); } return originalFetch(url, opts); };
@@ -66,7 +72,7 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
     document.getElementById('openFileBtn').click();
     window.fetch = originalFetch;
     return JSON.stringify({ clicked, open: document.getElementById('fileMenu').open });
-  })()`).then(JSON.parse);
+  })()`).then((text) => JSON.parse(text) as { clicked: boolean; open: boolean });
   assert.equal(opened.clicked, true);
   assert.equal(opened.open, false);
 
@@ -84,7 +90,9 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
 
 test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', async () => {
   // Scenario: fake OS file dialogs record every write, so no real disk file is touched.
-  const result = await executeExpression(`(async () => {
+  // const result = await executeExpression(`(async () => {
+  // })()`).then(JSON.parse);
+  const result = await executeExpression<string>(`(async () => {
     const writes = [];
     const fakeHandle = (name, text) => ({
       name,
@@ -118,7 +126,7 @@ test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', asyn
     window.fetch = originalFetch;
     window.showSaveFilePicker = originalSave;
     return JSON.stringify({ afterOpenSave, writes, saveDialogs });
-  })()`).then(JSON.parse);
+  })()`).then((text) => JSON.parse(text) as { afterOpenSave: { writes: string[]; saveDialogs: number }; writes: string[]; saveDialogs: number });
   // Step: Save after Open File overwrites the opened file without any dialog.
   assert.deepEqual(result.afterOpenSave, { writes: ['opened.mmd:flowchart TD\n  B_OPENED[Opened]'], saveDialogs: 0 });
   // Step: Save on a new diagram shows the Save-As dialog once; the second Save reuses the picked file.
@@ -130,7 +138,9 @@ test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', asyn
 
 test('test_canceling_the_open_dialog_logs_a_message_and_leaves_the_diagram_unchanged', async () => {
   // Scenario: the user dismisses the OS open dialog; the server answers 204.
-  const result = await executeExpression(`(async () => {
+  // const result = await executeExpression(`(async () => {
+  // })()`).then(JSON.parse);
+  const result = await executeExpression<string>(`(async () => {
     const originalFetch = window.fetch;
     const originalLog = console.log;
     const messages = [];
@@ -142,7 +152,7 @@ test('test_canceling_the_open_dialog_logs_a_message_and_leaves_the_diagram_uncha
     window.fetch = originalFetch;
     console.log = originalLog;
     return JSON.stringify({ messages, unchanged: document.getElementById('code').value === before });
-  })()`).then(JSON.parse);
+  })()`).then((text) => JSON.parse(text) as { messages: string[]; unchanged: boolean });
   // Step: the cancel is logged once and nothing else changes.
   assert.ok(result.messages.includes('User canceled Open File'));
   assert.equal(result.unchanged, true);
@@ -150,6 +160,7 @@ test('test_canceling_the_open_dialog_logs_a_message_and_leaves_the_diagram_uncha
 
 test('test_open_file_menu_list_stacks_above_the_selected_item_widget', async () => {
   await executeExpression("document.getElementById('fileMenu').open = true");
-  const zIndexes = await executeExpression("({ menu: Number(getComputedStyle(document.getElementById('fileMenuItems')).zIndex), widget: Number(getComputedStyle(document.getElementById('nodeInspector')).zIndex) })");
+  // const zIndexes = await executeExpression("({ menu: Number(getComputedStyle(document.getElementById('fileMenuItems')).zIndex), widget: Number(getComputedStyle(document.getElementById('nodeInspector')).zIndex) })");
+  const zIndexes = await executeExpression<{ menu: number; widget: number }>("({ menu: Number(getComputedStyle(document.getElementById('fileMenuItems')).zIndex), widget: Number(getComputedStyle(document.getElementById('nodeInspector')).zIndex) })");
   assert.ok(zIndexes.menu > zIndexes.widget);
 });

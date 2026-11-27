@@ -33,7 +33,8 @@ test("test_phone_block_row_draws_a_literal_backslash_n_as_a_line_break", async (
     await loadSource(BLOCK_SOURCE);
     await clickNodeWithMouse("B_B");
     await waitMilliseconds(500);
-    const phone = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const phone = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const phone: { breaks: number; lines: string[]; text: string } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const block = document.querySelector('#phoneDiagram [data-node-id="B_A"]');
         return { breaks: block.querySelectorAll('br').length, lines: block.innerText.split('\\n'), text: block.textContent };
     })())`));
@@ -46,7 +47,8 @@ test("test_phone_question_row_and_choice_buttons_draw_a_literal_backslash_n_as_a
     await loadSource(DECISION_SOURCE);
     await clickNodeWithMouse("Q_ASK");
     await waitMilliseconds(500);
-    const phone = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const phone = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const phone: { questionBreaks: number; questionLines: string[]; buttonBreaks: number[]; buttonLines: string[][] } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const question = document.querySelector('#phoneDiagram .phone-question');
         const buttons = [...document.querySelectorAll('#phoneDiagram .phone-choice')];
         return { questionBreaks: question.querySelectorAll('br').length, questionLines: question.innerText.split('\\n'), buttonBreaks: buttons.map((button) => button.querySelectorAll('br').length), buttonLines: buttons.map((button) => button.innerText.split('\\n')) };
@@ -97,6 +99,7 @@ test("test_an_edit_writes_the_line_break_back_as_backslash_n_not_br", async () =
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
     await waitMilliseconds(500);
-    const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    // const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    const lines: string[] = (await executeExpression<string>("codeBox.value")).split("\n");
     assert.ok(lines.includes(`  B_A["${LABEL}!"]`), lines.join("|"));
 });

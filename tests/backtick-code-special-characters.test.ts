@@ -29,7 +29,8 @@ async function loadFixture() {
 
 test("test_main_diagram_code_spans_show_angle_brackets_and_ampersands_exactly", async () => {
     await loadFixture();
-    const codeTextsById = JSON.parse(await executeExpression(`JSON.stringify(Object.fromEntries(${JSON.stringify(Object.keys(CODE_TEXTS))}.map((id) => {
+    // const codeTextsById = JSON.parse(await executeExpression(`JSON.stringify(Object.fromEntries(${JSON.stringify(Object.keys(CODE_TEXTS))}.map((id) => {
+    const codeTextsById: Record<string, string | string[]> = JSON.parse(await executeExpression(`JSON.stringify(Object.fromEntries(${JSON.stringify(Object.keys(CODE_TEXTS))}.map((id) => {
         const node = document.querySelector('#diagram [id*="flowchart-' + id + '-"]');
         if (!node)
             return [id, 'node missing; node ids: ' + [...document.querySelectorAll('#diagram [id^="flowchart-"]')].map((found) => found.id).join(',') + '; error log: ' + errorLog.textContent.slice(0, 300)];
@@ -44,7 +45,8 @@ test("test_phone_block_code_spans_show_angle_brackets_and_ampersands_exactly", a
     for (const [id, codeText] of Object.entries(CODE_TEXTS)) {
         await clickNodeWithMouse(id);
         await waitMilliseconds(300);
-        const codeTexts = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id="${id}"] code')].map((code) => code.textContent))`));
+        // const codeTexts = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id="${id}"] code')].map((code) => code.textContent))`));
+        const codeTexts: string[] = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id="${id}"] code')].map((code) => code.textContent))`));
         assert.deepEqual(codeTexts, [codeText], `phone block ${id}`);
     }
 });

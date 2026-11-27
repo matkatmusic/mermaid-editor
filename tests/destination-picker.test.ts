@@ -35,7 +35,8 @@ async function getPickerState(): Promise<{ inputValue: string; listIsOpen: boole
 }
 
 async function clickWithMouse(selector: string) {
-    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const center: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const element = document.querySelector(${JSON.stringify(selector)});
         const rect = element.getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };

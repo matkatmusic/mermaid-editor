@@ -13,16 +13,20 @@ test("test_gutter_shows_one_number_per_line_and_lines_up_with_the_first_row_of_a
   // Scenario: a loaded diagram shows numbers 1..N and each number sits at the top of its line.
   await executeExpression(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
   await waitMilliseconds(500);
-  const lineCount = await executeExpression("codeBox.value.split('\\n').length");
-  const texts = await executeExpression(`JSON.stringify(${gutterNumbers}.map((el) => el.textContent))`).then(JSON.parse);
+  // const lineCount = await executeExpression("codeBox.value.split('\\n').length");
+  const lineCount = await executeExpression<number>("codeBox.value.split('\\n').length");
+  // const texts = await executeExpression(`JSON.stringify(${gutterNumbers}.map((el) => el.textContent))`).then(JSON.parse);
+  const texts = await executeExpression<string>(`JSON.stringify(${gutterNumbers}.map((el) => el.textContent))`).then((json) => JSON.parse(json) as string[]);
   assert.deepEqual(texts, Array.from({ length: lineCount }, (_, i) => String(i + 1)));
 
   // Step: a wrapped line's number sits at its first row.
-  const wrappedIndex = await executeExpression("codeBox.value.split('\\n').findIndex((line) => line.length > 80)");
+  // const wrappedIndex = await executeExpression("codeBox.value.split('\\n').findIndex((line) => line.length > 80)");
+  const wrappedIndex = await executeExpression<number>("codeBox.value.split('\\n').findIndex((line) => line.length > 80)");
   assert.ok(wrappedIndex > 0);
   const bounds = await measureSourceLineBounds(wrappedIndex);
   assert.ok(bounds.bottom - bounds.top > bounds.lineHeight * 1.5, JSON.stringify(bounds));
-  const numberTops = await executeExpression(`JSON.stringify(${gutterNumbers}.map((el) => el.offsetTop))`).then(JSON.parse);
+  // const numberTops = await executeExpression(`JSON.stringify(${gutterNumbers}.map((el) => el.offsetTop))`).then(JSON.parse);
+  const numberTops = await executeExpression<string>(`JSON.stringify(${gutterNumbers}.map((el) => el.offsetTop))`).then((json) => JSON.parse(json) as number[]);
   assert.ok(Math.abs(numberTops[wrappedIndex] - bounds.top) <= 1, `${numberTops[wrappedIndex]} vs ${bounds.top}`);
   assert.ok(Math.abs(numberTops[wrappedIndex + 1] - bounds.bottom) <= 1, `${numberTops[wrappedIndex + 1]} vs ${bounds.bottom}`);
 });
@@ -37,7 +41,8 @@ test("test_gutter_follows_the_code_box_scroll_and_updates_on_input", async () =>
   assert.equal(await executeExpression("document.getElementById('sourceGutter').scrollTop"), 300);
 
   // Step: a typed newline adds one number, and the gutter stays on the textarea's scroll position.
-  const before = await executeExpression(`${gutterNumbers}.length`);
+  // const before = await executeExpression(`${gutterNumbers}.length`);
+  const before = await executeExpression<number>(`${gutterNumbers}.length`);
   await executeExpression("codeBox.value += '\\n  B_EXTRA[x]'; codeBox.dispatchEvent(new Event('input'))");
   await waitForRender();
   assert.equal(await executeExpression(`${gutterNumbers}.length`), before + 1);

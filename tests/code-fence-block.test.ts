@@ -31,8 +31,10 @@ type MainMeasure = {
     box: { left: number; right: number; top: number; bottom: number };
     textRects: { left: number; right: number; top: number; bottom: number }[];
 };
+type PhoneMeasure = { codeCount: number; display: string; textAlign: string; whiteSpace: string; text: string; blockText: string };
 async function measureMainNode(id: string, shapeTag: string): Promise<MainMeasure> {
-    return JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // return JSON.parse(await executeExpression(`JSON.stringify((() => {
+    return JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const node = document.querySelector('#diagram g.node[id*="flowchart-${id}-"]');
         const box = node.querySelector('${shapeTag}').getBoundingClientRect();
         const codes = [...node.querySelectorAll('code')];
@@ -153,7 +155,8 @@ test("test_the_phone_view_shows_the_same_left_justified_code_block", async () =>
     await loadSource(buildRectSource(CODE_LABEL));
     await clickNodeWithMouse("B_ONE");
     await waitMilliseconds(500);
-    const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const measured: PhoneMeasure = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const block = document.querySelector('#phoneDiagram [data-node-id="B_ONE"]');
         const codes = [...block.querySelectorAll('code')];
         const style = getComputedStyle(codes[0]);

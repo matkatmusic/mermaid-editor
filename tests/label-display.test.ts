@@ -53,7 +53,8 @@ test("test_phone_view_shows_quot_entity_as_a_quote_and_every_br_form_as_a_line_b
     // Step: a click on B_MID makes the phone show the path to it, with B_MID as the last block.
     await clickNodeWithMouse("B_MID");
     await waitMilliseconds(500);
-    const phone = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const phone = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const phone: { breaks: number; blockText: string; startText: string } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const block = document.querySelector('#phoneDiagram [data-node-id="B_MID"]');
         const start = document.querySelector('#phoneDiagram [data-node-id="B_START"]');
         return { breaks: block.querySelectorAll('br').length, blockText: block.innerText, startText: start.textContent };

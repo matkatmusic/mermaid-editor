@@ -57,7 +57,8 @@ test("test_destination_replaces_an_outgoing_edge_and_keeps_the_old_path_as_an_or
   await setEditorSource('flowchart TD\n  B_A["A"]\n  B_B["B"]\n  B_C["C"]\n  Q_D{"D"}\n  B_A --> B_B\n  B_B --> B_C\n  B_C --> Q_D');
   await dispatchNodeClick('B_A');
   await chooseDestination('B_C');
-  const source = await executeExpression('codeBox.value');
+  // const source = await executeExpression('codeBox.value');
+  const source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('B_A --> B_C'));
   assert.ok(!source.includes('B_A --> B_B'));
   assert.ok(source.includes('B_B["B"]'));
@@ -70,7 +71,8 @@ test("test_destination_terminal_removes_only_the_selected_outgoing_edge", async 
   await setEditorSource('flowchart TD\n  B_A["A"]\n  B_B["B"]\n  B_C["C"]\n  B_A --> B_B\n  B_B --> B_C');
   await dispatchNodeClick('B_A');
   await chooseDestination('');
-  const source = await executeExpression('codeBox.value');
+  // const source = await executeExpression('codeBox.value');
+  const source = await executeExpression<string>('codeBox.value');
   assert.ok(!source.includes('B_A --> B_B'));
   assert.ok(source.includes('B_A["A"]'));
   assert.ok(source.includes('B_B["B"]'));
@@ -90,7 +92,8 @@ test("test_destination_accepts_descendants_and_current_value_is_a_no_op", async 
   await chooseDestination('B_C');
   await dispatchNodeClick('B_C');
   await chooseDestination('B_A');
-  assert.ok((await executeExpression('codeBox.value')).includes('B_C --> B_A'));
+  // assert.ok((await executeExpression('codeBox.value')).includes('B_C --> B_A'));
+  assert.ok((await executeExpression<string>('codeBox.value')).includes('B_C --> B_A'));
   await assertEditorSourceIsSavedAndValid();
 });
 
@@ -100,7 +103,8 @@ test("test_insert_static_before_splices_a_chained_edge_line", async () => {
   // Step: select the middle node of a one-line A --> B --> C chain.
   await selectEditorNode('B_B');
   await executeEditorAction('insertStaticBefore');
-  const updated = await executeExpression('codeBox.value');
+  // const updated = await executeExpression('codeBox.value');
+  const updated = await executeExpression<string>('codeBox.value');
   // Step: only A --> B is replaced; B --> C is retained and the new node is connected.
   assert.ok(updated.includes('B_A --> B_NEW_1'));
   assert.ok(updated.includes('B_NEW_1 --> B_B'));
@@ -118,15 +122,18 @@ test("test_dirty_text_then_destination_creates_two_ordered_undo_entries", async 
   await dispatchNodeClick('B_A');
   await executeExpression("document.getElementById('nodeTextInput').value = 'Renamed A'");
   await chooseDestination('Q_C');
-  let source = await executeExpression('codeBox.value');
+  // let source = await executeExpression('codeBox.value');
+  let source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('B_A["Renamed A"]'));
   assert.ok(source.includes('B_A --> Q_C'));
   await executeExpression('window.applyEditorUndo(); window.editorActionPromise');
-  source = await executeExpression('codeBox.value');
+  // source = await executeExpression('codeBox.value');
+  source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('B_A["Renamed A"]'));
   assert.ok(source.includes('B_A --> B_B'));
   await executeExpression('window.applyEditorUndo(); window.editorActionPromise');
-  source = await executeExpression('codeBox.value');
+  // source = await executeExpression('codeBox.value');
+  source = await executeExpression<string>('codeBox.value');
   assert.ok(source.includes('B_A["A"]'));
   assert.ok(source.includes('B_A --> B_B'));
   await assertEditorSourceIsSavedAndValid();
