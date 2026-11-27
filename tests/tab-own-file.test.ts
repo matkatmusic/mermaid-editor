@@ -13,38 +13,45 @@ const CDP_PORT = Number(process.env.SHARED_CDP_PORT) || Number(process.env.CDP_P
 const SHARED_DIAGRAMS_DIR = process.env.SHARED_DIAGRAMS_DIR!;
 
 interface SecondPage {
-    evaluate: (expression: string) => Promise<any>;
+    // evaluate: (expression: string) => Promise<any>;
+    evaluate: (expression: string) => Promise<string>;
     close: () => Promise<void>;
 }
 
 // A second browser tab on the same Chrome, with its own CDP connection.
 async function openSecondPage(): Promise<SecondPage> {
-    const target = await (await fetch(`http://localhost:${CDP_PORT}/json/new?about:blank`, { method: "PUT" })).json();
+    // const target = await (await fetch(`http://localhost:${CDP_PORT}/json/new?about:blank`, { method: "PUT" })).json();
+    const target = await (await fetch(`http://localhost:${CDP_PORT}/json/new?about:blank`, { method: "PUT" })).json() as { id: string; webSocketDebuggerUrl: string };
     const socket = new WebSocket(target.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => {
         socket.addEventListener("open", resolve, { once: true });
         socket.addEventListener("error", reject, { once: true });
     });
     let nextId = 1;
-    const pending = new Map<number, (result: any) => void>();
+    // const pending = new Map<number, (result: any) => void>();
+    const pending = new Map<number, (result: unknown) => void>();
     socket.addEventListener("message", (event) => {
-        const message = JSON.parse(event.data as string);
+        // const message = JSON.parse(event.data as string);
+        const message = JSON.parse(event.data as string) as { id: number; result: unknown };
         if (pending.has(message.id)) {
             pending.get(message.id)!(message.result);
             pending.delete(message.id);
         }
     });
     // A tab that never answers (a native dialog blocks it) must fail the call, not wait forever.
-    const sendToPage = (method: string, params: Record<string, unknown> = {}) => new Promise<any>((resolve, reject) => {
+    // const sendToPage = (method: string, params: Record<string, unknown> = {}) => new Promise<any>((resolve, reject) => {
+    const sendToPage = <Result = unknown>(method: string, params: Record<string, unknown> = {}) => new Promise<Result>((resolve, reject) => {
         const id = nextId++;
-        pending.set(id, resolve);
+        // pending.set(id, resolve);
+        pending.set(id, resolve as (result: unknown) => void);
         setTimeout(() => {
             if (pending.delete(id))
                 reject(new Error(`CDP ${method} got no reply within 15000ms`));
         }, 15000).unref();
         socket.send(JSON.stringify({ id, method, params }));
     });
-    const evaluate = async (expression: string) => (await sendToPage("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true })).result.value;
+    // const evaluate = async (expression: string) => (await sendToPage("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true })).result.value;
+    const evaluate = async (expression: string) => (await sendToPage<{ result: { value: string } }>("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true })).result.value;
     const close = async () => {
         socket.close();
         await fetch(`http://localhost:${CDP_PORT}/json/close/${target.id}`, { signal: AbortSignal.timeout(5000) });
