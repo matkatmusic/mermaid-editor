@@ -6,10 +6,13 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "strict": true,
-    "types": ["node"],
+    // "types": ["node"],
+    "types": ["node", "bun"],
     "erasableSyntaxOnly": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
   },
-  "include": ["viewer.ts", "tests", "*.test.ts"],
+  // "include": ["viewer.ts", "tests", "*.test.ts"],
+  "include": ["**/*.ts"],
   "exclude": ["node_modules"]
 }
