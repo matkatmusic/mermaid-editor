@@ -2532,6 +2532,11 @@ async function renderAfterPhoneTap() {
   else
     renderNodeInspector();
 }
+function findUndoDecisionId(view, graph) {
+  const answeredIds = view.protectedIds.slice(0, -1).filter((id) => graph.nodes.get(id).kind === "question");
+  const changedIds = answeredIds.filter((id) => view.decisionDigits[id] !== 0);
+  return changedIds[changedIds.length - 1];
+}
 async function handlePhoneTapInPathView(button) {
   const view = state.pathView;
   if (!view)
@@ -2544,9 +2549,7 @@ async function handlePhoneTapInPathView(button) {
       await undoFilterClick();
       return true;
     }
-    const graph = getEditorGraph();
-    const answeredIds = view.protectedIds.slice(0, -1).filter((id) => graph.nodes.get(id).kind === "question");
-    view.decisionDigits[answeredIds[answeredIds.length - 1]] = 0;
+    view.decisionDigits[findUndoDecisionId(view, getEditorGraph())] = 0;
     await renderAfterPhoneTap();
     return true;
   }
@@ -3114,11 +3117,34 @@ function buildRowHtml(row, graph, edges, isMasked) {
   const buttonsHtml = isAutoPicked ? "" : buildChoiceButtonsHtml(choices, row, graph);
   return `<div class="${wrapClass}">${question}<div class="phone-choice-count">${choices.length} choices</div>${buttonsHtml}</div>`;
 }
+function buildTopBarHtml(edges, graph, rowCount) {
+  let canUndo = phonePath.length > 0;
+  let hasChosenStart = false;
+  if (findRoots(edges).length > 1)
+    hasChosenStart = state.phoneStartNodeId !== null;
+  let canReset = canUndo || hasChosenStart || state.phoneFocusNodeId !== null;
+  const canWritePath = rowCount > 0;
+  const view = state.pathView;
+  if (view?.kind === "onePath") {
+    canUndo = findUndoDecisionId(view, graph) !== undefined;
+    canReset = canUndo || view.startDigit !== 0;
+  }
+  if (view?.kind === "downstream") {
+    if (isViewLimitingEdits(view)) {
+      canUndo = view.clickHistory.length > 0;
+      canReset = true;
+    }
+  }
+  const undoAttribute = canUndo ? "" : " disabled";
+  const resetAttribute = canReset ? "" : " disabled";
+  const writePathAttribute = canWritePath ? "" : " disabled";
+  return `<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo${undoAttribute}>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions${resetAttribute}>Reset decisions</button><button type="button" class="phone-undo" data-write-path${writePathAttribute}>Write path</button></div>`;
+}
 function renderPhone(edges, graph) {
   classIndex = buildClassStyleIndex(codeBox.value);
   if (isPhoneShowingHistory()) {
     if (isPhoneAwaitingStartNode(edges)) {
-      phoneDiagramBox.innerHTML = '<div id="phoneStartPrompt">Select a starting node to walk a path through that diagram</div>';
+      phoneDiagramBox.innerHTML = `${buildTopBarHtml(edges, graph, 0)}<div id="phoneStartPrompt">Select a starting node to walk a path through that diagram</div>`;
       return;
     }
   }
@@ -3148,10 +3174,7 @@ function renderPhone(edges, graph) {
     if (hasFixedRows)
       footerParts.unshift('<hr class="phone-separator">');
   }
-  const hasAnswer = phonePath.length > 0;
-  const isBarShown = hasAnswer || isViewLimitingEdits(state.pathView);
-  const disabledAttribute = hasAnswer ? "" : " disabled";
-  const topBar = isBarShown ? `<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo${disabledAttribute}>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions${disabledAttribute}>Reset decisions</button><button type="button" class="phone-undo" data-write-path${disabledAttribute}>Write path</button></div>` : "";
+  const topBar = buildTopBarHtml(edges, graph, rows.length);
   phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join("")}</div><div id="phoneFooter">${footerParts.join("")}</div>`;
   const historyBox = phoneDiagramBox.querySelector("#phoneHistory");
   if (historyBox)

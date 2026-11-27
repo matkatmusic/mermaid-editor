@@ -292,11 +292,32 @@ test('test_a_revert_button_is_disabled_when_no_phone_choice_is_picked', async ()
     assert.equal(await executeExpression("document.querySelectorAll('#phoneDiagram [data-revert]').length"), 0);
 });
 
-test('test_phone_top_bar_is_greyed_out_when_the_view_route_has_no_answered_decision', async () => {
+// Obsolete: Undo is now enabled when a filter exists, because it does the view Back.
+// test('test_phone_top_bar_is_greyed_out_when_the_view_route_has_no_answered_decision', async () => {
+//     await turnDownstreamToggleOn();
+//     await clickBlock('B_START');
+//     assert.equal(await isPhoneButtonDisabled('[data-undo]'), true);
+//     assert.equal(await isPhoneButtonDisabled('[data-reset-decisions]'), true);
+// });
+
+// Obsolete name: Reset and Write path are now enabled here.
+// test('test_phone_reset_and_write_path_are_greyed_out_when_the_view_route_has_no_answered_decision', async () => {
+test('test_phone_reset_and_write_path_are_enabled_with_a_filter_and_no_answered_decision', async () => {
     await turnDownstreamToggleOn();
     await clickBlock('B_START');
-    assert.equal(await isPhoneButtonDisabled('[data-undo]'), true);
-    assert.equal(await isPhoneButtonDisabled('[data-reset-decisions]'), true);
+    // Obsolete: a filter can be reset, and the shown blocks can be written.
+    // assert.equal(await isPhoneButtonDisabled('[data-reset-decisions]'), true);
+    // assert.equal(await isPhoneButtonDisabled('[data-write-path]'), true);
+    assert.equal(await isPhoneButtonDisabled('[data-reset-decisions]'), false);
+    assert.equal(await isPhoneButtonDisabled('[data-write-path]'), false);
+});
+
+test('test_phone_undo_with_a_filter_and_no_answered_decision_does_the_view_back', async () => {
+    await turnDownstreamToggleOn();
+    await clickBlock('B_START');
+    assert.equal(await isPhoneButtonDisabled('[data-undo]'), false);
+    await tapPhone('[data-undo]');
+    assert.deepEqual(await readJson('pathView.clickedIds'), []);
 });
 
 test('test_phone_view_shows_the_start_after_back_empties_the_filter', async () => {
@@ -305,7 +326,9 @@ test('test_phone_view_shows_the_start_after_back_empties_the_filter', async () =
     await clickButtonWithMouse('#backDownstreamViewBtn');
     assert.deepEqual(await readPhoneIds('.phone-choice-chosen'), []);
     assert.equal((await readPhoneIds('[data-node-id]'))[0], 'B_START');
-    assert.equal(await executeExpression("!!document.querySelector('#phoneTopBar')"), false);
+    // Obsolete: the phone top bar is now always shown.
+    // assert.equal(await executeExpression("!!document.querySelector('#phoneTopBar')"), false);
+    assert.equal(await isPhoneButtonDisabled('[data-undo]'), true);
 });
 
 test('test_phone_view_shows_the_start_after_reset_empties_the_filter', async () => {
@@ -313,5 +336,51 @@ test('test_phone_view_shows_the_start_after_reset_empties_the_filter', async () 
     await clickBlock('B_YES');
     await clickButtonWithMouse('#resetDownstreamViewBtn');
     assert.deepEqual(await readPhoneIds('.phone-choice-chosen'), []);
-    assert.equal(await executeExpression("!!document.querySelector('#phoneTopBar')"), false);
+    // Obsolete: the phone top bar is now always shown.
+    // assert.equal(await executeExpression("!!document.querySelector('#phoneTopBar')"), false);
+    assert.equal(await isPhoneButtonDisabled('[data-undo]'), true);
+});
+
+// Obsolete name: Write path is now enabled here.
+// test('test_phone_top_bar_is_greyed_out_in_the_full_diagram_with_no_answer', async () => {
+test('test_phone_full_diagram_with_no_answer_greys_out_undo_and_reset_only', async () => {
+    await loadFullDiagram();
+    assert.equal(await isPhoneButtonDisabled('[data-undo]'), true);
+    assert.equal(await isPhoneButtonDisabled('[data-reset-decisions]'), true);
+    // Obsolete: Write path is enabled whenever the phone shows a block.
+    // assert.equal(await isPhoneButtonDisabled('[data-write-path]'), true);
+    assert.equal(await isPhoneButtonDisabled('[data-write-path]'), false);
+});
+
+test('test_phone_undo_in_the_one_path_view_skips_a_decision_whose_digit_is_0', async () => {
+    await turnOnePathViewOn(SECOND_DECISION_SOURCE);
+    await clickButtonWithMouse('#nextViewPathBtn');
+    assert.equal(await readPathLabel(), 'Path 0x010');
+    await tapPhone('[data-undo]');
+    assert.equal(await readPathLabel(), 'Path 0x000');
+    assert.equal(await readErrorLog(), '');
+});
+
+test('test_phone_undo_is_greyed_out_in_the_one_path_view_when_every_decision_digit_is_0', async () => {
+    await turnOnePathViewOn();
+    assert.equal(await isPhoneButtonDisabled('[data-undo]'), true);
+    // Obsolete: every digit is 0, so there is nothing to reset.
+    // assert.equal(await isPhoneButtonDisabled('[data-reset-decisions]'), false);
+    assert.equal(await isPhoneButtonDisabled('[data-reset-decisions]'), true);
+    assert.equal(await isPhoneButtonDisabled('[data-write-path]'), false);
+});
+
+const TWO_START_SOURCE = PATH_VIEW_SOURCE.replace('  B_START --> Q_ASK', [
+    '  B_START --> Q_ASK',
+    '  B_OTHER["Other"]',
+    '  B_OTHER --> Q_ASK',
+].join('\n'));
+
+test('test_phone_undo_in_the_one_path_view_does_not_count_the_start_digit', async () => {
+    await turnOnePathViewOn(TWO_START_SOURCE);
+    await clickButtonWithMouse('#nextViewPathBtn');
+    await clickButtonWithMouse('#nextViewPathBtn');
+    assert.equal(await readPathLabel(), 'Path 0x10');
+    assert.equal(await isPhoneButtonDisabled('[data-undo]'), true);
+    assert.equal(await isPhoneButtonDisabled('[data-reset-decisions]'), false);
 });

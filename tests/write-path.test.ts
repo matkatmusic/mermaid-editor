@@ -36,3 +36,16 @@ test("test_write_chosen_path_writes_numbered_path_files_next_to_the_diagram", as
   await executeExpression("document.getElementById('resetBtn').click()");
   await waitForRender();
 });
+
+test("test_write_path_with_no_answer_writes_the_shown_blocks", async () => {
+  // Scenario: Write path is enabled with no answered decision, so the tap must write a file.
+  await executeExpression("document.getElementById('resetBtn').click()");
+  await waitForRender();
+  assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').disabled"), false);
+  await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').click()");
+  await waitMilliseconds(500);
+  // Step: the third write in this file's server folder is path 2, with no decisions.
+  const pathSource = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/accountability-path-2.mmd`).then((r) => r.text());
+  assert.ok(pathSource.startsWith("%% Decisions made:\n%%   none\nflowchart TD\n"), pathSource);
+  assert.equal(await executeExpression("document.getElementById('errorLog').textContent"), "");
+});

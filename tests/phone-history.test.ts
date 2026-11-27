@@ -33,17 +33,24 @@ test("test_clicking_a_declined_option_reverts_to_that_branch", async () => {
   await waitForRender();
 });
 
-test("test_undo_decision_pops_the_last_answer_and_hides_with_no_answers", async () => {
-  assert.equal(await executeExpression("!!document.querySelector('#phoneDiagram [data-undo]')"), false);
+// Obsolete name: the top bar is now greyed out, not hidden.
+// test("test_undo_decision_pops_the_last_answer_and_hides_with_no_answers", async () => {
+test("test_undo_decision_pops_the_last_answer_and_greys_out_with_no_answers", async () => {
+  // Obsolete: the undo button now stays on screen, disabled.
+  // assert.equal(await executeExpression("!!document.querySelector('#phoneDiagram [data-undo]')"), false);
+  assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-undo]').disabled"), true);
   await executeExpression(
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
   await waitForRender();
   assert.equal(await executeExpression("!!document.querySelector('#phoneTopBar [data-undo]')"), true);
+  assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-undo]').disabled"), false);
   await executeExpression("document.querySelector('#phoneDiagram [data-undo]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   await waitForRender();
   assert.deepEqual(await executeExpression("phonePath.slice()"), []);
-  assert.equal(await executeExpression("!!document.querySelector('#phoneDiagram [data-undo]')"), false);
+  // Obsolete: the undo button now stays on screen, disabled.
+  // assert.equal(await executeExpression("!!document.querySelector('#phoneDiagram [data-undo]')"), false);
+  assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-undo]').disabled"), true);
 });
 
 test("test_phone_reset_decisions_clears_every_answer", async () => {
@@ -58,7 +65,13 @@ test("test_phone_reset_decisions_clears_every_answer", async () => {
   await executeExpression("document.querySelector('#phoneTopBar [data-reset-decisions]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   await waitForRender();
   assert.deepEqual(await executeExpression("phonePath.slice()"), []);
-  assert.equal(await executeExpression("!!document.querySelector('#phoneTopBar')"), false);
+  // Obsolete: the top bar now stays on screen with all buttons disabled.
+  // assert.equal(await executeExpression("!!document.querySelector('#phoneTopBar')"), false);
+  // Obsolete: Write path stays enabled while the phone shows a block.
+  // assert.equal(await executeExpression("document.querySelectorAll('#phoneTopBar button:disabled').length"), 3);
+  assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-undo]').disabled"), true);
+  assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-reset-decisions]').disabled"), true);
+  assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').disabled"), false);
 });
 
 test("test_answering_a_main_view_focused_decision_rebuilds_the_phone_path_to_it", async () => {

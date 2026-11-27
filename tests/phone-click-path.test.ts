@@ -45,9 +45,12 @@ async function clickNodeAndWait(id: string) {
 }
 
 test("test_phone_shows_start_prompt_when_the_diagram_has_two_start_nodes_and_nothing_was_clicked", async () => {
-  // Scenario: two start nodes and no phone path; the phone shows only the prompt.
+  // Scenario: two start nodes and no phone path; the phone shows the greyed top bar and the prompt, with no nodes.
   await openDiagramText(TWO_START_NODES);
-  assert.equal(await readPhoneText(), START_PROMPT);
+  // The screen now also holds the greyed top bar.
+  // assert.equal(await readPhoneText(), START_PROMPT);
+  assert.equal(await executeExpression("document.getElementById('phoneStartPrompt').textContent"), START_PROMPT);
+  assert.equal(await executeExpression("document.querySelectorAll('#phoneTopBar button:disabled').length"), 3);
   assert.deepEqual(await listPhoneNodeIds(), []);
 });
 
@@ -58,12 +61,30 @@ test("test_phone_shows_no_start_prompt_when_the_diagram_has_one_start_node", asy
   assert.ok(!(await readPhoneText()).includes(START_PROMPT));
 });
 
+test("test_phone_reset_stays_disabled_after_a_click_on_the_only_start_block", async () => {
+  // Scenario: one start node; choosing it by a main-view click leaves nothing visible to reset.
+  await openDiagramText(ONE_START_NODE);
+  await clickNodeAndWait("B_ONLY_START");
+  assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-reset-decisions]').disabled"), true);
+});
+
 test("test_clicking_a_start_node_starts_the_phone_walk_at_that_node", async () => {
   // Scenario: click the second start node B_LAUNCH; the walk starts there and the next decision is open.
   await openDiagramText(TWO_START_NODES);
   await clickNodeAndWait("B_LAUNCH");
   assert.deepEqual(await listPhoneNodeIds(), ["B_LAUNCH", "Q_JSONLS_GIVEN", "Q_CHOICE_JSONLS_GIVEN_YES", "Q_CHOICE_JSONLS_GIVEN_NO"]);
   assert.ok(!(await readPhoneText()).includes(START_PROMPT));
+});
+
+test("test_phone_reset_is_enabled_after_a_start_block_is_chosen_and_brings_back_the_start_prompt", async () => {
+  // Scenario: choose start node B_LAUNCH, then reset; the start prompt returns and reset is disabled again.
+  await openDiagramText(TWO_START_NODES);
+  await clickNodeAndWait("B_LAUNCH");
+  assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-reset-decisions]').disabled"), false);
+  await executeExpression("document.querySelector('#phoneTopBar [data-reset-decisions]').click()");
+  await waitMilliseconds(800);
+  assert.equal(await executeExpression("document.getElementById('phoneStartPrompt').textContent"), START_PROMPT);
+  assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-reset-decisions]').disabled"), true);
 });
 
 test("test_clicking_the_first_start_node_starts_the_phone_walk_at_that_node", async () => {
@@ -114,5 +135,7 @@ test("test_reset_decisions_returns_the_phone_to_the_start_prompt", async () => {
   await clickNodeAndWait("B_USE_GIVEN_JSONLS");
   await executeExpression("document.querySelector('#phoneDiagram button[data-reset-decisions]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   await waitMilliseconds(500);
-  assert.equal(await readPhoneText(), START_PROMPT);
+  // The screen now also holds the greyed top bar.
+  // assert.equal(await readPhoneText(), START_PROMPT);
+  assert.equal(await executeExpression("document.getElementById('phoneStartPrompt').textContent"), START_PROMPT);
 });

@@ -4,12 +4,14 @@ import type { EditorGraph, EditorNode } from './editor-types.ts';
 import { phonePath, state } from './state.ts';
 import { choicesOf } from './graph-slice.ts';
 import { buildClassStyleIndex, findNodeStyle, type ClassStyleIndex } from './class-style-index.ts';
-import { isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './phone-render.ts';
+// import { isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './phone-render.ts';
+import { findRoots, isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './phone-render.ts';
 import { buildRows } from './phone-rows.ts';
 import { decodeLabelQuotes } from './editor-parse.ts';
 import { getNodeAlign } from './node-align.ts';
 import { CODE_BLOCK_STYLE, CODE_LINE_BREAK_PATTERN, FENCED_CODE_BLOCK_PATTERN } from './label-code.ts';
 import { isViewLimitingEdits } from './path-view-model.ts';
+import { findUndoDecisionId } from './path-view.ts';
 
 // How long after a click the phone keeps the animated border on the clicked node; matches the CSS animation length.
 const PHONE_CLICKED_BORDER_MS = 3000;
@@ -105,11 +107,42 @@ function buildRowHtml(row: Row, graph: EditorGraph, edges: Edge[], isMasked: boo
   return `<div class="${wrapClass}">${question}<div class="phone-choice-count">${choices.length} choices</div>${buttonsHtml}</div>`;
 }
 
+// The one rule for the phone top bar: a button is enabled only when it has an action to take.
+// function buildTopBarHtml(graph: EditorGraph, rowCount: number) {
+function buildTopBarHtml(edges: Edge[], graph: EditorGraph, rowCount: number) {
+  let canUndo = phonePath.length > 0;
+  // let canReset = canUndo || state.phoneStartNodeId !== null || state.phoneFocusNodeId !== null;
+  // With one start block, a chosen start changes nothing on screen.
+  let hasChosenStart = false;
+  if (findRoots(edges).length > 1)
+    hasChosenStart = state.phoneStartNodeId !== null;
+  let canReset = canUndo || hasChosenStart || state.phoneFocusNodeId !== null;
+  const canWritePath = rowCount > 0;
+  const view = state.pathView;
+  if (view?.kind === 'onePath') {
+    canUndo = findUndoDecisionId(view, graph) !== undefined;
+    canReset = canUndo || view.startDigit !== 0;
+  }
+  if (view?.kind === 'downstream') {
+    if (isViewLimitingEdits(view)) {
+      // With a filter on, the phone Undo and Reset are the view's Back and Reset.
+      canUndo = view.clickHistory.length > 0;
+      canReset = true;
+    }
+  }
+  const undoAttribute = canUndo ? '' : ' disabled';
+  const resetAttribute = canReset ? '' : ' disabled';
+  const writePathAttribute = canWritePath ? '' : ' disabled';
+  return `<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo${undoAttribute}>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions${resetAttribute}>Reset decisions</button><button type="button" class="phone-undo" data-write-path${writePathAttribute}>Write path</button></div>`;
+}
+
 export function renderPhone(edges: Edge[], graph: EditorGraph) {
   classIndex = buildClassStyleIndex(codeBox.value);
   if (isPhoneShowingHistory()) {
     if (isPhoneAwaitingStartNode(edges)) {
-      phoneDiagramBox.innerHTML = '<div id="phoneStartPrompt">Select a starting node to walk a path through that diagram</div>';
+      // phoneDiagramBox.innerHTML = '<div id="phoneStartPrompt">Select a starting node to walk a path through that diagram</div>';
+      // phoneDiagramBox.innerHTML = `${buildTopBarHtml(graph, 0)}<div id="phoneStartPrompt">Select a starting node to walk a path through that diagram</div>`;
+      phoneDiagramBox.innerHTML = `${buildTopBarHtml(edges, graph, 0)}<div id="phoneStartPrompt">Select a starting node to walk a path through that diagram</div>`;
       return;
     }
   }
@@ -140,12 +173,14 @@ export function renderPhone(edges: Edge[], graph: EditorGraph) {
     if (hasFixedRows)
       footerParts.unshift('<hr class="phone-separator">');
   }
-  const hasAnswer = phonePath.length > 0;
+  // const hasAnswer = phonePath.length > 0;
   // const topBar = hasAnswer ? '<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions>Reset decisions</button><button type="button" class="phone-undo" data-write-path>Write path</button></div>' : '';
   // A view that limits edits keeps the bar on screen, greyed out, while its route has no answer.
-  const isBarShown = hasAnswer || isViewLimitingEdits(state.pathView);
-  const disabledAttribute = hasAnswer ? '' : ' disabled';
-  const topBar = isBarShown ? `<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo${disabledAttribute}>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions${disabledAttribute}>Reset decisions</button><button type="button" class="phone-undo" data-write-path${disabledAttribute}>Write path</button></div>` : '';
+  // const isBarShown = hasAnswer || isViewLimitingEdits(state.pathView);
+  // const disabledAttribute = hasAnswer ? '' : ' disabled';
+  // const topBar = isBarShown ? `<div id="phoneTopBar"><button type="button" class="phone-undo" data-undo${disabledAttribute}>&#8630; Undo</button><button type="button" class="phone-undo" data-reset-decisions${disabledAttribute}>Reset decisions</button><button type="button" class="phone-undo" data-write-path${disabledAttribute}>Write path</button></div>` : '';
+  // const topBar = buildTopBarHtml(graph, rows.length);
+  const topBar = buildTopBarHtml(edges, graph, rows.length);
   phoneDiagramBox.innerHTML = `${topBar}<div id="phoneHistory">${historyParts.join('')}</div><div id="phoneFooter">${footerParts.join('')}</div>`;
   const historyBox = phoneDiagramBox.querySelector<HTMLElement>('#phoneHistory');
   if (historyBox)

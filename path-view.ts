@@ -376,6 +376,13 @@ async function renderAfterPhoneTap() {
         renderNodeInspector();
 }
 
+// The last decision on the one path that does not take its first choice. The start digit does not count.
+export function findUndoDecisionId(view: PathView, graph: EditorGraph): string | undefined {
+    const answeredIds = view.protectedIds.slice(0, -1).filter((id) => graph.nodes.get(id)!.kind === 'question');
+    const changedIds = answeredIds.filter((id) => view.decisionDigits[id] !== 0);
+    return changedIds[changedIds.length - 1];
+}
+
 // A tap on a phone button while a view is on. False means the button works as it does without a view.
 export async function handlePhoneTapInPathView(button: HTMLButtonElement): Promise<boolean> {
     const view = state.pathView;
@@ -397,10 +404,12 @@ export async function handlePhoneTapInPathView(button: HTMLButtonElement): Promi
             await undoFilterClick();
             return true;
         }
-        // The one-path view: the last answered decision goes back to its first choice.
-        const graph = getEditorGraph();
-        const answeredIds = view.protectedIds.slice(0, -1).filter((id) => graph.nodes.get(id)!.kind === 'question');
-        view.decisionDigits[answeredIds[answeredIds.length - 1]] = 0;
+        // // The one-path view: the last answered decision goes back to its first choice.
+        // const graph = getEditorGraph();
+        // const answeredIds = view.protectedIds.slice(0, -1).filter((id) => graph.nodes.get(id)!.kind === 'question');
+        // view.decisionDigits[answeredIds[answeredIds.length - 1]] = 0;
+        // The button is enabled only when such a decision exists.
+        view.decisionDigits[findUndoDecisionId(view, getEditorGraph())!] = 0;
         await renderAfterPhoneTap();
         return true;
     }
