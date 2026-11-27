@@ -4,6 +4,12 @@ import { state } from './state.ts';
 import { outputBox } from './dom.ts';
 import { buildSourceWithPropsLines, FILE_FORMAT_VERSION } from './file-format.ts';
 
+declare global {
+  interface Window {
+    editorActionPromise: Promise<void>;
+  }
+}
+
 export function splitEditorMetadata(source: string) {
   const headerPattern = /(?:^|\r?\n)%%%%====\r?\n%% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE\r?\n%% (\{[^\r\n]*\})\r?\n%%%%====/g;
   const matches = [...source.matchAll(headerPattern)];
@@ -11,7 +17,8 @@ export function splitEditorMetadata(source: string) {
     return { source, metadata: null as EditorMetadata | null };
   let metadata: EditorMetadata | null = null;
   try {
-    const parsed = JSON.parse(matches[matches.length - 1][1]);
+    // const parsed = JSON.parse(matches[matches.length - 1][1]);
+    const parsed: Partial<Record<keyof EditorMetadata, unknown>> | null = JSON.parse(matches[matches.length - 1][1]);
     const isObject = typeof parsed === 'object';
     const hasParsed = !!parsed;
     const isRecord = hasParsed && isObject;
@@ -68,7 +75,8 @@ export function getStringRecord(value: unknown) {
   if (isInvalid)
     return undefined;
   const result: Record<string, string> = {};
-  for (const [key, entry] of Object.entries(value)) {
+  // for (const [key, entry] of Object.entries(value)) {
+  for (const [key, entry] of Object.entries(value as object) as [string, unknown][]) {
     if (typeof entry === 'string')
       result[key] = entry;
   }
@@ -81,7 +89,8 @@ export function applyTypeMetadata(metadata: EditorMetadata | null) {
 
 export function setEditorActionPromise(promise: Promise<void>) {
   state.editorActionPromise = promise;
-  (window as any).editorActionPromise = promise;
+  // (window as any).editorActionPromise = promise;
+  window.editorActionPromise = promise;
 }
 
 setEditorActionPromise(Promise.resolve());
