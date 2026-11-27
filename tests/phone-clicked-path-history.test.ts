@@ -27,7 +27,8 @@ async function clickQuestionThenChooseAfter() {
     await waitMilliseconds(1000);
 }
 
-async function measureVisibleHistory() {
+// async function measureVisibleHistory() {
+async function measureVisibleHistory(): Promise<{ historyHeight: number; historyFirstId?: string; hasClickedQuestion: boolean; hasChosenAnswer: boolean; clickedQuestionVisible: boolean; chosenAnswerVisible: boolean }> {
     return JSON.parse(await executeExpression(`JSON.stringify((() => {
         const history = document.getElementById('phoneHistory');
         const historyRect = history.getBoundingClientRect();
@@ -57,7 +58,8 @@ test("test_clicking_a_deep_decision_then_choosing_keeps_the_path_to_it_visible_i
     await dispatchNodeClick(CLICKED_QUESTION_ID);
     await waitMilliseconds(1000);
     // Step: the phone history starts at the start node and holds the path down to the clicked decision.
-    const idsAfterClick = await executeExpression("JSON.stringify([...document.querySelectorAll('#phoneHistory [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
+    // const idsAfterClick = await executeExpression("JSON.stringify([...document.querySelectorAll('#phoneHistory [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
+    const idsAfterClick = await executeExpression<string>("JSON.stringify([...document.querySelectorAll('#phoneHistory [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
     assert.equal(idsAfterClick[0], "B_LAUNCH");
     // Step: choose "after"; the walk continues to the next open decision.
     await executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${CHOSEN_CHOICE_ID}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
@@ -78,7 +80,8 @@ test("test_clicking_a_decision_with_many_blocks_before_it_keeps_its_choices_insi
     await openPuzzleSolverRules();
     await dispatchNodeClick("Q_PUZZLE_ANY_EVENT_LEFT");
     await waitMilliseconds(1000);
-    const choiceGeometry = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const choiceGeometry = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const choiceGeometry: { screenBottom: number; choiceBottoms: number[] } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const phone = document.getElementById('phoneOutput').getBoundingClientRect();
         const screenBottom = phone.bottom - parseFloat(getComputedStyle(document.getElementById('phoneOutput')).borderBottomWidth);
         const choices = [...document.querySelectorAll('#phoneFooter .phone-choice')].map(el => el.getBoundingClientRect());
@@ -98,7 +101,8 @@ test("test_clicking_a_deep_decision_in_a_short_window_keeps_the_path_visible_and
     await clickQuestionThenChooseAfter();
     const measured = await measureVisibleHistory();
     // Step: every choice button of the open decision ends inside the phone screen (the phone border is 8px).
-    const choiceGeometry = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const choiceGeometry = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const choiceGeometry: { screenBottom: number; choiceBottoms: number[]; choiceTops: number[] } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const phone = document.getElementById('phoneOutput').getBoundingClientRect();
         const screenBottom = phone.bottom - parseFloat(getComputedStyle(document.getElementById('phoneOutput')).borderBottomWidth);
         const choices = [...document.querySelectorAll('#phoneFooter .phone-choice')].map(el => el.getBoundingClientRect());

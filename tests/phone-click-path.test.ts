@@ -32,7 +32,8 @@ async function openDiagramText(text: string) {
 }
 
 async function listPhoneNodeIds(): Promise<string[]> {
-  return executeExpression("JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
+  // return executeExpression("JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
+  return executeExpression<string>("JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
 }
 
 async function readPhoneText(): Promise<string> {
@@ -100,7 +101,8 @@ test("test_clicking_a_block_shows_the_path_to_it_and_keeps_walking_to_the_next_d
   // Scenario: click B_USE_GIVEN_JSONLS (after the Yes choice of Q_JSONLS_GIVEN); the phone shows the path to it, then the next open decision.
   await openDiagramText(TWO_START_NODES);
   await clickNodeAndWait("B_USE_GIVEN_JSONLS");
-  assert.deepEqual(await executeExpression("JSON.stringify(phonePath)").then(JSON.parse), ["Q_CHOICE_JSONLS_GIVEN_YES"]);
+  // assert.deepEqual(await executeExpression("JSON.stringify(phonePath)").then(JSON.parse), ["Q_CHOICE_JSONLS_GIVEN_YES"]);
+  assert.deepEqual(await executeExpression<string>("JSON.stringify(phonePath)").then(JSON.parse), ["Q_CHOICE_JSONLS_GIVEN_YES"]);
   const nodeIds = await listPhoneNodeIds();
   assert.deepEqual(nodeIds.filter((id) => id.startsWith("B_") || id.startsWith("Q_") && !id.startsWith("Q_CHOICE")), ["B_LAUNCH", "Q_JSONLS_GIVEN", "B_USE_GIVEN_JSONLS", "Q_SNAPSHOTS_GIVEN"]);
   assert.equal(await executeExpression("document.querySelector('#phoneDiagram [data-active-question]').dataset.nodeId"), "Q_SNAPSHOTS_GIVEN");
@@ -110,7 +112,8 @@ test("test_clicking_a_choice_shows_it_as_the_chosen_answer", async () => {
   // Scenario: click the Yes choice of Q_JSONLS_GIVEN; the phone shows that choice as chosen.
   await openDiagramText(TWO_START_NODES);
   await clickNodeAndWait("Q_CHOICE_JSONLS_GIVEN_YES");
-  assert.deepEqual(await executeExpression("JSON.stringify(phonePath)").then(JSON.parse), ["Q_CHOICE_JSONLS_GIVEN_YES"]);
+  // assert.deepEqual(await executeExpression("JSON.stringify(phonePath)").then(JSON.parse), ["Q_CHOICE_JSONLS_GIVEN_YES"]);
+  assert.deepEqual(await executeExpression<string>("JSON.stringify(phonePath)").then(JSON.parse), ["Q_CHOICE_JSONLS_GIVEN_YES"]);
   assert.equal(await executeExpression("document.querySelector('#phoneDiagram .phone-choice-chosen').dataset.nodeId"), "Q_CHOICE_JSONLS_GIVEN_YES");
 });
 
@@ -126,7 +129,8 @@ test("test_the_clicked_node_gets_a_selected_border_in_the_phone", async () => {
   // Scenario: the clicked block carries the phone-clicked class, so the user sees what was clicked.
   await openDiagramText(TWO_START_NODES);
   await clickNodeAndWait("B_USE_GIVEN_JSONLS");
-  assert.deepEqual(await executeExpression("JSON.stringify([...document.querySelectorAll('#phoneDiagram .phone-clicked')].map(el => el.dataset.nodeId))").then(JSON.parse), ["B_USE_GIVEN_JSONLS"]);
+  // assert.deepEqual(await executeExpression("JSON.stringify([...document.querySelectorAll('#phoneDiagram .phone-clicked')].map(el => el.dataset.nodeId))").then(JSON.parse), ["B_USE_GIVEN_JSONLS"]);
+  assert.deepEqual(await executeExpression<string>("JSON.stringify([...document.querySelectorAll('#phoneDiagram .phone-clicked')].map(el => el.dataset.nodeId))").then(JSON.parse), ["B_USE_GIVEN_JSONLS"]);
 });
 
 test("test_reset_decisions_returns_the_phone_to_the_start_prompt", async () => {

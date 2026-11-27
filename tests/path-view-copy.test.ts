@@ -57,7 +57,8 @@ async function clickFilter(id: string) {
 }
 
 function readCopiedTexts(): Promise<string[]> {
-    return executeExpression('JSON.stringify(window.copied)').then(JSON.parse);
+    // return executeExpression('JSON.stringify(window.copied)').then(JSON.parse);
+    return executeExpression<string>('JSON.stringify(window.copied)').then(JSON.parse);
 }
 
 function isDisabled(id: string): Promise<boolean> {

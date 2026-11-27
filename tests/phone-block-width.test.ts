@@ -42,7 +42,8 @@ test("test_phone_history_does_not_scroll_sideways_for_a_long_code_line", async (
     assert.ok(LONG_CODE_LINE.length >= 115);
     await showBlocksInPhoneView();
     // Step: measure the content width and the visible width of the phone history.
-    const widths = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const widths = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const widths: { scrollWidth: number; clientWidth: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const history = document.querySelector('#phoneHistory');
         return { scrollWidth: history.scrollWidth, clientWidth: history.clientWidth };
     })())`));
@@ -54,7 +55,8 @@ test("test_phone_block_with_a_long_code_line_scrolls_sideways_by_itself", async 
     // Step: show a block with a fenced code line of about 120 characters.
     await showBlocksInPhoneView();
     // Step: measure the block and its container.
-    const widths = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const widths = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const widths: { blockWidth: number; expectedWidth: number; scrollWidth: number; clientWidth: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const block = document.querySelector('#phoneDiagram .phone-block[data-node-id="B_CODE"]');
         const parentStyle = getComputedStyle(block.parentElement);
         const parentContentWidth = block.parentElement.clientWidth - Number.parseFloat(parentStyle.paddingLeft) - Number.parseFloat(parentStyle.paddingRight);
@@ -70,7 +72,8 @@ test("test_phone_block_with_short_text_is_as_wide_as_the_phone_view_minus_16_pix
     // Step: show a block with only short text.
     await showBlocksInPhoneView();
     // Step: the block is as wide as its container minus 16 pixels.
-    const widths = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const widths = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const widths: { blockWidth: number; expectedWidth: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const block = document.querySelector('#phoneDiagram .phone-block[data-node-id="B_SHORT"]');
         const parentStyle = getComputedStyle(block.parentElement);
         const parentContentWidth = block.parentElement.clientWidth - Number.parseFloat(parentStyle.paddingLeft) - Number.parseFloat(parentStyle.paddingRight);

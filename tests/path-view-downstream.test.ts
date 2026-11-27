@@ -39,7 +39,8 @@ async function runInspectorAction(action: string) {
 }
 
 function readJson(expression: string) {
-    return executeExpression(`JSON.stringify(${expression})`).then(JSON.parse);
+//    return executeExpression(`JSON.stringify(${expression})`).then(JSON.parse);
+    return executeExpression<string>(`JSON.stringify(${expression})`).then((json): string[] => JSON.parse(json));
 }
 
 function isDisabled(selector: string): Promise<boolean> {
@@ -365,7 +366,8 @@ test('test_shift_click_adds_an_arrow_with_no_filter', async () => {
 
 test('test_right_click_opens_the_add_block_menu_with_no_filter', async () => {
     await turnToggleOn();
-    const point = JSON.parse(await executeExpression(`JSON.stringify((() => {
+//    const point = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const point: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const rect = document.getElementById('output').getBoundingClientRect();
         return { x: rect.left + 30, y: rect.top + 30 };
     })())`));

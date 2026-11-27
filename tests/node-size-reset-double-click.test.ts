@@ -51,9 +51,11 @@ async function doubleClickWithMouse(point: Point) {
     await waitMilliseconds(700);
 }
 async function readSourceLines(): Promise<string[]> {
-    return (await executeExpression("codeBox.value")).split("\n");
+    // return (await executeExpression("codeBox.value")).split("\n");
+    return (await executeExpression<string>("codeBox.value")).split("\n");
 }
-async function readBoxAndTextBox(id: string, shapeTag: string) {
+// async function readBoxAndTextBox(id: string, shapeTag: string) {
+async function readBoxAndTextBox(id: string, shapeTag: string): Promise<{ width: number; height: number; textWidth: number; textHeight: number }> {
     return JSON.parse(await executeExpression(`JSON.stringify((() => {
         const node = document.querySelector('#diagram g.node[id*="flowchart-${id}-"]');
         const shapeBox = node.querySelector('${shapeTag}').getBoundingClientRect();

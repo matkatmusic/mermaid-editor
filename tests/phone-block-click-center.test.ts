@@ -42,7 +42,8 @@ async function measurePhoneView(id: string): Promise<{ rowIds: string[]; clicked
 
 // Presses and releases the mouse on the phone row; returns the Phone view as it was just before the press.
 async function clickPhoneRowWithMouse(id: string) {
-    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const center: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const row = document.querySelector('#phoneDiagram [data-node-id="${id}"]');
         row.scrollIntoView({ block: 'center', inline: 'center' });
         const rect = row.getBoundingClientRect();
@@ -54,7 +55,8 @@ async function clickPhoneRowWithMouse(id: string) {
     return phoneViewBeforePress;
 }
 
-async function measureCenterOffsetBetweenBlockAndMainView(id: string) {
+// async function measureCenterOffsetBetweenBlockAndMainView(id: string) {
+async function measureCenterOffsetBetweenBlockAndMainView(id: string): Promise<{ horizontal: number; vertical: number }> {
     return JSON.parse(await executeExpression(`JSON.stringify((() => {
         const outputRect = document.getElementById('output').getBoundingClientRect();
         const nodeRect = document.querySelector('#diagram [id*="flowchart-${id}-"]').getBoundingClientRect();

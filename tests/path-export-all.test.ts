@@ -15,7 +15,8 @@ const LOOP_EDGES = [
 
 test("test_list_all_path_ids_uses_each_edge_once_per_path_and_loops_back_to_a_decision", async () => {
   // Scenario: "No" loops back to the decision, so that path then takes the other answer.
-  const paths = await executeExpression(`JSON.stringify(listAllPathIds(${JSON.stringify(LOOP_EDGES)}))`).then(JSON.parse);
+  // const paths = await executeExpression(`JSON.stringify(listAllPathIds(${JSON.stringify(LOOP_EDGES)}))`).then(JSON.parse);
+  const paths = await executeExpression<string>(`JSON.stringify(listAllPathIds(${JSON.stringify(LOOP_EDGES)}))`).then(JSON.parse);
   assert.deepEqual(paths, [
     ["B_START", "Q_ASK", "Q_CHOICE_ASK_YES", "B_END"],
     ["B_START", "Q_ASK", "Q_CHOICE_ASK_NO", "Q_ASK", "Q_CHOICE_ASK_YES", "B_END"],
@@ -28,7 +29,8 @@ test("test_list_all_path_ids_lists_paths_from_every_start_node", async () => {
     ["B_FIRST", "B_FIRST_END"],
     ["B_SECOND", "B_SECOND_END"],
   ];
-  const paths = await executeExpression(`JSON.stringify(listAllPathIds(${JSON.stringify(edges)}))`).then(JSON.parse);
+  // const paths = await executeExpression(`JSON.stringify(listAllPathIds(${JSON.stringify(edges)}))`).then(JSON.parse);
+  const paths = await executeExpression<string>(`JSON.stringify(listAllPathIds(${JSON.stringify(edges)}))`).then(JSON.parse);
   assert.deepEqual(paths, [
     ["B_FIRST", "B_FIRST_END"],
     ["B_SECOND", "B_SECOND_END"],
@@ -55,7 +57,8 @@ test("test_export_all_paths_button_writes_one_numbered_file_per_path", async () 
   await executeExpression("loadDiagram('loop-demo.mmd')");
   await waitMilliseconds(500);
   // Step: the click locks the source editor and the node text input, and leaves Walk back usable, until the writing stops.
-  const whileWriting = await executeExpression("document.getElementById('exportAllPathsBtn').click(), JSON.stringify({ isReadOnly: document.getElementById('code').readOnly, walkBackInert: !!document.getElementById('walkBackBtn').closest('[inert]'), nodeTextInert: !!document.getElementById('nodeTextInput').closest('[inert]') })").then(JSON.parse);
+  // const whileWriting = await executeExpression("document.getElementById('exportAllPathsBtn').click(), JSON.stringify({ isReadOnly: document.getElementById('code').readOnly, walkBackInert: !!document.getElementById('walkBackBtn').closest('[inert]'), nodeTextInert: !!document.getElementById('nodeTextInput').closest('[inert]') })").then(JSON.parse);
+  const whileWriting = await executeExpression<string>("document.getElementById('exportAllPathsBtn').click(), JSON.stringify({ isReadOnly: document.getElementById('code').readOnly, walkBackInert: !!document.getElementById('walkBackBtn').closest('[inert]'), nodeTextInert: !!document.getElementById('nodeTextInput').closest('[inert]') })").then(JSON.parse);
   assert.deepEqual(whileWriting, { isReadOnly: true, walkBackInert: false, nodeTextInert: true });
   await waitMilliseconds(1000);
   // Step: one file per path, numbered from 0, and the status line reports the count.

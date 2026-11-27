@@ -7,7 +7,8 @@ registerBrowserHooks(import.meta.url);
 
 test("test_split_workspace_always_renders_regular_and_phone_views_with_distinct_clicks", async () => {
   // Step: the old mode switch is gone and both panes occupy their fixed shares of the canvas.
-  const layout = await executeExpression(`JSON.stringify((() => {
+  // const layout = await executeExpression(`JSON.stringify((() => {
+  const layout = await executeExpression<string>(`JSON.stringify((() => {
     const main = document.getElementById('main').getBoundingClientRect();
     const workspace = document.getElementById('workspace').getBoundingClientRect();
     const phone = document.getElementById('phoneWorkspace').getBoundingClientRect();
@@ -31,7 +32,8 @@ test("test_split_workspace_always_renders_regular_and_phone_views_with_distinct_
   assert.match(layout.regularWidthStyle, /^\d+(?:\.\d+)?px$/);
 
   // Step: the log/undo UI is gone; scrolling with masking replaces it.
-  const removedUi = await executeExpression(
+  // const removedUi = await executeExpression(
+  const removedUi = await executeExpression<string>(
     "JSON.stringify({logBtn: !!document.getElementById('logBtn'), undoBtn: !!document.getElementById('undoBtn'), logBox: !!document.getElementById('logBox'), phoneBar: !!document.getElementById('phoneBar')})"
   ).then(JSON.parse);
   assert.deepEqual(removedUi, { logBtn: false, undoBtn: false, logBox: false, phoneBar: false });
@@ -52,7 +54,8 @@ test("test_phone_view_shows_the_start_slice", async () => {
   await executeExpression("document.getElementById('resetBtn').click()");
   await waitForRender();
   // Step: the open decision at the start is the diagram's first question, unmasked, with no separator yet.
-  const state = await executeExpression(`JSON.stringify((() => {
+  // const state = await executeExpression(`JSON.stringify((() => {
+  const state = await executeExpression<string>(`JSON.stringify((() => {
     const active = document.querySelector('#phoneDiagram [data-active-question]');
     return {
       activeId: active?.dataset.nodeId,
@@ -64,7 +67,8 @@ test("test_phone_view_shows_the_start_slice", async () => {
   assert.equal(state.separatorCount, 0);
   assert.equal(state.maskedCount, 0);
   // Step: every question spans the full phone viewport width; static blocks are inset by their 8px margin.
-  const widths = await executeExpression(`JSON.stringify((() => {
+  // const widths = await executeExpression(`JSON.stringify((() => {
+  const widths = await executeExpression<string>(`JSON.stringify((() => {
     const paneWidth = document.getElementById('phoneDiagram').clientWidth;
     const questionWidths = Array.from(document.querySelectorAll('#phoneDiagram .phone-question')).map(el => el.getBoundingClientRect().width);
     const blockWidths = Array.from(document.querySelectorAll('#phoneDiagram .phone-block')).map(el => el.getBoundingClientRect().width);
@@ -75,7 +79,8 @@ test("test_phone_view_shows_the_start_slice", async () => {
   for (const width of widths.blockWidths)
     assert.ok(Math.abs(width - (widths.paneWidth - 16)) < 1, JSON.stringify(widths));
   // Step: the open question's two choices split the row evenly, with a visible gap between them.
-  const choiceWidths = await executeExpression(`JSON.stringify((() => {
+  // const choiceWidths = await executeExpression(`JSON.stringify((() => {
+  const choiceWidths = await executeExpression<string>(`JSON.stringify((() => {
     const choices = Array.from(document.querySelectorAll('#phoneDiagram [data-active-question] ~ .phone-choice-row .phone-choice'));
     return { widths: choices.map(el => el.getBoundingClientRect().width) };
   })())`).then(JSON.parse);
@@ -89,7 +94,8 @@ test("test_clicking_a_decision_choice_masks_it_and_opens_the_next_decision", asy
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
   await waitForRender();
-  const state = await executeExpression(`JSON.stringify((() => {
+  // const state = await executeExpression(`JSON.stringify((() => {
+  const state = await executeExpression<string>(`JSON.stringify((() => {
     const active = document.querySelector('#phoneDiagram [data-active-question]');
     const pastQuestion = document.querySelector('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]');
     const pastWrap = pastQuestion.closest('.phone-decision-past');

@@ -19,7 +19,8 @@ async function selectNodeAndFocusBox(id: string, boxId: string) {
 }
 
 async function getSourceLines(): Promise<string[]> {
-    return (await executeExpression("codeBox.value")).split("\n");
+    // return (await executeExpression("codeBox.value")).split("\n");
+    return (await executeExpression<string>("codeBox.value")).split("\n");
 }
 
 async function pressEnterAndWaitForWrite() {
@@ -130,7 +131,9 @@ test("test_each_text_box_has_one_tiny_helper_line_below_it", async () => {
     await waitMilliseconds(500);
     await clickNodeWithMouse("B_A");
     await waitMilliseconds(300);
-    const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    type Hint = { text: string; fontSize: number; gapBelowBox: number; leftOffset: number; hintHeight: number };
+    const measured: { labelFont: number; text: Hint; notes: Hint } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const labelFont = parseFloat(getComputedStyle(document.querySelector('#nodeTextInput').closest('label').querySelector('span')).fontSize);
         const read = (boxId, hintId) => {
             const box = document.getElementById(boxId).getBoundingClientRect();

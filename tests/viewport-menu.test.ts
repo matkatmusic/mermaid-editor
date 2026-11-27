@@ -9,7 +9,8 @@ registerBrowserHooks(import.meta.url, openEditorDrawer);
 
 async function rightClickViewport() {
   // Scenario: press and release the right mouse button near the top left corner of the diagram viewport.
-  const point = JSON.parse(await executeExpression(`JSON.stringify((() => {
+  // const point = JSON.parse(await executeExpression(`JSON.stringify((() => {
+  const point: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
     const rect = document.getElementById('output').getBoundingClientRect();
     return { x: rect.left + 30, y: rect.top + 30 };
   })())`));
@@ -34,7 +35,8 @@ test("test_right_clicking_the_viewport_opens_a_menu_with_the_two_add_block_choic
   // Step: right click empty space in the viewport; the menu shows both choices.
   await rightClickViewport();
   assert.equal(await isViewportMenuShown(), true);
-  const labels = JSON.parse(await executeExpression("JSON.stringify(Array.from(document.querySelectorAll('#viewportMenu button')).map(button => button.textContent))"));
+  // const labels = JSON.parse(await executeExpression("JSON.stringify(Array.from(document.querySelectorAll('#viewportMenu button')).map(button => button.textContent))"));
+  const labels: string[] = JSON.parse(await executeExpression("JSON.stringify(Array.from(document.querySelectorAll('#viewportMenu button')).map(button => button.textContent))"));
   assert.deepEqual(labels, ["Add Decision Block", "Add Static Block"]);
 });
 
@@ -45,7 +47,8 @@ test("test_add_static_block_from_the_menu_adds_a_node_with_no_edges_and_selects_
   await executeExpression("document.getElementById('addStaticBlockMenuBtn').click()");
   await waitMilliseconds(800);
   // Step: the source has the new node and no edge touches it.
-  const source = await executeExpression("codeBox.value");
+  // const source = await executeExpression("codeBox.value");
+  const source = await executeExpression<string>("codeBox.value");
   assert.ok(source.includes('B_NEW_1["New static block"]'));
   assert.equal(source.includes("--> B_NEW_1"), false);
   assert.equal(source.includes("B_NEW_1 -->"), false);
@@ -63,7 +66,8 @@ test("test_add_decision_block_from_the_menu_adds_a_question_with_yes_and_no_choi
   await executeExpression("document.getElementById('addDecisionBlockMenuBtn').click()");
   await waitMilliseconds(800);
   // Step: the source has the question, its two choices, and only the two edges out of the question.
-  const source = await executeExpression("codeBox.value");
+  // const source = await executeExpression("codeBox.value");
+  const source = await executeExpression<string>("codeBox.value");
   assert.ok(source.includes('Q_NEW_1{{"New Decision"}}'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_Y["Yes"]'));
   assert.ok(source.includes('Q_CHOICE_NEW_1_N["No"]'));

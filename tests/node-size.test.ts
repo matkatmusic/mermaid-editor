@@ -38,7 +38,8 @@ async function readNodeBox(id: string): Promise<{ width: number; height: number 
 }
 
 async function readSourceLines(): Promise<string[]> {
-    return (await executeExpression("codeBox.value")).split("\n");
+    // return (await executeExpression("codeBox.value")).split("\n");
+    return (await executeExpression<string>("codeBox.value")).split("\n");
 }
 
 test("test_a_sized_block_renders_at_the_stored_size", async () => {
@@ -59,7 +60,8 @@ test("test_a_sized_choice_renders_at_the_stored_size", async () => {
 test("test_a_sized_hexagon_decision_renders_with_the_label_size_of_the_stored_size", async () => {
     // Scenario: a hexagon gets the same label size as a block; its box is wider than the label because of the side points.
     await loadSource(`${BODY}\n%% ==props==: {"blockId":"Q_A","width":400,"height":120}`);
-    const box = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const box = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const box: { width: number; height: number; error: string } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const box = document.querySelector('#diagram g.node[id*="flowchart-Q_A-"] polygon').getBBox();
         return { width: box.width, height: box.height, error: document.getElementById('error').textContent };
     })())`));

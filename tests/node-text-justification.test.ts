@@ -20,7 +20,8 @@ async function getNodeTextAlign(): Promise<string> {
 }
 
 async function clickJustificationButtonWithMouse(justification: string) {
-    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const center: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const button = document.querySelector('#nodeAlignRow button[data-justification="${justification}"]');
         const rect = button.getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };

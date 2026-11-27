@@ -60,7 +60,8 @@ const CHOOSE_NO = '[data-choose="Q_CHOICE_ASK_NO"]';
 const REVERT_TO_NO = '[data-revert$=":Q_CHOICE_ASK_NO"]';
 
 function readJson(expression: string) {
-    return executeExpression(`JSON.stringify(${expression})`).then(JSON.parse);
+    // return executeExpression(`JSON.stringify(${expression})`).then(JSON.parse);
+    return executeExpression<string>(`JSON.stringify(${expression})`).then(JSON.parse);
 }
 
 function readPhoneIds(selector: string): Promise<string[]> {

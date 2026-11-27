@@ -23,7 +23,8 @@ const SOURCE = [
     "  Q_TWO --> Q_CHOICE_TWO_Y",
     "  Q_TWO --> Q_CHOICE_TWO_N",
 ].join("\n");
-type FontSizes = Record<string, number | null>;
+// type FontSizes = Record<string, number | null>;
+type FontSizes = Record<"pickedButton" | "pickedButtonCode" | "activeQuestion" | "activeQuestionCode" | "pastQuestionCode" | "activeChoiceButton" | "activeChoiceButtonCode" | "block" | "blockSpanCode" | "blockCodeBlock", number | null>;
 async function loadPhoneWithActiveSecondQuestion() {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
@@ -57,7 +58,8 @@ test("test_phone_code_text_has_the_font_size_of_a_picked_choice_button_in_every_
     console.log(`MEASURED phone font sizes: ${JSON.stringify(sizes)}`);
     for (const [name, size] of Object.entries(sizes))
         assert.notEqual(size, null, `${name} not found: ${JSON.stringify(sizes)}`);
-    for (const name of ["pickedButtonCode", "activeQuestionCode", "pastQuestionCode", "activeChoiceButtonCode", "blockSpanCode", "blockCodeBlock"])
+    // for (const name of ["pickedButtonCode", "activeQuestionCode", "pastQuestionCode", "activeChoiceButtonCode", "blockSpanCode", "blockCodeBlock"])
+    for (const name of ["pickedButtonCode", "activeQuestionCode", "pastQuestionCode", "activeChoiceButtonCode", "blockSpanCode", "blockCodeBlock"] as const)
         assert.equal(sizes[name], sizes.pickedButton, `${name}: ${JSON.stringify(sizes)}`);
 });
 test("test_the_picked_button_code_size_is_smaller_than_the_regular_text_of_the_active_question", async () => {

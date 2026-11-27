@@ -20,7 +20,8 @@ const BODY = [
 ].join("\n");
 
 async function clickJustificationButtonWithMouse(justification: string) {
-    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const center: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const button = document.querySelector('#nodeAlignRow button[data-justification="${justification}"]');
         button.scrollIntoView({ block: 'center', inline: 'center' });
         const rect = button.getBoundingClientRect();

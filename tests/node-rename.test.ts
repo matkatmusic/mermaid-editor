@@ -59,7 +59,8 @@ async function readCheck(): Promise<string> {
 }
 
 async function readKindRow() {
-  return executeExpression(`JSON.stringify({
+  // return executeExpression(`JSON.stringify({
+  return executeExpression<string>(`JSON.stringify({
     static: document.getElementById('nodeKindStatic').checked,
     question: document.getElementById('nodeKindQuestion').checked,
     choice: document.getElementById('nodeKindChoice').checked,
@@ -121,7 +122,8 @@ test("test_checker_updates_on_every_key_stroke", async () => {
 
 test("test_real_tab_renames_a_block_everywhere_in_one_undo_step_and_keeps_it_selected", async () => {
   await openSourceAndSelect(MOOD_SOURCE, "B_END");
-  const historyBefore = await executeExpression("editorHistory.length");
+  // const historyBefore = await executeExpression("editorHistory.length");
+  const historyBefore = await executeExpression<number>("editorHistory.length");
   await typeNameThenPress("FINISH", KeyName.Tab);
   const source = await readSource();
   assert.equal(countWholeWord(source, "B_END"), 0);

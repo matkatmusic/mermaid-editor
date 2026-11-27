@@ -82,7 +82,8 @@ async function replaceSourceAndRender(from: string, to: string) {
 test('test_every_digit_path_is_an_export_all_path', async () => {
     await loadPathViewSource(LOOP_SOURCE);
     const edges: Edge[] = [['S', 'Q'], ['Q', 'A'], ['A', 'Q'], ['Q', 'B'], ['B', 'Q'], ['Q', 'E'], ['T', 'Q']];
-    const exported: string[][] = await executeExpression(`JSON.stringify(listAllPathIds(${JSON.stringify(edges)}))`).then(JSON.parse);
+    // const exported: string[][] = await executeExpression(`JSON.stringify(listAllPathIds(${JSON.stringify(edges)}))`).then(JSON.parse);
+    const exported: string[][] = await executeExpression<string>(`JSON.stringify(listAllPathIds(${JSON.stringify(edges)}))`).then(JSON.parse);
     const exportedPaths = exported.map((path) => path.join(' '));
     const diagram: PathDiagram = { startIds: ['S', 'T'], decisionIds: ['Q'], edges };
     let digits: number[] | null = [0, 0];
@@ -202,7 +203,8 @@ test('test_path_buttons_reach_both_orders_of_a_loop_with_the_same_blocks', async
     const choiceOrders: string[] = [];
     // for (let pathNumber = 1; pathNumber <= 5; pathNumber++) {
     for (let pathNumber = 1; pathNumber <= 3; pathNumber++) {
-        const pathIds: string[] = await executeExpression('JSON.stringify(pathView.pathIds)').then(JSON.parse);
+        // const pathIds: string[] = await executeExpression('JSON.stringify(pathView.pathIds)').then(JSON.parse);
+        const pathIds: string[] = await executeExpression<string>('JSON.stringify(pathView.pathIds)').then(JSON.parse);
         choiceOrders.push(pathIds.filter((id) => id.startsWith('Q_CHOICE')).join(' '));
         assert.equal(await readErrorLog(), '');
         // if (pathNumber < 5)

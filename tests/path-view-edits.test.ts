@@ -96,7 +96,8 @@ test('test_text_edit_in_a_view_changes_the_saved_file_and_the_drawn_block', asyn
     await writeInput('nodeTextInput', 'Agreed');
     const saved = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`).then((response) => response.text());
     assert.ok(saved.includes('B_YES["Agreed"]'), saved);
-    assert.ok((await executeExpression("document.querySelector('#diagram [id*=\"flowchart-B_YES-\"]').textContent")).includes('Agreed'));
+    // assert.ok((await executeExpression("document.querySelector('#diagram [id*=\"flowchart-B_YES-\"]').textContent")).includes('Agreed'));
+    assert.ok((await executeExpression<string>("document.querySelector('#diagram [id*=\"flowchart-B_YES-\"]').textContent")).includes('Agreed'));
     await assertShownOnFirstPath(YES_NODE_IDS);
 });
 

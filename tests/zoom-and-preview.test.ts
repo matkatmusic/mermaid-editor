@@ -14,7 +14,8 @@ test('test_main_view_click_shows_the_path_to_the_clicked_node_in_the_phone', asy
   await waitForRender();
   assert.equal(await executeExpression('phonePreviewChoiceId'), null);
   assert.equal(await executeExpression('phoneFocusNodeId'), null);
-  assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
+  // assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
+  assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
   for (const id of ['Q_FIRST', 'Q_CHOICE_FIRST_Y', 'B_ONE', 'B_TWO', 'Q_NEXT', 'Q_CHOICE_NEXT_Y', 'Q_CHOICE_NEXT_N'])
     assert.equal(await executeExpression(`!!document.querySelector('#phoneDiagram [data-node-id="${id}"]')`), true, id);
   assert.equal(await executeExpression("currentBottomQ"), 'Q_NEXT');
@@ -22,7 +23,8 @@ test('test_main_view_click_shows_the_path_to_the_clicked_node_in_the_phone', asy
   // A choice joins the path as the chosen answer.
   await dispatchNodeClick('Q_CHOICE_FIRST_N');
   await waitForRender();
-  assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_N']);
+  // assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_N']);
+  assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_N']);
 
   // The start node alone gives an empty path.
   await dispatchNodeClick('B_ROOT');
@@ -32,14 +34,16 @@ test('test_main_view_click_shows_the_path_to_the_clicked_node_in_the_phone', asy
   // A decision is the open decision at the end of its path.
   await dispatchNodeClick('Q_NEXT');
   await waitForRender();
-  assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
+  // assert.deepEqual(await executeExpression('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
+  assert.deepEqual(await executeExpression<string>('JSON.stringify(phonePath)').then(JSON.parse), ['Q_CHOICE_FIRST_Y']);
   assert.equal(await executeExpression("document.querySelector('#phoneDiagram [data-active-question]').dataset.nodeId"), 'Q_NEXT');
 });
 
 test('test_header_zoom_controls_resize_only_the_main_mermaid_diagram', async () => {
   await resetEditorFixture();
   await executeExpression("document.getElementById('zoomResetBtn').click()");
-  const dimensions = () => executeExpression(`JSON.stringify((() => {
+  // const dimensions = () => executeExpression(`JSON.stringify((() => {
+  const dimensions = () => executeExpression<string>(`JSON.stringify((() => {
     const regularSvg = document.querySelector('#diagram svg');
     return {
       regularWidth: Number.parseFloat(regularSvg.style.width),
@@ -79,7 +83,8 @@ test('test_previous_selections_stay_masked_through_each_phone_choice', async () 
   await waitForRender();
   await executeExpression(`document.querySelector('#phoneDiagram [data-choose="Q_CHOICE_THEM_DONE_SPEAKING_Y"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await waitMilliseconds(400);
-  const firstState = await executeExpression(`JSON.stringify((() => {
+  // const firstState = await executeExpression(`JSON.stringify((() => {
+  const firstState = await executeExpression<string>(`JSON.stringify((() => {
     return {
       firstMasked: !!document.querySelector('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]').closest('.phone-decision-past'),
       activeId: document.querySelector('#phoneDiagram [data-active-question]')?.dataset.nodeId,
@@ -91,7 +96,8 @@ test('test_previous_selections_stay_masked_through_each_phone_choice', async () 
   assert.equal(firstState.separatorCount, 1);
   await executeExpression(`document.querySelector('#phoneDiagram [data-choose="Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await waitMilliseconds(400);
-  const secondState = await executeExpression(`JSON.stringify((() => {
+  // const secondState = await executeExpression(`JSON.stringify((() => {
+  const secondState = await executeExpression<string>(`JSON.stringify((() => {
     return {
       firstMasked: !!document.querySelector('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]').closest('.phone-decision-past'),
       secondMasked: !!document.querySelector('#phoneDiagram [data-node-id="Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID"]').closest('.phone-decision-past'),
@@ -112,7 +118,8 @@ test('test_previous_selections_stay_masked_through_each_phone_choice', async () 
 test('test_add_and_insert_actions_preserve_the_zoom_scale_in_the_regular_view', async () => {
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  B_START["Start"]\n  Q_FIRST{"First?"}\n  Q_CHOICE_FIRST_Y["Yes"]\n  Q_CHOICE_FIRST_N["No"]\n  B_END["End"]\n  B_START --> Q_FIRST\n  Q_FIRST --> Q_CHOICE_FIRST_Y --> B_END\n  Q_FIRST --> Q_CHOICE_FIRST_N');
-  const scales = () => executeExpression(`JSON.stringify((() => {
+  // const scales = () => executeExpression(`JSON.stringify((() => {
+  const scales = () => executeExpression<string>(`JSON.stringify((() => {
     const svg = document.querySelector('#diagram svg');
     return { regular: Number.parseFloat(svg.style.height) / svg.viewBox.baseVal.height };
   })())`).then(JSON.parse);

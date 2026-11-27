@@ -19,6 +19,7 @@ type TextLineReport = { nodeId: string; text: string; problems: string[] };
 // For every text line of every block: the line box lies inside the shape box, and the browser really draws the ends of the line
 // (a point at each end of the line hits the label; a clipped part hits the shape or the page behind it).
 async function findTextLineProblems(): Promise<{ nodeCount: number; lineCount: number; reports: TextLineReport[] }> {
+    // Old last line of this statement: })())`));
     return JSON.parse(await executeExpression(`JSON.stringify((() => {
         const reports = [];
         let lineCount = 0;
@@ -64,7 +65,7 @@ async function findTextLineProblems(): Promise<{ nodeCount: number; lineCount: n
             }
         }
         return { nodeCount: nodes.length, lineCount, reports };
-    })())`));
+    })())`)) as { nodeCount: number; lineCount: number; reports: TextLineReport[] };
 }
 function describeReports(reports: TextLineReport[]) {
     return reports.slice(0, 12).map((report) => `${report.nodeId} "${report.text}": ${report.problems.join(", ")}`).join("\n");

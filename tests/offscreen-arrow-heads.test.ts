@@ -144,7 +144,8 @@ async function loadChainWithBackEdge(blockCount: number, backEdgeTargetIndex: nu
 
 // Presses and releases the left mouse button at the middle of the extra arrow head of one line.
 async function clickArrowHeadWithMouse(edgeDataId: string) {
-    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const center: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const rect = document.querySelector('#diagram .offscreen-arrow-head[data-edge-id="${edgeDataId}"]').getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     })())`));
@@ -214,7 +215,8 @@ test("test_command_clicking_the_visible_part_of_a_line_centers_the_start_block",
     await waitMilliseconds(300);
     assert.equal(await executeExpression(`document.querySelector('#diagram [id*="flowchart-B_N8-"]').getBoundingClientRect().bottom < document.getElementById('output').getBoundingClientRect().top`), true);
     // Step: find a point on the line that the mouse can hit.
-    const point = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const point = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const point: { x: number; y: number } | null = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const path = document.querySelector('#diagram path.flowchart-link[data-id="L_B_N8_B_N9_0"]');
         for (let step = 0; step <= 200; step++) {
             const point = path.getPointAtLength(path.getTotalLength() * step / 200).matrixTransform(path.getScreenCTM());
@@ -237,7 +239,8 @@ test("test_command_clicking_an_extra_arrow_head_centers_the_start_block", async 
     await scrollEdgeMiddleToBottomEdge("L_B_N3_B_N4_0");
     // The horizontal overlay scrollbar covers the bottom 16 px of the output box and takes the mouse click, so it is hidden for this click.
     await executeExpression("document.getElementById('output').style.overflowX = 'hidden'");
-    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const center: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const rect = document.querySelector('#diagram .offscreen-arrow-head[data-edge-id="L_B_N3_B_N4_0"]').getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     })())`));

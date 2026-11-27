@@ -11,11 +11,13 @@ registerBrowserHooks(import.meta.url, openEditorDrawer);
 const PUZZLE_SOLVER_RULES = readFileSync(join(import.meta.dirname, "puzzle-solver-rules-phone.fixture.mmd"), "utf8");
 
 async function listPhoneNodeIds(): Promise<string[]> {
-  return executeExpression("JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
+  // return executeExpression("JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
+  return executeExpression<string>("JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
 }
 
 async function listPhoneChoiceButtonIds(): Promise<string[]> {
-  return executeExpression("JSON.stringify([...document.querySelectorAll('#phoneDiagram button[data-choose]')].map(button => button.dataset.choose))").then(JSON.parse);
+  // return executeExpression("JSON.stringify([...document.querySelectorAll('#phoneDiagram button[data-choose]')].map(button => button.dataset.choose))").then(JSON.parse);
+  return executeExpression<string>("JSON.stringify([...document.querySelectorAll('#phoneDiagram button[data-choose]')].map(button => button.dataset.choose))").then(JSON.parse);
 }
 
 test('test_phone_choice_button_walks_a_decision_under_the_second_start_node', async () => {
@@ -34,8 +36,10 @@ test('test_phone_choice_button_walks_a_decision_under_the_second_start_node', as
   await executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${buttonIds[0]}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await waitMilliseconds(1000);
   // The fake file path /tmp/... is not the server's opened file, so its autosave error ("No file opened") is expected and ignored.
-  const phoneErrors: string[] = await executeExpression("JSON.stringify(window.capturedErrors.filter(message => !message.includes('No file opened')))").then(JSON.parse);
+  // const phoneErrors: string[] = await executeExpression("JSON.stringify(window.capturedErrors.filter(message => !message.includes('No file opened')))").then(JSON.parse);
+  const phoneErrors: string[] = await executeExpression<string>("JSON.stringify(window.capturedErrors.filter(message => !message.includes('No file opened')))").then(JSON.parse);
   assert.deepEqual(phoneErrors, []);
-  assert.deepEqual(await executeExpression("JSON.stringify(phonePath)").then(JSON.parse), [buttonIds[0]]);
+  // assert.deepEqual(await executeExpression("JSON.stringify(phonePath)").then(JSON.parse), [buttonIds[0]]);
+  assert.deepEqual(await executeExpression<string>("JSON.stringify(phonePath)").then(JSON.parse), [buttonIds[0]]);
   assert.ok((await listPhoneNodeIds()).includes('B_LAUNCH'));
 });

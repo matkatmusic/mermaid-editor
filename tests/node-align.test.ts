@@ -28,7 +28,8 @@ async function loadSource(source: string) {
 }
 
 async function readSourceLines(): Promise<string[]> {
-    return (await executeExpression("codeBox.value")).split("\n");
+    // return (await executeExpression("codeBox.value")).split("\n");
+    return (await executeExpression<string>("codeBox.value")).split("\n");
 }
 
 async function readAlignLines(): Promise<string[]> {
@@ -36,7 +37,8 @@ async function readAlignLines(): Promise<string[]> {
 }
 
 async function clickAlignButtonWithMouse(attributeName: "justification" | "alignment", value: string) {
-    const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const center: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const button = document.querySelector('#nodeAlignRow button[data-${attributeName}="${value}"]');
         button.scrollIntoView({ block: 'center', inline: 'center' });
         const rect = button.getBoundingClientRect();
@@ -96,14 +98,16 @@ test("test_the_inspector_shows_centre_and_centre_pressed_for_a_block_without_an_
     await loadSource(BODY);
     await selectBlockWithMouse("B_START");
     assert.deepEqual((await readPressedButtons()).sort(), ["center", "center"]);
-    const label = await executeExpression("document.querySelector('#nodeAlignRow').textContent");
+    // const label = await executeExpression("document.querySelector('#nodeAlignRow').textContent");
+    const label = await executeExpression<string>("document.querySelector('#nodeAlignRow').textContent");
     assert.ok(label.includes("Text align"), label);
 });
 
 test("test_every_align_button_has_an_aria_label_and_an_svg_icon", async () => {
     await loadSource(BODY);
     await selectBlockWithMouse("B_START");
-    const report = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#nodeAlignRow button')].map((button) => ({ label: button.getAttribute('aria-label'), pressed: button.getAttribute('aria-pressed'), hasSvg: !!button.querySelector('svg') })))`));
+    // const report = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#nodeAlignRow button')].map((button) => ({ label: button.getAttribute('aria-label'), pressed: button.getAttribute('aria-pressed'), hasSvg: !!button.querySelector('svg') })))`));
+    const report: { label: string | null; pressed: string | null; hasSvg: boolean }[] = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#nodeAlignRow button')].map((button) => ({ label: button.getAttribute('aria-label'), pressed: button.getAttribute('aria-pressed'), hasSvg: !!button.querySelector('svg') })))`));
     assert.equal(report.length, 6);
     for (const entry of report) {
         assert.ok(entry.label, JSON.stringify(entry));

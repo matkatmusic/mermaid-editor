@@ -25,7 +25,8 @@ async function getTextSelectionState(): Promise<{ codeBoxStart: number; codeBoxE
         codeBoxIsFocused: document.activeElement === codeBox,
         pageSelectionLength: window.getSelection().toString().length,
     })`);
-    return JSON.parse(json);
+    // return JSON.parse(json);
+    return JSON.parse(json) as Awaited<ReturnType<typeof getTextSelectionState>>;
 }
 
 // This test stays first in the file: it needs a page that holds no pick from an earlier test.

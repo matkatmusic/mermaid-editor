@@ -9,7 +9,9 @@ registerBrowserHooks(import.meta.url, openEditorDrawer);
 
 function readTrailerNodeId(sourceText: string): string | null {
   const trailerMatch = sourceText.match(/^%% (\{.*\})$/m);
-  return JSON.parse(trailerMatch![1]).lastSelectedNodeId;
+  // return JSON.parse(trailerMatch![1]).lastSelectedNodeId;
+  const trailer: { fileFormatVersion: number; lastSelectedNodeId: string | null; outputScrollLeft: number; outputScrollTop: number; mainZoomPercent: number } = JSON.parse(trailerMatch![1]);
+  return trailer.lastSelectedNodeId;
 }
 
 test("test_clicking_a_node_writes_its_id_into_the_editor_text_and_the_saved_file", async () => {

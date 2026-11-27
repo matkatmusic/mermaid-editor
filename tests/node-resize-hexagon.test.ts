@@ -57,7 +57,8 @@ async function readCursor(): Promise<string> {
 }
 
 async function readSizeLine(id: string): Promise<string | undefined> {
-    const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    // const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    const lines: string[] = (await executeExpression<string>("codeBox.value")).split("\n");
     const sizeLines = lines.map((line) => line.trim()).filter((line) => line.startsWith(`%% ==props==: {"blockId":"${id}",`));
     assert.ok(sizeLines.length <= 1, sizeLines.join("|"));
     return sizeLines[0];
@@ -120,7 +121,8 @@ test("test_hexagon_decisions_show_the_resize_cursor_only_at_the_four_grab_places
 
 test("test_a_diamond_decision_never_shows_a_resize_cursor", async () => {
     await loadSource(SOURCE);
-    const box = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const box = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const box: Box = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const node = document.querySelector('#diagram g.node[id*="flowchart-Q_D-"]');
         node.scrollIntoView({ block: 'center', inline: 'center' });
         const box = node.querySelector('polygon').getBoundingClientRect();

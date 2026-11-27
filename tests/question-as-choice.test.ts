@@ -53,8 +53,10 @@ const SINGLE_CHOICE_TO_BLOCK_FIXTURE = [
 ].join('\n');
 
 async function chooseButtonLabels() {
-  const json = await executeExpression("JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram [data-choose]')).map(el => el.dataset.choose + '=' + el.textContent))");
-  return JSON.parse(json);
+  // const json = await executeExpression("JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram [data-choose]')).map(el => el.dataset.choose + '=' + el.textContent))");
+  const json = await executeExpression<string>("JSON.stringify(Array.from(document.querySelectorAll('#phoneDiagram [data-choose]')).map(el => el.dataset.choose + '=' + el.textContent))");
+  // return JSON.parse(json);
+  return JSON.parse(json) as string[];
 }
 
 test('test_a_question_that_follows_a_question_is_a_choice_button_that_opens_its_own_choices', async () => {

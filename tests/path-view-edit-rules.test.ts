@@ -47,7 +47,8 @@ async function dispatchShiftClick(id: string) {
 }
 
 async function rightClickViewport() {
-    const point = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const point = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const point: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const rect = document.getElementById('output').getBoundingClientRect();
         return { x: rect.left + 30, y: rect.top + 30 };
     })())`));

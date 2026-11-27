@@ -21,7 +21,8 @@ test("test_new_document_renders_its_node_without_an_error", async () => {
 
 test("test_new_document_node_is_inside_the_visible_output_area", async () => {
     await clickNewButton();
-    const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const measured: { node: { left: number; right: number; top: number; bottom: number }; visible: { left: number; right: number; top: number; bottom: number } } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const output = document.getElementById('output');
         const outputRect = output.getBoundingClientRect();
         const rect = document.querySelector('#diagram g.node').getBoundingClientRect();

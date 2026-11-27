@@ -50,11 +50,13 @@ function buildRouteCall(nodeId: string, source: string = ROUTE_SOURCE) {
 }
 
 async function findRouteIds(nodeId: string): Promise<string[]> {
-    return executeExpression(`JSON.stringify(${buildRouteCall(nodeId)})`).then(JSON.parse);
+    // return executeExpression(`JSON.stringify(${buildRouteCall(nodeId)})`).then(JSON.parse);
+    return executeExpression<string>(`JSON.stringify(${buildRouteCall(nodeId)})`).then(JSON.parse);
 }
 
 async function listPhoneNodeIds(): Promise<string[]> {
-    return executeExpression("JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
+    // return executeExpression("JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
+    return executeExpression<string>("JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
 }
 
 test('test_route_to_a_block_lists_the_blocks_decisions_and_choices_in_order', async () => {
@@ -74,7 +76,8 @@ test('test_route_to_a_choice_ends_at_that_choice', async () => {
 
 test('test_route_through_a_decision_that_leads_to_a_decision_lists_each_id_once', async () => {
     await loadPathViewSource(DECISION_CHAIN_SOURCE);
-    const routeIds = await executeExpression(`JSON.stringify(${buildRouteCall('B_END', DECISION_CHAIN_SOURCE)})`).then(JSON.parse);
+    // const routeIds = await executeExpression(`JSON.stringify(${buildRouteCall('B_END', DECISION_CHAIN_SOURCE)})`).then(JSON.parse);
+    const routeIds = await executeExpression<string>(`JSON.stringify(${buildRouteCall('B_END', DECISION_CHAIN_SOURCE)})`).then(JSON.parse);
     assert.deepEqual(routeIds, ['Q_ASK', 'Q_NEXT', 'Q_CHOICE_NEXT_YES', 'B_END']);
 });
 
@@ -93,6 +96,7 @@ test('test_route_search_leaves_the_phone_answers_unchanged', async () => {
 test('test_route_to_a_block_that_no_start_block_reaches_throws', async () => {
     await loadPathViewSource(ROUTE_SOURCE);
     // The page returns the error text, because executeExpression does not throw for a page error.
-    const message = await executeExpression(`(() => { try { ${buildRouteCall('B_LOOP_A')}; return 'no error'; } catch (error) { return error.message; } })()`);
+    // const message = await executeExpression(`(() => { try { ${buildRouteCall('B_LOOP_A')}; return 'no error'; } catch (error) { return error.message; } })()`);
+    const message = await executeExpression<string>(`(() => { try { ${buildRouteCall('B_LOOP_A')}; return 'no error'; } catch (error) { return error.message; } })()`);
     assert.match(message, /B_LOOP_A/);
 });

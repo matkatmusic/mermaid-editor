@@ -13,8 +13,19 @@ async function setWindowHeight(height: number) {
     await send("Emulation.setDeviceMetricsOverride", { width: 1500, height, deviceScaleFactor: 1, mobile: false });
 }
 
+interface ChoiceMeasurements {
+    phoneTop: number;
+    phoneBottom: number;
+    footerBottom: number;
+    footerOverflowY: string;
+    footerScrollHeight: number;
+    footerClientHeight: number;
+    choices: { top: number; bottom: number; height: number }[];
+}
+
 // Reports where the phone screen, the footer and the choices are. The phone frame has overflow:hidden, so only the footer's own scrollbar can reach a clipped choice.
-async function measureChoicesAfterScrollingIntoView(questionText: string) {
+// async function measureChoicesAfterScrollingIntoView(questionText: string) {
+async function measureChoicesAfterScrollingIntoView(questionText: string): Promise<ChoiceMeasurements> {
     await resetEditorFixture();
     await setEditorSource(`flowchart TD\n  Q_FIRST{"${questionText}"}\n  Q_CHOICE_FIRST_A["A"]\n  Q_CHOICE_FIRST_B["B"]\n  Q_FIRST --> Q_CHOICE_FIRST_A\n  Q_FIRST --> Q_CHOICE_FIRST_B`);
     await waitForRender();

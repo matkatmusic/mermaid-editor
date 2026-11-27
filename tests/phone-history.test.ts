@@ -99,7 +99,8 @@ test("test_multiple_past_decisions_are_all_masked_while_scrolling", async () => 
   );
   await waitForRender();
   // Step: both answered decisions are masked; exactly one separator sits right before the open decision.
-  const state = await executeExpression(`JSON.stringify((() => {
+  // const state = await executeExpression(`JSON.stringify((() => {
+  const state = await executeExpression<string>(`JSON.stringify((() => {
     return {
       maskedCount: document.querySelectorAll('#phoneDiagram .phone-decision-past').length,
       separatorCount: document.querySelectorAll('#phoneDiagram .phone-separator').length,
@@ -119,7 +120,8 @@ test("test_clicking_the_no_answer_masks_the_decision_with_both_options_visible",
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_N\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
   await waitForRender();
-  const state = await executeExpression(`JSON.stringify((() => {
+  // const state = await executeExpression(`JSON.stringify((() => {
+  const state = await executeExpression<string>(`JSON.stringify((() => {
     const pastWrap = document.querySelector('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]').closest('.phone-decision-past');
     return {
       pastIsMasked: !!pastWrap,

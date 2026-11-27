@@ -66,7 +66,8 @@ test("test_saved_scroll_position_is_restored_as_saved", async () => {
     // Step: the page scrolled to exactly the saved position; the centring rule did not override it.
     const measurement = await measureColumn();
     assert.ok(Math.abs(measurement.scrollLeft - 123) <= 0.5, `scrollLeft is ${measurement.scrollLeft}, saved was 123`);
-    assert.ok(Math.abs(await executeExpression("document.getElementById('output').scrollTop") - 45) <= 0.5);
+    // assert.ok(Math.abs(await executeExpression("document.getElementById('output').scrollTop") - 45) <= 0.5);
+    assert.ok(Math.abs(await executeExpression<number>("document.getElementById('output').scrollTop") - 45) <= 0.5);
 });
 
 test("test_search_match_block_is_centered_in_the_visible_area", async () => {
@@ -90,8 +91,10 @@ test("test_column_stays_centered_after_a_zoom_change", async () => {
 test("test_column_stays_centered_after_the_window_is_resized", async () => {
     // Step: open the chain, then make the window 300 pixels narrower.
     await openColumnLikeAUser(COLUMN_TEXT);
-    const width = await executeExpression("window.innerWidth");
-    const height = await executeExpression("window.innerHeight");
+    // const width = await executeExpression("window.innerWidth");
+    const width = await executeExpression<number>("window.innerWidth");
+    // const height = await executeExpression("window.innerHeight");
+    const height = await executeExpression<number>("window.innerHeight");
     await send("Emulation.setDeviceMetricsOverride", { width: width - 300, height, deviceScaleFactor: 1, mobile: false });
     await waitMilliseconds(500);
     const measurement = await measureColumn();

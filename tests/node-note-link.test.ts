@@ -43,7 +43,8 @@ test("test_writing_a_note_replaces_only_the_note_lines_of_that_block", async () 
     await openSourceAndSelectAlpha();
     await replaceTextInBoxAndPressEnter("nodeNotesInput", "new text");
     // Step: the old note line of B_A is gone, the new one is above B_A, and the note of B_B stays.
-    const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    // const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    const lines: string[] = (await executeExpression<string>("codeBox.value")).split("\n");
     assert.deepEqual(lines.slice(0, 5), [
         "flowchart TD",
         '  %% ==props==: {"blockId":"B_B","note":"note of beta"}',

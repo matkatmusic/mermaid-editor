@@ -19,10 +19,12 @@ test("test_real_enter_writes_a_typed_double_quote_as_quot_entity", async () => {
     await executeExpression("window.editorActionPromise");
     await waitMilliseconds(500);
     // The file holds the entity, not the quote.
-    const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    // const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
+    const lines: string[] = (await executeExpression<string>("codeBox.value")).split("\n");
     assert.ok(lines.includes('  B_A["Say #quot;hi#quot; now"]'), lines.join("|"));
     assert.equal(await executeExpression("document.getElementById('error').textContent"), "");
     // The diagram and the Node text box show the quote.
-    assert.ok((await executeExpression(`document.querySelector('#diagram [id*="flowchart-B_A-"]').textContent`)).includes('Say "hi" now'));
+    // assert.ok((await executeExpression(`document.querySelector('#diagram [id*="flowchart-B_A-"]').textContent`)).includes('Say "hi" now'));
+    assert.ok((await executeExpression<string>(`document.querySelector('#diagram [id*="flowchart-B_A-"]').textContent`)).includes('Say "hi" now'));
     assert.equal(await executeExpression("document.getElementById('nodeTextInput').value"), 'Say "hi" now');
 });

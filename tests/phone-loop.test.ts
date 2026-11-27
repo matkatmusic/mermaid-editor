@@ -12,7 +12,8 @@ test("test_diagram_loop_appends_the_repeated_nodes_instead_of_stopping", async (
     "document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_N\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))"
   );
   await waitForRender();
-  const state = await executeExpression(`JSON.stringify((() => {
+  // const state = await executeExpression(`JSON.stringify((() => {
+  const state = await executeExpression<string>(`JSON.stringify((() => {
     return {
       listenCount: document.querySelectorAll('#phoneDiagram [data-node-id="B_SELF_LISTEN"]').length,
       questionCount: document.querySelectorAll('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]').length,
@@ -65,7 +66,8 @@ test("test_phone_choice_width_splits_the_viewport_by_choice_count", async () => 
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  Q_FIRST{"First?"}\n  Q_CHOICE_FIRST_A["A"]\n  Q_CHOICE_FIRST_B["B"]\n  Q_CHOICE_FIRST_C["C"]\n  Q_FIRST --> Q_CHOICE_FIRST_A\n  Q_FIRST --> Q_CHOICE_FIRST_B\n  Q_FIRST --> Q_CHOICE_FIRST_C');
   await waitForRender();
-  const widths = await executeExpression(`JSON.stringify((() => {
+  // const widths = await executeExpression(`JSON.stringify((() => {
+  const widths = await executeExpression<string>(`JSON.stringify((() => {
     const choices = Array.from(document.querySelectorAll('#phoneDiagram .phone-choice-row .phone-choice'));
     return { widths: choices.map(el => el.getBoundingClientRect().width) };
   })())`).then(JSON.parse);
@@ -100,7 +102,8 @@ test("test_syntax_error_keeps_last_good_diagram_and_shows_error_log", async () =
   assert.equal(hasNodeB, true);
   const errorLogOpen = await executeExpression("document.getElementById('errorLog').classList.contains('open')");
   assert.equal(errorLogOpen, true);
-  const errorLogText = await executeExpression("document.getElementById('errorLog').textContent");
+  // const errorLogText = await executeExpression("document.getElementById('errorLog').textContent");
+  const errorLogText = await executeExpression<string>("document.getElementById('errorLog').textContent");
   assert.ok(errorLogText.length > 0);
   // Step: fix the diagram text; the error log closes again.
   await executeExpression(

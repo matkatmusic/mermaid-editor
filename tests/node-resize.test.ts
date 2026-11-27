@@ -65,7 +65,8 @@ async function readCursor(): Promise<string> {
 }
 
 async function readSourceLines(): Promise<string[]> {
-    return (await executeExpression("codeBox.value")).split("\n");
+    // return (await executeExpression("codeBox.value")).split("\n");
+    return (await executeExpression<string>("codeBox.value")).split("\n");
 }
 
 // The size line of one node, or undefined when the node has none.
@@ -131,7 +132,8 @@ test("test_a_choice_block_shows_the_resize_cursor_and_a_diamond_decision_does_no
     const choiceBox = await getNodeScreenBox("Q_CHOICE_A_Y");
     await moveMouse(choiceBox.right - 2, (choiceBox.top + choiceBox.bottom) / 2);
     assert.equal(await readCursor(), "ew-resize");
-    const diamondBox = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const diamondBox = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const diamondBox: ScreenBox = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const node = document.querySelector('#diagram g.node[id*="flowchart-Q_D-"]');
         node.scrollIntoView({ block: 'center', inline: 'center' });
         const box = node.getBoundingClientRect();
@@ -190,7 +192,8 @@ test("test_a_live_outline_follows_the_mouse_during_the_drag_and_goes_away_on_rel
     const box = await getNodeScreenBox("B_START");
     const middleY = (box.top + box.bottom) / 2;
     await pressAndMove({ x: box.right - 2, y: middleY }, { x: box.right - 2 + 90, y: middleY });
-    const outline = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const outline = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const outline: { left: number; width: number } | null = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const outline = document.getElementById('nodeResizeOutline');
         if (!outline) return null;
         const rect = outline.getBoundingClientRect();
@@ -307,9 +310,11 @@ test("test_the_off_screen_arrow_heads_are_drawn_again_after_a_resize", async () 
         output.scrollTop += rect.top + rect.height / 2 - visibleBottom;
     })()`);
     await waitMilliseconds(300);
-    const headsBefore = await executeExpression("document.querySelectorAll('#diagram .offscreen-arrow-head').length");
+    // const headsBefore = await executeExpression("document.querySelectorAll('#diagram .offscreen-arrow-head').length");
+    const headsBefore = await executeExpression<number>("document.querySelectorAll('#diagram .offscreen-arrow-head').length");
     assert.ok(headsBefore > 0, "a line that leaves the view has an arrow head");
-    const box = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    // const box = JSON.parse(await executeExpression(`JSON.stringify((() => {
+    const box: ScreenBox = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const box = document.querySelector('#diagram g.node[id*="flowchart-B_N5-"] rect').getBoundingClientRect();
         return { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
     })())`));
@@ -317,6 +322,7 @@ test("test_the_off_screen_arrow_heads_are_drawn_again_after_a_resize", async () 
     const sizeBefore = await readNodeSize("B_N5");
     await dragMouse({ x: box.right - 2, y: middleY }, { x: box.right - 2 + 50, y: middleY });
     assert.ok(Math.abs((await readNodeSize("B_N5")).width - (sizeBefore.width + 50)) < 1.5);
-    const headsAfter = await executeExpression("document.querySelectorAll('#diagram .offscreen-arrow-head').length");
+    // const headsAfter = await executeExpression("document.querySelectorAll('#diagram .offscreen-arrow-head').length");
+    const headsAfter = await executeExpression<number>("document.querySelectorAll('#diagram .offscreen-arrow-head').length");
     assert.ok(headsAfter > 0, "the arrow heads exist again after the re-render");
 });

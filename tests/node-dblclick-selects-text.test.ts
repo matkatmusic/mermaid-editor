@@ -9,7 +9,8 @@ registerBrowserHooks(import.meta.url, openEditorDrawer);
 
 async function doubleClickNodeWithMouse(id: string) {
   // Scenario: press and release the left mouse button twice at the center of the node, as a user does.
-  const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+  // const center = JSON.parse(await executeExpression(`JSON.stringify((() => {
+  const center: { x: number; y: number } = JSON.parse(await executeExpression(`JSON.stringify((() => {
     const node = document.querySelector('#diagram [id*="flowchart-${id}-"]');
     node.scrollIntoView({ block: 'center', inline: 'center' });
     const rect = node.getBoundingClientRect();
@@ -24,7 +25,8 @@ async function doubleClickNodeWithMouse(id: string) {
   await waitMilliseconds(800);
 }
 
-async function readNodeTextSelection() {
+// async function readNodeTextSelection() {
+async function readNodeTextSelection(): Promise<{ activeId: string; value: string; start: number; end: number }> {
   return JSON.parse(await executeExpression(`JSON.stringify({
     activeId: document.activeElement.id,
     value: document.getElementById('nodeTextInput').value,
