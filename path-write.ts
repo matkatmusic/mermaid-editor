@@ -1,6 +1,12 @@
 import { setStatus } from './diagram-io.ts';
 import { state } from './state.ts';
 
+declare global {
+  interface Window {
+    showDirectoryPicker(options: { mode: 'readwrite' }): Promise<FileSystemDirectoryHandle>;
+  }
+}
+
 // <base>-path-<N>.mmd, where N is one more than the highest N already in the folder (0 when none).
 export function findNextPathFileName(baseName: string, existingNames: string[]): string {
   const escapedBaseName = baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -32,7 +38,8 @@ export async function selectPathFolder(): Promise<boolean> {
   if (state.pathFolderHandle)
     return true;
   try {
-    state.pathFolderHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+    // state.pathFolderHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+    state.pathFolderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
   }
   catch (error) {
     const isUserCancel = (error as DOMException).name === 'AbortError';
@@ -51,7 +58,8 @@ export async function writeToOpenedFileFolder(openedFileName: string, source: st
   }
   const folder = state.pathFolderHandle!;
   const existingNames: string[] = [];
-  for await (const name of (folder as any).keys())
+  // for await (const name of (folder as any).keys())
+  for await (const name of folder.keys())
     existingNames.push(name);
   const fileName = findNextPathFileName(openedFileName.replace(/\.mmd$/, ''), existingNames);
   const fileHandle = await folder.getFileHandle(fileName, { create: true });
