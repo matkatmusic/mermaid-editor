@@ -1,4 +1,5 @@
-declare const mermaid: any;
+// declare const mermaid: any;
+declare const mermaid: import('mermaid').Mermaid;
 import { buildSourceWithMetadata, setEditorActionPromise } from './editor-metadata.ts';
 import { codeBox, diagramBox, multiSelectBadge, nodeActions, selectedNodeBox } from './dom.ts';
 import { state } from './state.ts';
