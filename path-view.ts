@@ -1,5 +1,6 @@
 // import { diagramBox, fullDiagramBtn, functionsOnlyToggle, nextViewPathBtn, onePathViewBtn, outputBox, pathViewControls, previousViewPathBtn, viewPathLabel, codeBox } from './dom.ts';
-import { diagramBox, fullDiagramBtn, functionsOnlyToggle, nextViewPathBtn, onePathViewBtn, outputBox, pathViewControls, previousViewPathBtn, viewPathLabel, codeBox, downstreamViewBtn, downstreamViewControls, backDownstreamViewBtn, resetDownstreamViewBtn } from './dom.ts';
+// import { diagramBox, fullDiagramBtn, functionsOnlyToggle, nextViewPathBtn, onePathViewBtn, outputBox, pathViewControls, previousViewPathBtn, viewPathLabel, codeBox, downstreamViewBtn, downstreamViewControls, backDownstreamViewBtn, resetDownstreamViewBtn } from './dom.ts';
+import { diagramBox, fullDiagramBtn, functionsOnlyToggle, nextViewPathBtn, onePathViewBtn, outputBox, pathViewControls, previousViewPathBtn, viewPathLabel, codeBox, downstreamViewBtn, downstreamViewControls, backDownstreamViewBtn, resetDownstreamViewBtn, copyPathCommandBtn, copyDownstreamCommandBtn } from './dom.ts';
 import type { Edge } from './dom.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { filterToFunctions } from './function-routing.ts';
@@ -10,10 +11,12 @@ import { renderNodeInspector } from './node-inspector.ts';
 // import { buildPathEdges, findPathByNumber, findViewEditRefusal } from './path-view-model.ts';
 // import type { ViewEdit } from './path-view-model.ts';
 // import { findNeighbourDigits, findViewEditRefusal, listDigitMaximums, walkDigitPath } from './path-view-model.ts';
-import { addFilterClick, buildPathEdges, collectDownstreamEdges, findNeighbourDigits, findShortestRouteIds, findViewEditRefusal, isViewLimitingEdits, listDigitMaximums, walkDigitPath } from './path-view-model.ts';
+// import { addFilterClick, buildPathEdges, collectDownstreamEdges, findNeighbourDigits, findShortestRouteIds, findViewEditRefusal, isViewLimitingEdits, listDigitMaximums, walkDigitPath } from './path-view-model.ts';
+import { addFilterClick, buildPathDiagram, findNeighbourDigits, findRouteDigits, findShortestRouteIds, findViewEditRefusal, formatPathNumber, isViewLimitingEdits, listDigitMaximums, listRouteAndDownstreamEdges, walkDigitPath } from './path-view-model.ts';
 import type { PathDiagram, PathView, ViewEdit } from './path-view-model.ts';
 // import { findRoots } from './phone-render.ts';
-import { findRoots, findRouteIdsToNode } from './phone-render.ts';
+// import { findRoots, findRouteIdsToNode } from './phone-render.ts';
+import { findRouteIdsToNode } from './phone-render.ts';
 import { render } from './render.ts';
 // import { state } from './state.ts';
 import { phonePath, state } from './state.ts';
@@ -57,11 +60,11 @@ import type { EditorGraph } from './editor-types.ts';
 //     return buildSubsetSource(graph, view.shownNodeIds, buildPathEdges(path.pathIds));
 // }
 
-function buildPathDiagram(graph: EditorGraph): PathDiagram {
-    const edges: Edge[] = graph.edges.map((edge) => [edge.from, edge.to]);
-    const decisionIds = [...graph.nodes.values()].filter((node) => node.kind === 'question').map((node) => node.id);
-    return { startIds: findRoots(edges), edges, decisionIds };
-}
+// function buildPathDiagram(graph: EditorGraph): PathDiagram {
+//     const edges: Edge[] = graph.edges.map((edge) => [edge.from, edge.to]);
+//     const decisionIds = [...graph.nodes.values()].filter((node) => node.kind === 'question').map((node) => node.id);
+//     return { startIds: findRoots(edges), edges, decisionIds };
+// }
 
 // The view's number in this diagram. A digit that names no choice any more becomes 0.
 function listViewDigits(view: PathView, diagram: PathDiagram): number[] {
@@ -97,10 +100,15 @@ function renderPathViewControls() {
     downstreamViewBtn.disabled = state.functionsOnly || isOnePath;
     backDownstreamViewBtn.disabled = !view?.clickHistory.length;
     functionsOnlyToggle.disabled = !!view;
+    // A copy button needs a file for the command, and the downstream one needs a clicked route.
+    const hasFile = !!state.loadedPath;
+    copyPathCommandBtn.disabled = !hasFile;
+    copyDownstreamCommandBtn.disabled = !hasFile || !view?.clickedIds.length;
 }
 
 function renderPathNumber(diagram: PathDiagram, digits: number[]) {
-    viewPathLabel.textContent = `Path 0x${digits.map((digit) => digit.toString(16).toUpperCase()).join('')}`;
+    // viewPathLabel.textContent = `Path 0x${digits.map((digit) => digit.toString(16).toUpperCase()).join('')}`;
+    viewPathLabel.textContent = `Path ${formatPathNumber(digits)}`;
     previousViewPathBtn.disabled = !findNeighbourDigits(diagram, digits, -1);
     nextViewPathBtn.disabled = !findNeighbourDigits(diagram, digits, 1);
 }
@@ -161,14 +169,19 @@ function buildDownstreamSource(view: PathView, graph: EditorGraph): string {
     const routeIds = findRouteIdsToNode(view.clickedIds[0], edges, graph);
     for (let i = 1; i < view.clickedIds.length; i++)
         routeIds.push(...findShortestRouteIds(view.clickedIds[i - 1], view.clickedIds[i], edges).slice(1));
-    const latestId = view.clickedIds[view.clickedIds.length - 1];
-    // A map by arrow keeps each arrow once.
-    const shownEdgesByKey = new Map<string, Edge>();
-    for (const edge of [...buildPathEdges(routeIds), ...collectDownstreamEdges(latestId, edges)])
-        shownEdgesByKey.set(edge.join(' '), edge);
-    const shownEdges = [...shownEdgesByKey.values()];
+    // const latestId = view.clickedIds[view.clickedIds.length - 1];
+    // // A map by arrow keeps each arrow once.
+    // const shownEdgesByKey = new Map<string, Edge>();
+    // for (const edge of [...buildPathEdges(routeIds), ...collectDownstreamEdges(latestId, edges)])
+    //     shownEdgesByKey.set(edge.join(' '), edge);
+    // const shownEdges = [...shownEdgesByKey.values()];
+    // The same arrows as print-path.ts prints with --includeAfter.
+    const shownEdges = listRouteAndDownstreamEdges(routeIds, edges);
     view.shownNodeIds = [...new Set([...routeIds, ...shownEdges.flat()])];
     view.protectedIds = routeIds;
+    // The copy command needs a path number, and some routes have none.
+    if (findRouteDigits(buildPathDiagram(graph), routeIds) === null)
+        copyDownstreamCommandBtn.disabled = true;
     return buildSubsetSource(graph, view.shownNodeIds, shownEdges);
 }
 
@@ -467,6 +480,28 @@ export async function handlePhoneTapInPathView(button: HTMLButtonElement): Promi
     return true;
 }
 
+// Copies the command that prints the path on screen with print-path.ts.
+async function copyPrintCommand(pathNumber: string, options: string) {
+    await navigator.clipboard.writeText(`bun mermaid-editor/print-path.ts "${state.loadedPath}" --path ${pathNumber}${options}`);
+}
+
+function copyOnePathCommand() {
+    const view = state.pathView!;
+    const diagram = buildPathDiagram(getEditorGraph());
+    copyPrintCommand(formatPathNumber(listViewDigits(view, diagram)), '');
+}
+
+function copyDownstreamCommand() {
+    const view = state.pathView!;
+    const diagram = buildPathDiagram(getEditorGraph());
+    const latestId = view.clickedIds[view.clickedIds.length - 1];
+    // copyPrintCommand(formatPathNumber(findRouteDigits(diagram, view.protectedIds)), ` --to ${latestId} --includeAfter`);
+    // The button is disabled when no path number draws the route.
+    copyPrintCommand(formatPathNumber(findRouteDigits(diagram, view.protectedIds)!), ` --to ${latestId} --includeAfter`);
+}
+
+copyPathCommandBtn.addEventListener('click', copyOnePathCommand);
+copyDownstreamCommandBtn.addEventListener('click', copyDownstreamCommand);
 onePathViewBtn.addEventListener('click', toggleOnePathView);
 fullDiagramBtn.addEventListener('click', closePathView);
 previousViewPathBtn.addEventListener('click', showPreviousViewPath);

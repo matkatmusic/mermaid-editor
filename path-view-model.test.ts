@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 // import { buildPathEdges, collectDownstreamEdges, findNeighbourDigits, findViewEditRefusal, listDigitMaximums, walkDigitPath } from './path-view-model.ts';
 import { addFilterClick, buildPathEdges, collectDownstreamEdges, findNeighbourDigits, findShortestRouteIds, findViewEditRefusal, listDigitMaximums, walkDigitPath } from './path-view-model.ts';
 import type { PathDiagram, PathView, ViewEdit } from './path-view-model.ts';
+import { findPrintedRoute, findRoots, findRouteDigits, formatPathNumber, listRouteAndDownstreamEdges, parsePathNumber } from './path-view-model.ts';
 import { parseEditorGraph } from './editor-graph-parse.ts';
 import type { Edge } from './dom.ts';
 
@@ -265,4 +266,64 @@ test('test_filter_click_on_the_latest_block_changes_nothing', () => {
 test('test_filter_click_on_the_route_drops_the_later_clicks', () => {
     // C was never clicked; the clicks after it are B's later ones.
     assert.deepEqual(addFilterClick(['B', 'D', 'E'], ['A', 'B', 'C', 'D', 'E'], 'C'), ['B', 'C']);
+});
+
+test('test_find_roots_lists_each_start_block_once_in_arrow_order', () => {
+    assert.deepEqual(findRoots([['T', 'B'], ['S', 'A'], ['S', 'B']]), ['T', 'S']);
+});
+
+test('test_path_number_text_writes_one_hex_digit_for_each_digit', () => {
+    assert.equal(formatPathNumber([0, 1, 10]), '0x01A');
+});
+
+test('test_path_number_text_reads_back_as_digits', () => {
+    const diagram: PathDiagram = { startIds: ['S'], decisionIds: ['Q1'], edges: [['S', 'Q1'], ['Q1', 'A'], ['Q1', 'B']] };
+    assert.deepEqual(parsePathNumber('0x01', diagram), [0, 1]);
+});
+
+test('test_printed_route_ends_at_the_choice_of_the_last_decision', () => {
+    assert.deepEqual(findPrintedRoute(NESTED_DIAGRAM, [0, 1, 1], undefined), ['S', 'Q1', 'Q2', 'C']);
+});
+
+test('test_printed_route_skips_a_last_decision_that_takes_no_choice', () => {
+    // The walk comes back to Q, finds no unused arrow, and ends there.
+    const diagram: PathDiagram = { startIds: ['S'], decisionIds: ['Q'], edges: [['S', 'Q'], ['Q', 'A'], ['A', 'Q']] };
+    assert.deepEqual(findPrintedRoute(diagram, [0, 0], undefined), ['S', 'Q', 'A']);
+});
+
+test('test_printed_route_of_a_path_with_no_decision_is_the_whole_path', () => {
+    const diagram: PathDiagram = { startIds: ['S'], decisionIds: [], edges: [['S', 'A'], ['A', 'B']] };
+    assert.deepEqual(findPrintedRoute(diagram, [0], undefined), ['S', 'A', 'B']);
+});
+
+test('test_printed_route_to_a_block_ends_at_its_first_place_on_the_path', () => {
+    assert.deepEqual(findPrintedRoute(LOOP_DIAGRAM, [0, 1], 'A'), ['S', 'Q', 'B', 'Q', 'A']);
+});
+
+test('test_printed_route_to_a_block_off_the_path_throws', () => {
+    assert.throws(() => findPrintedRoute(LOOP_DIAGRAM, [0, 2], 'A'), /Block A is not on path 0x02/);
+});
+
+test('test_route_and_downstream_arrows_list_each_arrow_once', () => {
+    const edges: Edge[] = [['S', 'A'], ['A', 'B'], ['B', 'A'], ['B', 'C']];
+    assert.deepEqual(listRouteAndDownstreamEdges(['S', 'A', 'B'], edges), [['S', 'A'], ['A', 'B'], ['B', 'A'], ['B', 'C']]);
+});
+
+test('test_route_digits_name_the_choice_each_decision_takes', () => {
+    assert.deepEqual(findRouteDigits(NESTED_DIAGRAM, ['S', 'Q1', 'Q2', 'C']), [0, 1, 1]);
+});
+
+test('test_route_digits_of_a_route_through_a_loop_draw_that_route', () => {
+    assert.deepEqual(findRouteDigits(LOOP_DIAGRAM, ['S', 'Q', 'B', 'Q', 'A']), [0, 1]);
+});
+
+// Replaced: findRouteDigits now returns null, because the page asks it whether to disable a button.
+// test('test_route_digits_throw_when_no_path_number_draws_the_route', () => {
+//     // After A the walk must take the first unused choice, B; the route takes X.
+//     assert.throws(() => findRouteDigits(LOOP_DIAGRAM, ['S', 'Q', 'A', 'Q', 'X']), /No path number draws this route/);
+// });
+
+test('test_route_digits_are_null_when_no_path_number_draws_the_route', () => {
+    // After A the walk must take the first unused choice, B; the route takes X.
+    assert.equal(findRouteDigits(LOOP_DIAGRAM, ['S', 'Q', 'A', 'Q', 'X']), null);
 });

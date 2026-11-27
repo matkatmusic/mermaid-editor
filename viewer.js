@@ -373,6 +373,8 @@ var downstreamViewBtn = document.getElementById("downstreamViewBtn");
 var downstreamViewControls = document.getElementById("downstreamViewControls");
 var backDownstreamViewBtn = document.getElementById("backDownstreamViewBtn");
 var resetDownstreamViewBtn = document.getElementById("resetDownstreamViewBtn");
+var copyPathCommandBtn = document.getElementById("copyPathCommandBtn");
+var copyDownstreamCommandBtn = document.getElementById("copyDownstreamCommandBtn");
 var nodeActions = document.getElementById("nodeActions");
 var selectedNodeBox = document.getElementById("selectedNode");
 var nodeInspector = document.getElementById("nodeInspector");
@@ -1641,6 +1643,46 @@ function addFilterClick(clickedIds, routeIds, nodeId) {
   }
   return [...keptIds, nodeId];
 }
+function findRoots(edges) {
+  const targetIds = new Set(edges.map(([, to]) => to));
+  const startIds = edges.map(([from]) => from).filter((from) => !targetIds.has(from));
+  return [...new Set(startIds)];
+}
+function buildPathDiagram(graph) {
+  const edges = graph.edges.map((edge) => [edge.from, edge.to]);
+  const decisionIds = [...graph.nodes.values()].filter((node) => node.kind === "question").map((node) => node.id);
+  return { startIds: findRoots(edges), edges, decisionIds };
+}
+function formatPathNumber(digits) {
+  return `0x${digits.map((digit) => digit.toString(16).toUpperCase()).join("")}`;
+}
+function listRouteAndDownstreamEdges(routeIds, edges) {
+  const edgesByKey = new Map;
+  for (const edge of [...buildPathEdges(routeIds), ...collectDownstreamEdges(routeIds[routeIds.length - 1], edges)])
+    edgesByKey.set(edge.join(" "), edge);
+  return [...edgesByKey.values()];
+}
+function findRouteDigits(diagram, routeIds) {
+  const digits = [diagram.startIds.indexOf(routeIds[0]), ...diagram.decisionIds.map(() => 0)];
+  const setPositions = new Set;
+  for (let place = 0;place + 1 < routeIds.length; place++) {
+    const position = diagram.decisionIds.indexOf(routeIds[place]) + 1;
+    if (position === 0)
+      continue;
+    if (setPositions.has(position))
+      continue;
+    setPositions.add(position);
+    digits[position] = choicesOf(routeIds[place], diagram.edges).indexOf(routeIds[place + 1]);
+  }
+  if (digits[0] === -1)
+    return null;
+  const { pathIds } = walkDigitPath(diagram, digits);
+  for (const [place, id] of routeIds.entries()) {
+    if (pathIds[place] !== id)
+      return null;
+  }
+  return digits;
+}
 
 // node-inspector.ts
 function replaceDeclarationInLine(line, id, newToken) {
@@ -1837,23 +1879,6 @@ function siblingIds(ids, edges) {
 }
 
 // phone-render.ts
-function findRoots(edges) {
-  const roots = [];
-  for (const [candidate] of edges) {
-    let hasIncoming = false;
-    for (const [, to] of edges) {
-      const targetsCandidate = to === candidate;
-      if (targetsCandidate) {
-        hasIncoming = true;
-        break;
-      }
-    }
-    const isNewRoot = !hasIncoming && !roots.includes(candidate);
-    if (isNewRoot)
-      roots.push(candidate);
-  }
-  return roots;
-}
 function isPhoneAwaitingStartNode(edges) {
   const roots = findRoots(edges);
   const hasSeveralStartNodes = roots.length > 1;
@@ -2298,11 +2323,6 @@ function buildPathSource(graph, pathIds) {
 }
 
 // path-view.ts
-function buildPathDiagram(graph) {
-  const edges = graph.edges.map((edge) => [edge.from, edge.to]);
-  const decisionIds = [...graph.nodes.values()].filter((node) => node.kind === "question").map((node) => node.id);
-  return { startIds: findRoots(edges), edges, decisionIds };
-}
 function listViewDigits(view, diagram) {
   const maximums = listDigitMaximums(diagram);
   const storedDigits = [view.startDigit, ...diagram.decisionIds.map((id) => view.decisionDigits[id] ?? 0)];
@@ -2325,9 +2345,12 @@ function renderPathViewControls() {
   downstreamViewBtn.disabled = state.functionsOnly || isOnePath;
   backDownstreamViewBtn.disabled = !view?.clickHistory.length;
   functionsOnlyToggle.disabled = !!view;
+  const hasFile = !!state.loadedPath;
+  copyPathCommandBtn.disabled = !hasFile;
+  copyDownstreamCommandBtn.disabled = !hasFile || !view?.clickedIds.length;
 }
 function renderPathNumber(diagram, digits) {
-  viewPathLabel.textContent = `Path 0x${digits.map((digit) => digit.toString(16).toUpperCase()).join("")}`;
+  viewPathLabel.textContent = `Path ${formatPathNumber(digits)}`;
   previousViewPathBtn.disabled = !findNeighbourDigits(diagram, digits, -1);
   nextViewPathBtn.disabled = !findNeighbourDigits(diagram, digits, 1);
 }
@@ -2364,13 +2387,11 @@ function buildDownstreamSource(view, graph) {
   const routeIds = findRouteIdsToNode(view.clickedIds[0], edges, graph);
   for (let i = 1;i < view.clickedIds.length; i++)
     routeIds.push(...findShortestRouteIds(view.clickedIds[i - 1], view.clickedIds[i], edges).slice(1));
-  const latestId = view.clickedIds[view.clickedIds.length - 1];
-  const shownEdgesByKey = new Map;
-  for (const edge of [...buildPathEdges(routeIds), ...collectDownstreamEdges(latestId, edges)])
-    shownEdgesByKey.set(edge.join(" "), edge);
-  const shownEdges = [...shownEdgesByKey.values()];
+  const shownEdges = listRouteAndDownstreamEdges(routeIds, edges);
   view.shownNodeIds = [...new Set([...routeIds, ...shownEdges.flat()])];
   view.protectedIds = routeIds;
+  if (findRouteDigits(buildPathDiagram(graph), routeIds) === null)
+    copyDownstreamCommandBtn.disabled = true;
   return buildSubsetSource(graph, view.shownNodeIds, shownEdges);
 }
 function isNodeDrawn(id) {
@@ -2589,6 +2610,22 @@ async function handlePhoneTapInPathView(button) {
   await renderAfterPhoneTap();
   return true;
 }
+async function copyPrintCommand(pathNumber, options) {
+  await navigator.clipboard.writeText(`bun mermaid-editor/print-path.ts "${state.loadedPath}" --path ${pathNumber}${options}`);
+}
+function copyOnePathCommand() {
+  const view = state.pathView;
+  const diagram = buildPathDiagram(getEditorGraph());
+  copyPrintCommand(formatPathNumber(listViewDigits(view, diagram)), "");
+}
+function copyDownstreamCommand() {
+  const view = state.pathView;
+  const diagram = buildPathDiagram(getEditorGraph());
+  const latestId = view.clickedIds[view.clickedIds.length - 1];
+  copyPrintCommand(formatPathNumber(findRouteDigits(diagram, view.protectedIds)), ` --to ${latestId} --includeAfter`);
+}
+copyPathCommandBtn.addEventListener("click", copyOnePathCommand);
+copyDownstreamCommandBtn.addEventListener("click", copyDownstreamCommand);
 onePathViewBtn.addEventListener("click", toggleOnePathView);
 fullDiagramBtn.addEventListener("click", closePathView);
 previousViewPathBtn.addEventListener("click", showPreviousViewPath);

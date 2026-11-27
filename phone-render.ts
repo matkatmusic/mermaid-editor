@@ -2,25 +2,28 @@ import type { Edge } from './dom.ts';
 import type { EditorGraph, EditorNode } from './editor-types.ts';
 import { phonePath, state } from './state.ts';
 import { choicesOf, parentOf } from './graph-slice.ts';
+import { findRoots } from './path-view-model.ts';
 
 // Every start node (no incoming edge), in the order the edges list them.
-export function findRoots(edges: Edge[]) {
-  const roots: string[] = [];
-  for (const [candidate] of edges) {
-    let hasIncoming = false;
-    for (const [, to] of edges) {
-      const targetsCandidate = to === candidate;
-      if (targetsCandidate) {
-        hasIncoming = true;
-        break;
-      }
-    }
-    const isNewRoot = !hasIncoming && !roots.includes(candidate);
-    if (isNewRoot)
-      roots.push(candidate);
-  }
-  return roots;
-}
+// export function findRoots(edges: Edge[]) {
+//   const roots: string[] = [];
+//   for (const [candidate] of edges) {
+//     let hasIncoming = false;
+//     for (const [, to] of edges) {
+//       const targetsCandidate = to === candidate;
+//       if (targetsCandidate) {
+//         hasIncoming = true;
+//         break;
+//       }
+//     }
+//     const isNewRoot = !hasIncoming && !roots.includes(candidate);
+//     if (isNewRoot)
+//       roots.push(candidate);
+//   }
+//   return roots;
+// }
+// Callers still import it from here.
+export { findRoots };
 
 // The first start node: where the phone starts before any answer.
 export function findRoot(edges: Edge[]) {

@@ -336,3 +336,88 @@ export function addFilterClick(clickedIds: string[], routeIds: string[], nodeId:
     }
     return [...keptIds, nodeId];
 }
+
+// Every start block (no incoming arrow), in the order the arrows list them.
+export function findRoots(edges: Edge[]): string[] {
+    const targetIds = new Set(edges.map(([, to]) => to));
+    const startIds = edges.map(([from]) => from).filter((from) => !targetIds.has(from));
+    return [...new Set(startIds)];
+}
+
+export function buildPathDiagram(graph: EditorGraph): PathDiagram {
+    const edges: Edge[] = graph.edges.map((edge) => [edge.from, edge.to]);
+    const decisionIds = [...graph.nodes.values()].filter((node) => node.kind === 'question').map((node) => node.id);
+    return { startIds: findRoots(edges), edges, decisionIds };
+}
+
+export function formatPathNumber(digits: number[]): string {
+    return `0x${digits.map((digit) => digit.toString(16).toUpperCase()).join('')}`;
+}
+
+export function parsePathNumber(text: string, diagram: PathDiagram): number[] {
+    const maximums = listDigitMaximums(diagram);
+    const badNumber = `Bad path number "${text}": write 0x and ${maximums.length} hex digits`;
+    if (!/^0x[0-9a-f]+$/i.test(text))
+        throw new Error(badNumber);
+    const digits = [...text.slice(2)].map((character) => parseInt(character, 16));
+    if (digits.length !== maximums.length)
+        throw new Error(badNumber);
+    for (const [index, digit] of digits.entries()) {
+        if (digit > maximums[index])
+            throw new Error(`Bad path number "${text}": digit ${index + 1} is ${digit}, and the largest is ${maximums[index]}`);
+    }
+    return digits;
+}
+
+// The part of a path to print: up to the block toId, or up to the choice of the last decision that takes one.
+export function findPrintedRoute(diagram: PathDiagram, digits: number[], toId: string | undefined): string[] {
+    const { pathIds } = walkDigitPath(diagram, digits);
+    if (toId !== undefined) {
+        const toPlace = pathIds.indexOf(toId);
+        if (toPlace === -1)
+            throw new Error(`Block ${toId} is not on path ${formatPathNumber(digits)}`);
+        return pathIds.slice(0, toPlace + 1);
+    }
+    for (let place = pathIds.length - 2; place >= 0; place--) {
+        if (diagram.decisionIds.includes(pathIds[place]))
+            return pathIds.slice(0, place + 2);
+    }
+    // A path with no decision is printed whole.
+    return pathIds;
+}
+
+// The arrows of the route and every arrow after its last block, each once.
+export function listRouteAndDownstreamEdges(routeIds: string[], edges: Edge[]): Edge[] {
+    const edgesByKey = new Map<string, Edge>();
+    for (const edge of [...buildPathEdges(routeIds), ...collectDownstreamEdges(routeIds[routeIds.length - 1], edges)])
+        edgesByKey.set(edge.join(' '), edge);
+    return [...edgesByKey.values()];
+}
+
+// The path number whose walk starts with the route, or null when no number draws it.
+// export function findRouteDigits(diagram: PathDiagram, routeIds: string[]): number[] {
+export function findRouteDigits(diagram: PathDiagram, routeIds: string[]): number[] | null {
+    const digits: number[] = [diagram.startIds.indexOf(routeIds[0]), ...diagram.decisionIds.map(() => 0)];
+    const setPositions = new Set<number>();
+    for (let place = 0; place + 1 < routeIds.length; place++) {
+        const position = diagram.decisionIds.indexOf(routeIds[place]) + 1;
+        if (position === 0)
+            continue;
+        // The first visit of a decision sets its digit.
+        if (setPositions.has(position))
+            continue;
+        setPositions.add(position);
+        digits[position] = choicesOf(routeIds[place], diagram.edges).indexOf(routeIds[place + 1]);
+    }
+    // const noNumber = `No path number draws this route: ${routeIds.join(' ')}`;
+    if (digits[0] === -1)
+        // throw new Error(noNumber);
+        return null;
+    const { pathIds } = walkDigitPath(diagram, digits);
+    for (const [place, id] of routeIds.entries()) {
+        if (pathIds[place] !== id)
+            // throw new Error(noNumber);
+            return null;
+    }
+    return digits;
+}
