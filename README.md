@@ -5,7 +5,7 @@
 ```sh
 bun install
 bun run build
-bun server.js
+bun server.ts
 ```
 
 The terminal prints the address. Open it in your browser.
@@ -16,7 +16,7 @@ To work on the editor code, run `bun run dev --port 4000` instead. It builds `vi
 
 - `--port 4000`: use this port. With no `--port`, the server picks a free port.
 - `--hostname 127.0.0.1`: listen on a different address. The default is `0.0.0.0`.
-- `DIAGRAMS_DIR=/path/to/diagrams bun server.js`: read `.mmd` files from a different folder. The default is `../diagrams`.
+- `DIAGRAMS_DIR=/path/to/diagrams bun server.ts`: read `.mmd` files from a different folder. The default is `../diagrams`.
 
 Run `bun run build` again after you change a `.ts` file. The build makes `viewer.js`.
 
@@ -29,14 +29,14 @@ bun run dev --port 3000
 ```
 
 - It builds `viewer.js` again when a `.ts` file for the page changes. Reload the page to see the change.
-- It restarts the server when `server.js` changes.
+- It restarts the server when `server.ts` changes.
 - `--port 3000` keeps the same address after each restart. With no `--port`, the server picks a free port.
 - When you stop the command, both parts stop together.
 
 You can also run the two parts yourself, each in its own terminal:
 
 ```sh
-bun --watch server.js --port 3000
+bun --watch server.ts --port 3000
 bun build viewer.ts --outfile viewer.js --watch
 ```
 

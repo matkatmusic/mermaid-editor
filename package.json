@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "bun build viewer.ts --outfile viewer.js",
-    "dev": "bash -c 'trap \"kill \\$(jobs -p)\" EXIT; bun build viewer.ts --outfile viewer.js --watch & bun --watch server.js \"$@\" & wait' dev",
-    "test": "bun run build && bun test tests/server.test.js && node --test --test-global-setup=tests/global-browser-setup.ts --test-concurrency=1 --test-timeout=120000 \"tests/**/*.test.ts\" \"*.test.ts\" \"scripts/**/*.test.ts\""
+    "dev": "bash -c 'trap \"kill \\$(jobs -p)\" EXIT; bun build viewer.ts --outfile viewer.js --watch & bun --watch server.ts \"$@\" & wait' dev",
+    "test": "bun run build && bun test tests/server.spec.ts && node --test --test-global-setup=tests/global-browser-setup.ts --test-concurrency=1 --test-timeout=120000 \"tests/**/*.test.ts\" \"*.test.ts\" \"scripts/**/*.test.ts\""
   },
   "devDependencies": {
     "@types/bun": "^1.4.5",

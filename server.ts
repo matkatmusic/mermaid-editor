@@ -1,7 +1,9 @@
-import { watch } from "node:fs";
+// import { watch } from "node:fs";
+import { watch, type FSWatcher } from "node:fs";
 import { resolve } from "node:path";
 
-export function isValidName(name) {
+// export function isValidName(name) {
+export function isValidName(name: string) {
   return /^[a-zA-Z0-9_-]+\.mmd$/.test(name);
 }
 
@@ -16,9 +18,11 @@ const HOSTNAME = hostnameFlagIndex === -1 ? "0.0.0.0" : process.argv[hostnameFla
 
 // let openedFilePath = null; // one path for every tab: a second tab's Open File redirected the first tab's saves
 // Paths the server itself got from the native Open File dialog or the last-opened file. A page may only name a path in this set.
-const allowedOpenedPaths = new Set();
+// const allowedOpenedPaths = new Set();
+const allowedOpenedPaths = new Set<string>();
 
-function getRequestedOpenedPath(url) {
+// function getRequestedOpenedPath(url) {
+function getRequestedOpenedPath(url: URL) {
   const requestedPath = url.searchParams.get("path");
   if (requestedPath === null) return null;
   if (!allowedOpenedPaths.has(requestedPath)) return null;
@@ -29,7 +33,8 @@ const server = import.meta.main && Bun.serve({
   port: PORT,
   hostname: HOSTNAME,
   idleTimeout: 0,
-  async fetch(req) {
+  // async fetch(req) {
+  async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
 
     if (url.pathname === "/") {
@@ -78,8 +83,10 @@ const server = import.meta.main && Bun.serve({
         return new Response("Invalid diagram name", { status: 400 });
       }
       const encoder = new TextEncoder();
-      let watcher;
-      const stream = new ReadableStream({
+      // let watcher;
+      let watcher: FSWatcher;
+      // const stream = new ReadableStream({
+      const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(encoder.encode(":ok\n\n"));
           watcher = watch(resolve(DIAGRAMS_DIR, name), () => {
@@ -116,7 +123,8 @@ const server = import.meta.main && Bun.serve({
     if (url.pathname === "/api/last-opened" && req.method === "GET") {
       const lastOpened = Bun.file(LAST_OPENED_FILE);
       if (!(await lastOpened.exists())) return new Response(null, { status: 204 });
-      const saved = await lastOpened.json();
+      // const saved = await lastOpened.json();
+      const saved: { name?: string; path: string } = await lastOpened.json();
       if (saved.name) return Response.json(saved);
       // openedFilePath = saved.path;
       allowedOpenedPaths.add(saved.path);
@@ -133,8 +141,10 @@ const server = import.meta.main && Bun.serve({
       const openedFilePath = getRequestedOpenedPath(url);
       if (openedFilePath === null) return new Response("No file opened", { status: 400 });
       const encoder = new TextEncoder();
-      let watcher;
-      const stream = new ReadableStream({
+      // let watcher;
+      let watcher: FSWatcher;
+      // const stream = new ReadableStream({
+      const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(encoder.encode(":ok\n\n"));
           watcher = watch(openedFilePath, () => {
@@ -166,4 +176,5 @@ const server = import.meta.main && Bun.serve({
 
 // Chrome's file dialogs need a secure page; localhost counts as secure, 0.0.0.0 does not.
 const shownHostname = HOSTNAME === "0.0.0.0" ? "localhost" : HOSTNAME;
-if (import.meta.main) console.log(`Mermaid viewer running at http://${shownHostname}:${server.port}`);
+// if (import.meta.main) console.log(`Mermaid viewer running at http://${shownHostname}:${server.port}`);
+if (server) console.log(`Mermaid viewer running at http://${shownHostname}:${server.port}`);

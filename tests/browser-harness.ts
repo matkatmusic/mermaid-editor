@@ -59,7 +59,8 @@ export async function startServerAndChrome(serverPort: number, cdpPort: number):
     // The server saves into a temp copy so tests never overwrite the real diagrams.
     const diagramsCopyDir = mkdtempSync(join(tmpdir(), "diagrams-copy-"));
     cpSync(join(process.cwd(), "..", "diagrams"), diagramsCopyDir, { recursive: true });
-    const serverProc = spawn("bun", ["server.js", "--port", String(serverPort)], { stdio: "ignore", env: { ...process.env, DIAGRAMS_DIR: diagramsCopyDir, LAST_OPENED_FILE: join(diagramsCopyDir, ".last-opened.json") } });
+    // const serverProc = spawn("bun", ["server.js", "--port", String(serverPort)], { stdio: "ignore", env: { ...process.env, DIAGRAMS_DIR: diagramsCopyDir, LAST_OPENED_FILE: join(diagramsCopyDir, ".last-opened.json") } });
+    const serverProc = spawn("bun", ["server.ts", "--port", String(serverPort)], { stdio: "ignore", env: { ...process.env, DIAGRAMS_DIR: diagramsCopyDir, LAST_OPENED_FILE: join(diagramsCopyDir, ".last-opened.json") } });
     killWhenParentExits(serverProc.pid!);
     await waitForPort(serverPort);
 
