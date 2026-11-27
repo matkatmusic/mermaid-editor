@@ -2,7 +2,7 @@ import { classEditorCancelBtn, classEditorCreateBtn, classEditorDialog, classEdi
 import { setEditorActionPromise } from '../../model/editor-metadata.ts';
 import { createClass, setNodeClass } from './class-defs.ts';
 import { findClassDef } from '../../model/class-lines.ts';
-import { renderClassesDialog } from '../../../editor-classes-render.ts';
+import { renderClassesDialog } from '../../views/classes-window/editor-classes-render.ts';
 
 // Class picker (node inspector "Class" row)
 function placeClassPickerListInsideWindow() {

@@ -6,8 +6,8 @@ import { insertInspector, insertInspectorRetiredTemplate } from "./source/views/
 import { insertPhone } from "./source/views/phone/phone-markup.ts";
 import { insertInspectorNotice } from "./source/views/inspector/inspector-notice-markup.ts";
 import { insertViewportMenu } from "./source/views/main-diagram/viewport-menu-markup.ts";
-import { insertClassEditorDialog } from "./class-editor-dialog-markup.ts";
-import { insertClassesWindow } from "./classes-window-markup.ts";
+import { insertClassEditorDialog } from "./source/views/classes-window/class-editor-dialog-markup.ts";
+import { insertClassesWindow } from "./source/views/classes-window/classes-window-markup.ts";
 import { insertWalkBackDialog } from "./source/views/inspector/walk-back-dialog-markup.ts";
 
 const sharedStyle = `  :root { --bg: #fff; --bg-light: #f5f5f5; --bg-card: #fafafa; --text: #000; --text-quiet: #666; --line: #ccc; --line-soft: #ddd; --border-strong: #333; --border-input: #555; --border-mid: #888; --error: red; --select-stroke: #1565c0; --preview-stroke: #ef6c00; --mask: rgba(0,0,0,0.55); }

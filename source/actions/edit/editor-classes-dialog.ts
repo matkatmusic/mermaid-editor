@@ -3,7 +3,7 @@ import { setEditorActionPromise } from '../../model/editor-metadata.ts';
 import { removeClass, renameClass, setClassColors } from './class-defs.ts';
 import { parseClassDefs } from '../../model/class-lines.ts';
 import { openClassEditor } from './editor-class-events.ts';
-import { renderClassesDialog } from '../../../editor-classes-render.ts';
+import { renderClassesDialog } from '../../views/classes-window/editor-classes-render.ts';
 
 function openClassesDialog() {
   document.getElementById('fileMenu')!.removeAttribute('open');
