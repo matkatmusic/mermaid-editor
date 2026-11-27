@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeHashPort } from "./browser-harness.ts";
 import { spawn, spawnSync } from "node:child_process";
-import { createServer, type AddressInfo } from "node:net";
+// import { createServer, type AddressInfo } from "node:net";
 import { createInterface } from "node:readline";
 import { waitMilliseconds } from "./cdp.ts";
 
@@ -16,15 +16,15 @@ test("test_compute_hash_port_gives_different_files_different_ports", () => {
   assert.notEqual(computeHashPort("a.test.ts", 20000, 10000), computeHashPort("b.test.ts", 20000, 10000));
 });
 
-function getFreePort() {
-    return new Promise<number>((resolve) => {
-        const probe = createServer();
-        probe.listen(0, () => {
-            const { port } = probe.address() as AddressInfo;
-            probe.close(() => resolve(port));
-        });
-    });
-}
+// function getFreePort() {
+//     return new Promise<number>((resolve) => {
+//         const probe = createServer();
+//         probe.listen(0, () => {
+//             const { port } = probe.address() as AddressInfo;
+//             probe.close(() => resolve(port));
+//         });
+//     });
+// }
 
 // The command text must match too, so a reused process number never counts.
 function isRunning(processId: number, commandMarker: string) {
@@ -40,42 +40,97 @@ async function waitUntilStopped(processId: number, commandMarker: string) {
     }
 }
 
-test("test_server_and_chrome_exit_when_the_process_that_started_them_is_killed", { timeout: 60_000 }, async (t) => {
-    // Setup: a child process starts the harness, reports the two process numbers, then stays alive.
-    const serverPort = await getFreePort();
-    const cdpPort = await getFreePort();
+test("test_killWhenParentExits_stops_a_stand_in_when_its_starter_is_killed", { timeout: 30_000 }, async (t) => {
+    // Setup: a child process starts a stand-in program, watches it, reports its process number, then stays alive.
     const starterScript = `
-        import { startServerAndChrome } from "./tests/browser-harness.ts";
-        const session = await startServerAndChrome(${serverPort}, ${cdpPort});
-        console.log(JSON.stringify({ serverId: session.serverProc.pid, chromeId: session.chromeProc.pid }));
+        import { spawn } from "node:child_process";
+        import { killWhenParentExits } from "./tests/kill-when-parent-exits.ts";
+        const standIn = spawn("sleep", ["60"], { stdio: "ignore" });
+        killWhenParentExits(standIn.pid);
+        console.log(standIn.pid);
         setInterval(() => {}, 1000);
     `;
     const starter = spawn("node", ["--input-type=module", "-e", starterScript], { stdio: ["ignore", "pipe", "inherit"] });
-    t.after(() => starter.kill("SIGKILL"));
-    // The harness also prints build output, so take the first line that holds the report.
-    let report = "";
+    // Setup: read the process number of the stand-in from the first output line.
+    let standInId = 0;
     for await (const line of createInterface({ input: starter.stdout! })) {
-        if (line.startsWith("{")) {
-            report = line;
-            break;
-        }
+        standInId = Number(line);
+        break;
     }
-    const { serverId, chromeId } = JSON.parse(report);
-    const serverMarker = `server.js --port ${serverPort}`;
-    const chromeMarker = `--remote-debugging-port=${cdpPort}`;
     // Cleanup: a failed run must not leave the two programs that this test started.
     t.after(() => {
-        if (isRunning(serverId, serverMarker))
-            process.kill(serverId, "SIGKILL");
-        if (isRunning(chromeId, chromeMarker))
-            process.kill(chromeId, "SIGKILL");
+        starter.kill("SIGKILL");
+        if (isRunning(standInId, "sleep 60"))
+            process.kill(standInId, "SIGKILL");
     });
-    // Check: both run before the starter dies.
-    assert.ok(isRunning(serverId, serverMarker));
-    assert.ok(isRunning(chromeId, chromeMarker));
+    // Check: the stand-in runs before the starter dies.
+    assert.ok(isRunning(standInId, "sleep 60"));
     // Action: kill the starter so that it cannot run any cleanup code.
     starter.kill("SIGKILL");
-    // Check: both stop within a few seconds.
-    await waitUntilStopped(serverId, serverMarker);
-    await waitUntilStopped(chromeId, chromeMarker);
+    // Check: the stand-in stops within a few seconds.
+    await waitUntilStopped(standInId, "sleep 60");
 });
+
+test("test_the_shared_server_and_Chrome_each_have_a_stop_watcher", () => {
+    // Setup: the shared server port and the shared Chrome port are known.
+    const serverPort = process.env.SHARED_SERVER_PORT;
+    const cdpPort = process.env.SHARED_CDP_PORT;
+    assert.ok(serverPort, "SHARED_SERVER_PORT is not set");
+    assert.ok(cdpPort, "SHARED_CDP_PORT is not set");
+    // Action: list every process with its full command.
+    const lines = spawnSync("ps", ["-Awwo", "pid=,command="], { encoding: "utf8" }).stdout.split("\n");
+    // Check: the shared server runs.
+    const serverPattern = new RegExp(`server\\.(js|ts) --port ${serverPort}\\b`);
+    const serverLine = lines.find((line) => serverPattern.test(line));
+    assert.ok(serverLine, `no server on port ${serverPort}`);
+    // Check: the main Chrome process runs.
+    const chromeLine = lines.find((line) => line.includes(`--remote-debugging-port=${cdpPort}`) && !line.includes("--type="));
+    assert.ok(chromeLine, `no Chrome on port ${cdpPort}`);
+    // Check: a stop watcher names each of the two process numbers.
+    for (const programLine of [serverLine, chromeLine]) {
+        const processId = Number.parseInt(programLine, 10);
+        const hasWatcher = lines.some((line) => line.includes("target_start=") && line.trimEnd().endsWith(` ${processId}`));
+        assert.ok(hasWatcher, `no stop watcher for process ${processId}`);
+    }
+});
+
+// Disabled for task #128: it starts a second server and Chrome. Lost: no single test shows that the real server and Chrome stop when their starter is killed.
+// test("test_server_and_chrome_exit_when_the_process_that_started_them_is_killed", { timeout: 60_000 }, async (t) => {
+//     // Setup: a child process starts the harness, reports the two process numbers, then stays alive.
+//     const serverPort = await getFreePort();
+//     const cdpPort = await getFreePort();
+//     const starterScript = `
+//         import { startServerAndChrome } from "./tests/browser-harness.ts";
+//         const session = await startServerAndChrome(${serverPort}, ${cdpPort});
+//         console.log(JSON.stringify({ serverId: session.serverProc.pid, chromeId: session.chromeProc.pid }));
+//         setInterval(() => {}, 1000);
+//     `;
+//     const starter = spawn("node", ["--input-type=module", "-e", starterScript], { stdio: ["ignore", "pipe", "inherit"] });
+//     t.after(() => starter.kill("SIGKILL"));
+//     // The harness also prints build output, so take the first line that holds the report.
+//     let report = "";
+//     for await (const line of createInterface({ input: starter.stdout! })) {
+//         if (line.startsWith("{")) {
+//             report = line;
+//             break;
+//         }
+//     }
+//     const { serverId, chromeId } = JSON.parse(report);
+//     const serverMarker = `server.js --port ${serverPort}`;
+//     const chromeMarker = `--remote-debugging-port=${cdpPort}`;
+//     // Cleanup: a failed run must not leave the two programs that this test started.
+//     t.after(() => {
+//         if (isRunning(serverId, serverMarker))
+//             process.kill(serverId, "SIGKILL");
+//         if (isRunning(chromeId, chromeMarker))
+//             process.kill(chromeId, "SIGKILL");
+//     });
+//     // Check: both run before the starter dies.
+//     assert.ok(isRunning(serverId, serverMarker));
+//     assert.ok(isRunning(chromeId, chromeMarker));
+//     // Action: kill the starter so that it cannot run any cleanup code.
+//     starter.kill("SIGKILL");
+//     // Check: both stop within a few seconds.
+//     await waitUntilStopped(serverId, serverMarker);
+//     await waitUntilStopped(chromeId, chromeMarker);
+// });
