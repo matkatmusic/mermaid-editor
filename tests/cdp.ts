@@ -69,6 +69,39 @@ export async function waitForFunction(name: string, timeoutMs = 5000) {
   throw new Error(`${name} was not defined within ${timeoutMs}ms`);
 }
 
+export async function waitForExpression(expression: string, timeoutMs = 5000, evaluate: (expression: string) => Promise<unknown> = executeExpression) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        const value = await evaluate(expression);
+        if (value)
+            return;
+        await waitMilliseconds(20);
+    }
+    throw new Error(`${expression} did not become true within ${timeoutMs}ms`);
+}
+
+export async function executeAndWaitForRender(action: () => Promise<unknown>, timeoutMs = 5000) {
+    const renderIdBefore = await executeExpression("state.renderId");
+    await action();
+    await waitForExpression(`state.renderId > ${renderIdBefore} && document.querySelector('#diagram svg')?.id === 'diagram-' + (state.renderId - 1)`, timeoutMs);
+}
+
+export async function executeAndWaitForScrollEnd(selector: string, action: () => Promise<unknown>, timeoutMs = 5000) {
+    await executeExpression(`window.hasScrollEnded = false; document.querySelector(${JSON.stringify(selector)}).addEventListener('scrollend', () => { window.hasScrollEnded = true; }, { once: true })`);
+    await action();
+    await waitForExpression("window.hasScrollEnded", timeoutMs);
+}
+
+export async function waitForEditorAction() {
+    const reply = await send<{ exceptionDetails?: { exception?: { description?: string } } }>("Runtime.evaluate", { expression: "window.editorActionPromise", awaitPromise: true, returnByValue: true });
+    if (reply.exceptionDetails)
+        throw new Error(`editor action failed: ${reply.exceptionDetails.exception?.description}`);
+}
+
+export async function waitForTwoFrames() {
+    await executeExpression("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+}
+
 function receiveMessage(event: MessageEvent) {
   // const message = JSON.parse(event.data as string);
   const message = JSON.parse(event.data as string) as { id: number; result: unknown };
