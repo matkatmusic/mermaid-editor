@@ -14,7 +14,8 @@ export function parsePropsLine(line: string): NodeProps | null {
     const trimmed = line.trim();
     if (!trimmed.startsWith(PROPS_PREFIX))
         return null;
-    return JSON.parse(trimmed.slice(PROPS_PREFIX.length));
+    // return JSON.parse(trimmed.slice(PROPS_PREFIX.length));
+    return JSON.parse(trimmed.slice(PROPS_PREFIX.length)) as NodeProps;
 }
 
 // The keys are named one by one so every line has the same key order; JSON leaves out an undefined value.
