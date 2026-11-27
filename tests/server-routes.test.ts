@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isValidName } from "../server.ts";
+import { isValidName } from "../source/app/server.ts";
 import { waitMilliseconds } from "./cdp.ts";
 
 interface LastOpenedDiagram {

@@ -1,7 +1,7 @@
-import { codeBox, inspectorNotice, nodeInspector, nodeNameCheck, nodeNameInput } from '../../../dom.ts';
+import { codeBox, inspectorNotice, nodeInspector, nodeNameCheck, nodeNameInput } from '../../app/dom.ts';
 import { buildPropsLine, parsePropsLine } from '../../model/node-props.ts';
 import type { EditorGraph, EditorNode, EditorNodeKind } from '../../model/editor-types.ts';
-import { phonePath, state } from '../../../state.ts';
+import { phonePath, state } from '../../app/state.ts';
 import { applyEditorSource, appendEditorAction } from './editor-actions.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 

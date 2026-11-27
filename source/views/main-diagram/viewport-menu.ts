@@ -1,4 +1,4 @@
-import { addDecisionBlockMenuBtn, addStaticBlockMenuBtn, outputBox, viewportMenu } from '../../../dom.ts';
+import { addDecisionBlockMenuBtn, addStaticBlockMenuBtn, outputBox, viewportMenu } from '../../app/dom.ts';
 import { appendEditorAction } from '../../actions/edit/editor-actions.ts';
 import { addStandaloneDecisionBlock, addStandaloneStaticBlock } from '../../actions/edit/editor-add-standalone.ts';
 import { refuseEditInPathView } from '../../actions/navigation/path-view.ts';

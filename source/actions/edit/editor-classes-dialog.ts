@@ -1,4 +1,4 @@
-import { classesCloseBtn, classesDialog, classesError, classesList, classesMenuBtn, classesNewBtn, codeBox } from '../../../dom.ts';
+import { classesCloseBtn, classesDialog, classesError, classesList, classesMenuBtn, classesNewBtn, codeBox } from '../../app/dom.ts';
 import { setEditorActionPromise } from '../../model/editor-metadata.ts';
 import { removeClass, renameClass, setClassColors } from './class-defs.ts';
 import { parseClassDefs } from '../../model/class-lines.ts';

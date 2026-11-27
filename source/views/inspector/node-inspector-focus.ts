@@ -1,4 +1,4 @@
-import { destinationInput, nodeInspector, nodeTextInput } from '../../../dom.ts';
+import { destinationInput, nodeInspector, nodeTextInput } from '../../app/dom.ts';
 
 export function updateNodeInspectorPosition() {
   // The widget now sits in the page layout under #output.

@@ -7,7 +7,7 @@ import { join } from "node:path";
 
 test("bun build viewer.ts succeeds and includes expected DOM ids", () => {
   const outfile = join(tmpdir(), `viewer-build-${Date.now()}.js`);
-  const result = spawnSync("bun", ["build", "viewer.ts", "--outfile", outfile]);
+  const result = spawnSync("bun", ["build", "source/app/viewer.ts", "--outfile", outfile]);
   assert.equal(result.status, 0);
 
   // Disabled for task #127: source text checks are not wanted.

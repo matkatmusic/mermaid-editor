@@ -1,7 +1,7 @@
 import type { EditorGraph, EditorNode } from '../../model/editor-types.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
-import { state } from '../../../state.ts';
-import { decisionCounter, diagramBox, outputBox } from '../../../dom.ts';
+import { state } from '../../app/state.ts';
+import { decisionCounter, diagramBox, outputBox } from '../../app/dom.ts';
 import { reportEditorValidationError } from '../../views/main-diagram/render-helpers.ts';
 import { setStatus } from '../../views/header-bar/diagram-io.ts';
 import { selectEditorNode } from '../edit/editor-actions.ts';

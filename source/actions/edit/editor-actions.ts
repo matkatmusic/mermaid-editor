@@ -1,8 +1,8 @@
 // declare const mermaid: any;
 declare const mermaid: import('mermaid').Mermaid;
 import { buildSourceWithMetadata, setEditorActionPromise } from '../../model/editor-metadata.ts';
-import { codeBox, diagramBox, multiSelectBadge, nodeActions, selectedNodeBox } from '../../../dom.ts';
-import { state } from '../../../state.ts';
+import { codeBox, diagramBox, multiSelectBadge, nodeActions, selectedNodeBox } from '../../app/dom.ts';
+import { state } from '../../app/state.ts';
 import { render } from '../../views/main-diagram/render.ts';
 import { saveDiagram } from '../file/diagram-save.ts';
 // import { buildSourceWithHexagonDecisions } from './editor-parse.ts';

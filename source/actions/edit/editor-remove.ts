@@ -1,4 +1,4 @@
-import { state } from '../../../state.ts';
+import { state } from '../../app/state.ts';
 import type { EditorGraph } from '../../model/editor-types.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { setEditorActionPromise } from '../../model/editor-metadata.ts';

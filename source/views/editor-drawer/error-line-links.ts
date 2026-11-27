@@ -1,4 +1,4 @@
-import { codeBox } from '../../../dom.ts';
+import { codeBox } from '../../app/dom.ts';
 import { setDrawerOpen } from '../header-bar/diagram-io.ts';
 import { measureSourceLines } from './source-lines.ts';
 

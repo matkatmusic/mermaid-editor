@@ -1,4 +1,4 @@
-import { classEditorCancelBtn, classEditorCreateBtn, classEditorDialog, classEditorError, classEditorFill, classEditorName, classEditorStroke, classPickerBtn, classPickerList, classesDialog, codeBox } from '../../../dom.ts';
+import { classEditorCancelBtn, classEditorCreateBtn, classEditorDialog, classEditorError, classEditorFill, classEditorName, classEditorStroke, classPickerBtn, classPickerList, classesDialog, codeBox } from '../../app/dom.ts';
 import { setEditorActionPromise } from '../../model/editor-metadata.ts';
 import { createClass, setNodeClass } from './class-defs.ts';
 import { findClassDef } from '../../model/class-lines.ts';

@@ -1,6 +1,6 @@
-import type { Edge } from '../../dom.ts';
+import type { Edge } from '../app/dom.ts';
 import type { EditorGraph, EditorNode } from './editor-types.ts';
-import { phonePath, state } from '../../state.ts';
+import { phonePath, state } from '../app/state.ts';
 import { choicesOf, parentOf } from './graph-slice.ts';
 import { findRoots } from './path-view-model.ts';
 

@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun build viewer.ts --outfile viewer.js",
-    "dev": "bash -c 'trap \"kill \\$(jobs -p)\" EXIT; bun build viewer.ts --outfile viewer.js --watch & bun --watch server.ts \"$@\" & wait' dev",
+    "build": "bun build source/app/viewer.ts --outfile source/app/viewer.js",
+    "dev": "bash -c 'trap \"kill \\$(jobs -p)\" EXIT; bun build source/app/viewer.ts --outfile source/app/viewer.js --watch & bun --watch source/app/server.ts \"$@\" & wait' dev",
     "test": "bun test --timeout=120000"
   },
   "devDependencies": {

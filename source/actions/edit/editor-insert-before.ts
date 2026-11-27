@@ -1,4 +1,4 @@
-import { state } from '../../../state.ts';
+import { state } from '../../app/state.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { getDeclarationSuffix } from '../../model/editor-parse.ts';
 import { setEditorActionPromise } from '../../model/editor-metadata.ts';
@@ -6,7 +6,7 @@ import { appendInlineDecl, buildChoiceId, buildSourceWithLinesReplaced, getNextE
 import { applyEditorSource } from './editor-actions.ts';
 import { appendInlineDeclaration } from './editor-insert-after.ts';
 import type { EditorEdge } from '../../model/editor-types.ts';
-import { diagramBox, outputBox } from '../../../dom.ts';
+import { diagramBox, outputBox } from '../../app/dom.ts';
 import { moveNodeToViewportCenter } from '../navigation/decision-nav.ts';
 
 export function insertStaticBefore() {

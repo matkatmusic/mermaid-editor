@@ -1,13 +1,13 @@
 // declare const mermaid: any;
 declare const mermaid: import('mermaid').Mermaid;
-import { codeBox, darkModeToggle, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, getMermaidOptions, outputBox } from '../../../dom.ts';
+import { codeBox, darkModeToggle, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, getMermaidOptions, outputBox } from '../../app/dom.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { clearInvalidPhonePreview, updateDecisionCounter } from '../../actions/navigation/decision-nav.ts';
 import { parseEdges } from '../../model/diagram-source.ts';
 import { filterToFunctions } from '../../model/function-routing.ts';
 import { moveClassLinesToEnd } from '../../model/class-lines.ts';
 import { sliceIds } from '../../model/graph-slice.ts';
-import { phonePath, state } from '../../../state.ts';
+import { phonePath, state } from '../../app/state.ts';
 import { applyNodeTypeColors, applyNoteDots } from './node-type-colors.ts';
 import { renderEditorSelection } from '../../actions/edit/editor-actions.ts';
 import { applyPathHighlight, reportEditorValidationError } from './render-helpers.ts';

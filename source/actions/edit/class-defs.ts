@@ -1,4 +1,4 @@
-import { codeBox } from '../../../dom.ts';
+import { codeBox } from '../../app/dom.ts';
 import { applyEditorSource } from './editor-actions.ts';
 import { buildSourceWithAssignedClass, buildSourceWithClassColors, buildSourceWithCreatedClass, buildSourceWithDeletedClass, buildSourceWithRenamedClass } from '../../model/class-source.ts';
 

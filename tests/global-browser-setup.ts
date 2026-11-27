@@ -50,7 +50,7 @@ export async function globalSetup() {
     const serverPort = Number(process.env.SERVER_PORT) || await findFreePort();
     const cdpPort = Number(process.env.CDP_PORT) || await findFreePort();
     // Remove viewer.js so that only the server start can supply it.
-    rmSync(join(process.cwd(), "viewer.js"), { force: true });
+    rmSync(join(process.cwd(), "source", "app", "viewer.js"), { force: true });
     session = await startServerAndChrome(serverPort, cdpPort);
     process.env.SHARED_SERVER_PORT = String(session.serverPort);
     process.env.SHARED_CDP_PORT = String(session.cdpPort);

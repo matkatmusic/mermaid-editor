@@ -1,4 +1,4 @@
-import { nodeInspector, outputBox } from '../../../dom.ts';
+import { nodeInspector, outputBox } from '../../app/dom.ts';
 
 const MAX_SHARE_OF_VIEW_AREA = 0.5;
 const nodeInspectorResizeHandle = document.getElementById('nodeInspectorResizeHandle')!;

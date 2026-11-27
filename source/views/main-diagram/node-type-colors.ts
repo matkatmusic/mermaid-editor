@@ -1,5 +1,5 @@
 import type { EditorGraph } from '../../model/editor-types.ts';
-import { codeBox, diagramBox } from '../../../dom.ts';
+import { codeBox, diagramBox } from '../../app/dom.ts';
 import { getNodeId } from './render-helpers.ts';
 import { buildClassStyleIndex, findNodeStyle } from '../../model/class-style-index.ts';
 

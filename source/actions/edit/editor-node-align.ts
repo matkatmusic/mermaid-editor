@@ -1,4 +1,4 @@
-import { codeBox } from '../../../dom.ts';
+import { codeBox } from '../../app/dom.ts';
 import { appendEditorAction, applyEditorSource } from './editor-actions.ts';
 import { buildSourceWithNodeAlign, getNodeAlign } from '../../model/node-align.ts';
 import type { Alignment, Justification } from '../../model/node-align.ts';

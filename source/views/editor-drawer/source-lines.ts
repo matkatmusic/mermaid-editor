@@ -1,5 +1,5 @@
-import { codeBox, sourceGutter } from '../../../dom.ts';
-import { state } from '../../../state.ts';
+import { codeBox, sourceGutter } from '../../app/dom.ts';
+import { state } from '../../app/state.ts';
 
 export function measureSourceLines() {
   const style = getComputedStyle(codeBox);

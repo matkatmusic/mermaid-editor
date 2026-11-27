@@ -1,5 +1,5 @@
-import { codeBox, statusBox } from '../../../dom.ts';
-import { phonePath, state } from '../../../state.ts';
+import { codeBox, statusBox } from '../../app/dom.ts';
+import { phonePath, state } from '../../app/state.ts';
 import { selectEditorNode } from '../edit/editor-actions.ts';
 import type { EditorGraph } from '../../model/editor-types.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';

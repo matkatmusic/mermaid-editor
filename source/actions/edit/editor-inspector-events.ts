@@ -1,10 +1,10 @@
 import { checkTypedNodeName, commitNodeName, isNodeNameBoxInvalid, refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
-import { decisionShapeSwitch, destinationSelect, nodeAlignRow, nodeInspectorActions, nodeNameInput, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from '../../../dom.ts';
+import { decisionShapeSwitch, destinationSelect, nodeAlignRow, nodeInspectorActions, nodeNameInput, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from '../../app/dom.ts';
 import { getNodeId } from '../../views/main-diagram/render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { setEditorActionPromise } from '../../model/editor-metadata.ts';
-import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from '../../../state.ts';
+import { NEW_DECISION_DESTINATION, NEW_STATIC_DESTINATION, state } from '../../app/state.ts';
 import { addBlockAfter, addChoice, addQuestionAfter } from './editor-add.ts';
 import { insertDecisionBefore, insertStaticBefore } from './editor-insert-before.ts';
 import { removeBlock, removeChoice, removeChoices } from './editor-remove.ts';

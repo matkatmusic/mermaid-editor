@@ -1,4 +1,4 @@
-import { classesError, classesList, codeBox } from '../../../dom.ts';
+import { classesError, classesList, codeBox } from '../../app/dom.ts';
 import { parseClassDefs } from '../../model/class-lines.ts';
 
 // File menu > Classes... dialog (list every class; edit, rename, or delete it)

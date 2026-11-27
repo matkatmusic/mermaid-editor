@@ -1,4 +1,4 @@
-import { destinationInput, destinationList, destinationSelect } from '../../../dom.ts';
+import { destinationInput, destinationList, destinationSelect } from '../../app/dom.ts';
 
 let highlightedIndex = -1;
 

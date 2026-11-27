@@ -1,9 +1,9 @@
-import { state } from '../../../state.ts';
+import { state } from '../../app/state.ts';
 import type { EditorGraph } from '../../model/editor-types.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { appendInlineDecl, buildSourceWithLinesReplaced } from '../../model/source-edit.ts';
 import { applyEditorSource, executeEditorAction, selectEditorNode, renderRemovalPreview } from './editor-actions.ts';
-import { nodeActions } from '../../../dom.ts';
+import { nodeActions } from '../../app/dom.ts';
 
 export function removeQuestion() {
   if (!state.selectedEditorNodeId)

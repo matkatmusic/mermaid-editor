@@ -7,7 +7,7 @@ import { PATH_VIEW_SOURCE, clickButtonWithMouse, loadPathViewSource, readErrorLo
 // import { walkPaths } from '../path-view-model.ts';
 import { findNeighbourDigits, walkDigitPath } from '../source/model/path-view-model.ts';
 import type { PathDiagram } from '../source/model/path-view-model.ts';
-import type { Edge } from '../dom.ts';
+import type { Edge } from '../source/app/dom.ts';
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 

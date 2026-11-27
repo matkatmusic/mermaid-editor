@@ -1,11 +1,11 @@
-import { classesMenuBtn, codeBox, destinationRow, nodeActions, nodeAlignRow, nodeClassRow, nodeInspectorActions, nodeInspectorRemovalPreview, nodeTextInput, openFileBtn, phoneDiagramBox, selectBox } from '../../../dom.ts';
-import type { Edge } from '../../../dom.ts';
+import { classesMenuBtn, codeBox, destinationRow, nodeActions, nodeAlignRow, nodeClassRow, nodeInspectorActions, nodeInspectorRemovalPreview, nodeTextInput, openFileBtn, phoneDiagramBox, selectBox } from '../../app/dom.ts';
+import type { Edge } from '../../app/dom.ts';
 // import { parseEdges } from './diagram-source.ts';
 // import { findUnusedChoices } from './path-view-model.ts';
 import { findUnusedChoices, isViewLimitingEdits } from '../../model/path-view-model.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { setStatus } from '../../views/header-bar/diagram-io.ts';
-import { state } from '../../../state.ts';
+import { state } from '../../app/state.ts';
 import { findRoots } from '../../model/phone-render.ts';
 import { buildChosenPathSource } from '../../model/path-export.ts';
 import { selectPathFolder, writeToOpenedFileFolder, writeToServerDiagrams } from './path-write.ts';

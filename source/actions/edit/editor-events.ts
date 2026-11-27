@@ -1,8 +1,8 @@
-import { codeBox, diagramBox, drawer, outputBox, phoneDiagramBox } from '../../../dom.ts';
+import { codeBox, diagramBox, drawer, outputBox, phoneDiagramBox } from '../../app/dom.ts';
 import { getNodeId } from '../../views/main-diagram/render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
-import { phonePath, state } from '../../../state.ts';
+import { phonePath, state } from '../../app/state.ts';
 import { render } from '../../views/main-diagram/render.ts';
 import { findAnswersLeadingTo, isPhoneShowingHistory, selectPhonePathToNode } from '../../model/phone-render.ts';
 import { parseEdges } from '../../model/diagram-source.ts';

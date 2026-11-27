@@ -1,16 +1,16 @@
 import { MAIN_ZOOM_STEP, chosenAnswers, phonePath, state } from './state.ts';
-import { applyTypeMetadata } from './source/model/editor-metadata.ts';
+import { applyTypeMetadata } from '../model/editor-metadata.ts';
 import { codeBox, drawer, drawerToggle, nextDecisionBtn, openFileBtn, outputBox, phoneDiagramBox, previousDecisionBtn, searchClearBtn, searchInput, searchNextBtn, searchPreviousBtn, selectBox, statusBox, zoomInBtn, zoomOutBtn, zoomResetBtn } from './dom.ts';
-import { applyMainViewport, loadList, resetEditorHistory, setDrawerOpen } from './source/views/header-bar/diagram-io.ts';
-import { getEditorGraph } from './source/model/editor-graph.ts';
-import { loadDiagram } from './source/actions/file/diagram-load.ts';
-import { saveDiagram } from './source/actions/file/diagram-save.ts';
-import { openFileFromDialog } from './source/actions/file/open-file.ts';
-import { render } from './source/views/main-diagram/render.ts';
-import { moveToDecision } from './source/actions/navigation/decision-nav.ts';
-import { clearSearch, executeSearch, moveSearchSelection } from './source/actions/navigation/node-search.ts';
-import { setMainZoomPercent } from './source/views/main-diagram/zoom.ts';
-import { applyPathHighlight } from './source/views/main-diagram/render-helpers.ts';
+import { applyMainViewport, loadList, resetEditorHistory, setDrawerOpen } from '../views/header-bar/diagram-io.ts';
+import { getEditorGraph } from '../model/editor-graph.ts';
+import { loadDiagram } from '../actions/file/diagram-load.ts';
+import { saveDiagram } from '../actions/file/diagram-save.ts';
+import { openFileFromDialog } from '../actions/file/open-file.ts';
+import { render } from '../views/main-diagram/render.ts';
+import { moveToDecision } from '../actions/navigation/decision-nav.ts';
+import { clearSearch, executeSearch, moveSearchSelection } from '../actions/navigation/node-search.ts';
+import { setMainZoomPercent } from '../views/main-diagram/zoom.ts';
+import { applyPathHighlight } from '../views/main-diagram/render-helpers.ts';
 
 // The classes every new document starts with.
 const DEFAULT_CLASS_LINES = [

@@ -1,4 +1,4 @@
-import { codeBox, diagramBox, outputBox } from '../../../dom.ts';
+import { codeBox, diagramBox, outputBox } from '../../app/dom.ts';
 import { parseEdges } from '../../model/diagram-source.ts';
 import { getEdgeEnds } from './render-helpers.ts';
 

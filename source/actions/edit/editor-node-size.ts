@@ -1,4 +1,4 @@
-import { codeBox } from '../../../dom.ts';
+import { codeBox } from '../../app/dom.ts';
 import { appendEditorAction, applyEditorSource } from './editor-actions.ts';
 import { buildSourceWithNodeSize, buildSourceWithoutNodeSize } from '../../model/node-size.ts';
 import { getNodeProps } from '../../model/node-props.ts';

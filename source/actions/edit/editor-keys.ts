@@ -1,6 +1,6 @@
-import { codeBox, diagramBox, nextDecisionBtn, outputBox, previousDecisionBtn, searchInput, zoomInBtn, zoomOutBtn } from '../../../dom.ts';
+import { codeBox, diagramBox, nextDecisionBtn, outputBox, previousDecisionBtn, searchInput, zoomInBtn, zoomOutBtn } from '../../app/dom.ts';
 import { moveNodeToViewportCenter } from '../navigation/decision-nav.ts';
-import { state } from '../../../state.ts';
+import { state } from '../../app/state.ts';
 import { saveEditorViewState } from '../file/editor-view-state.ts';
 import { applyEditorSource, executeEditorAction, selectEditorNode } from './editor-actions.ts';
 import { parseEditorGraph } from '../../model/editor-graph-parse.ts';

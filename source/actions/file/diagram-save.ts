@@ -1,5 +1,5 @@
-import { codeBox } from '../../../dom.ts';
-import { state } from '../../../state.ts';
+import { codeBox } from '../../app/dom.ts';
+import { state } from '../../app/state.ts';
 import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from '../../model/editor-metadata.ts';
 import { render } from '../../views/main-diagram/render.ts';
 import { loadList, resetEditorHistory, setStatus } from '../../views/header-bar/diagram-io.ts';

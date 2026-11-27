@@ -1,4 +1,4 @@
-import { state } from '../../../state.ts';
+import { state } from '../../app/state.ts';
 import { renderEditorSelection, selectEditorNode } from './editor-actions.ts';
 
 export function getSelectedNodeIds(): string[] {

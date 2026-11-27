@@ -1,7 +1,7 @@
 // import { diagramBox, fullDiagramBtn, functionsOnlyToggle, nextViewPathBtn, onePathViewBtn, outputBox, pathViewControls, previousViewPathBtn, viewPathLabel, codeBox } from './dom.ts';
 // import { diagramBox, fullDiagramBtn, functionsOnlyToggle, nextViewPathBtn, onePathViewBtn, outputBox, pathViewControls, previousViewPathBtn, viewPathLabel, codeBox, downstreamViewBtn, downstreamViewControls, backDownstreamViewBtn, resetDownstreamViewBtn } from './dom.ts';
-import { diagramBox, fullDiagramBtn, functionsOnlyToggle, nextViewPathBtn, onePathViewBtn, outputBox, pathViewControls, previousViewPathBtn, viewPathLabel, codeBox, downstreamViewBtn, downstreamViewControls, backDownstreamViewBtn, resetDownstreamViewBtn, copyPathCommandBtn, copyDownstreamCommandBtn } from '../../../dom.ts';
-import type { Edge } from '../../../dom.ts';
+import { diagramBox, fullDiagramBtn, functionsOnlyToggle, nextViewPathBtn, onePathViewBtn, outputBox, pathViewControls, previousViewPathBtn, viewPathLabel, codeBox, downstreamViewBtn, downstreamViewControls, backDownstreamViewBtn, resetDownstreamViewBtn, copyPathCommandBtn, copyDownstreamCommandBtn } from '../../app/dom.ts';
+import type { Edge } from '../../app/dom.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { filterToFunctions } from '../../model/function-routing.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
@@ -19,7 +19,7 @@ import type { PathDiagram, PathView, ViewEdit } from '../../model/path-view-mode
 import { findRouteIdsToNode } from '../../model/phone-render.ts';
 import { render } from '../../views/main-diagram/render.ts';
 // import { state } from './state.ts';
-import { phonePath, state } from '../../../state.ts';
+import { phonePath, state } from '../../app/state.ts';
 import { choicesOf, parentOf } from '../../model/graph-slice.ts';
 import { saveEditorViewState } from '../file/editor-view-state.ts';
 // import { buildSubsetSource } from './subset-source.ts';

@@ -1,5 +1,5 @@
-import { codeBox } from '../../../dom.ts';
-import { state } from '../../../state.ts';
+import { codeBox } from '../../app/dom.ts';
+import { state } from '../../app/state.ts';
 import { buildSourceWithMetadata } from '../../model/editor-metadata.ts';
 import { saveDiagram } from './diagram-save.ts';
 import { renderSourceLines } from '../../views/editor-drawer/source-lines.ts';

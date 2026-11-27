@@ -1,4 +1,4 @@
-import { state } from '../../../state.ts';
+import { state } from '../../app/state.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { getDeclarationSuffix } from '../../model/editor-parse.ts';
 import { setEditorActionPromise } from '../../model/editor-metadata.ts';

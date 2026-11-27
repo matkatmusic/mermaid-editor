@@ -1,4 +1,4 @@
-import { diagramBox, outputBox } from '../../../dom.ts';
+import { diagramBox, outputBox } from '../../app/dom.ts';
 import { getNodeId } from '../../views/main-diagram/render-helpers.ts';
 import { HEXAGON_PADDING_HEIGHT, HEXAGON_POINTS_WIDTH_RATIO, NODE_PADDING_HEIGHT, NODE_PADDING_WIDTH } from '../../model/node-size.ts';
 import { setNodeSize } from './editor-node-size.ts';

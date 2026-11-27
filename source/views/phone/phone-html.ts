@@ -1,7 +1,7 @@
-import { codeBox, phoneDiagramBox } from '../../../dom.ts';
-import type { Edge } from '../../../dom.ts';
+import { codeBox, phoneDiagramBox } from '../../app/dom.ts';
+import type { Edge } from '../../app/dom.ts';
 import type { EditorGraph, EditorNode } from '../../model/editor-types.ts';
-import { phonePath, state } from '../../../state.ts';
+import { phonePath, state } from '../../app/state.ts';
 import { choicesOf } from '../../model/graph-slice.ts';
 import { buildClassStyleIndex, findNodeStyle, type ClassStyleIndex } from '../../model/class-style-index.ts';
 // import { isPhoneAwaitingStartNode, isPhoneShowingHistory, type Row } from './phone-render.ts';

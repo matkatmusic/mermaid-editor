@@ -1,5 +1,5 @@
 import type { EditorNode } from '../../model/editor-types.ts';
-import { classPickerBtn, classPickerLabel, classPickerList, classPickerSwatch, codeBox } from '../../../dom.ts';
+import { classPickerBtn, classPickerLabel, classPickerList, classPickerSwatch, codeBox } from '../../app/dom.ts';
 import { findClassDef, findClassOfNode, parseClassDefs } from '../../model/class-lines.ts';
 
 export function renderClassPicker(node: EditorNode) {

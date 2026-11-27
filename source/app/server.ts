@@ -10,8 +10,8 @@ export function isValidName(name: string) {
 
 // const EDITOR_DIR = import.meta.dir;
 const EDITOR_DIR = import.meta.dirname;
-const DIAGRAMS_DIR = process.env.DIAGRAMS_DIR ?? resolve(EDITOR_DIR, "..", "diagrams");
-const LAST_OPENED_FILE = process.env.LAST_OPENED_FILE ?? resolve(EDITOR_DIR, ".last-opened.json");
+const DIAGRAMS_DIR = process.env.DIAGRAMS_DIR ?? resolve(EDITOR_DIR, "..", "..", "..", "diagrams");
+const LAST_OPENED_FILE = process.env.LAST_OPENED_FILE ?? resolve(EDITOR_DIR, "..", "..", ".last-opened.json");
 
 const portFlagIndex = process.argv.indexOf("--port");
 const PORT = portFlagIndex === -1 ? 0 : Number(process.argv[portFlagIndex + 1]);
@@ -58,7 +58,7 @@ const server = import.meta.main && Bun.serve({
     }
 
     if (url.pathname === "/mermaid.min.js") {
-      return new Response(Bun.file(resolve(EDITOR_DIR, "node_modules/mermaid/dist/mermaid.min.js")), { headers: { "Content-Type": "text/javascript" } });
+      return new Response(Bun.file(resolve(EDITOR_DIR, "..", "..", "node_modules/mermaid/dist/mermaid.min.js")), { headers: { "Content-Type": "text/javascript" } });
     }
 
     if (url.pathname === "/api/diagrams" && req.method === "GET") {
