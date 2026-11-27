@@ -4,8 +4,8 @@ import { selectEditorNode } from '../edit/editor-actions.ts';
 import type { EditorGraph } from '../../model/editor-types.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { applyTypeMetadata, buildSourceInCurrentFileFormat, splitEditorMetadata } from '../../model/editor-metadata.ts';
-import { render } from '../../../render.ts';
-import { applyMainZoom } from '../../../zoom.ts';
+import { render } from '../../views/main-diagram/render.ts';
+import { applyMainZoom } from '../../views/main-diagram/zoom.ts';
 import { applyMainViewport, loadList, resetEditorHistory } from '../../views/header-bar/diagram-io.ts';
 import { createDiagramWatcher, setLastSavedDiagramText } from './diagram-save.ts';
 

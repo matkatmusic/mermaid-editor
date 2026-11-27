@@ -6,11 +6,11 @@ import { getEditorGraph } from './source/model/editor-graph.ts';
 import { loadDiagram } from './source/actions/file/diagram-load.ts';
 import { saveDiagram } from './source/actions/file/diagram-save.ts';
 import { openFileFromDialog } from './source/actions/file/open-file.ts';
-import { render } from './render.ts';
+import { render } from './source/views/main-diagram/render.ts';
 import { moveToDecision } from './source/actions/navigation/decision-nav.ts';
 import { clearSearch, executeSearch, moveSearchSelection } from './source/actions/navigation/node-search.ts';
-import { setMainZoomPercent } from './zoom.ts';
-import { applyPathHighlight } from './render-helpers.ts';
+import { setMainZoomPercent } from './source/views/main-diagram/zoom.ts';
+import { applyPathHighlight } from './source/views/main-diagram/render-helpers.ts';
 
 // The classes every new document starts with.
 const DEFAULT_CLASS_LINES = [

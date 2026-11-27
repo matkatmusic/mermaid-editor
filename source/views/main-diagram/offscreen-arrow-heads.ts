@@ -1,5 +1,5 @@
-import { codeBox, diagramBox, outputBox } from './dom.ts';
-import { parseEdges } from './source/model/diagram-source.ts';
+import { codeBox, diagramBox, outputBox } from '../../../dom.ts';
+import { parseEdges } from '../../model/diagram-source.ts';
 import { getEdgeEnds } from './render-helpers.ts';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';

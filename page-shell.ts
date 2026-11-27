@@ -1,11 +1,11 @@
 import { insertHeaderBar } from "./source/views/header-bar/header-bar-markup.ts";
 import { insertEditorDrawer } from "./source/views/editor-drawer/editor-drawer-markup.ts";
 import { insertNodeActionsBar } from "./node-actions-bar-markup.ts";
-import { insertMainDiagram } from "./main-diagram-markup.ts";
+import { insertMainDiagram } from "./source/views/main-diagram/main-diagram-markup.ts";
 import { insertInspector, insertInspectorRetiredTemplate } from "./inspector-markup.ts";
 import { insertPhone } from "./phone-markup.ts";
 import { insertInspectorNotice } from "./inspector-notice-markup.ts";
-import { insertViewportMenu } from "./viewport-menu-markup.ts";
+import { insertViewportMenu } from "./source/views/main-diagram/viewport-menu-markup.ts";
 import { insertClassEditorDialog } from "./class-editor-dialog-markup.ts";
 import { insertClassesWindow } from "./classes-window-markup.ts";
 import { insertWalkBackDialog } from "./walk-back-dialog-markup.ts";

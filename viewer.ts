@@ -1,14 +1,14 @@
 import { codeBox } from './dom.ts';
-import { getNodeId } from './render-helpers.ts';
+import { getNodeId } from './source/views/main-diagram/render-helpers.ts';
 import { selectEditorNode } from './source/actions/edit/editor-actions.ts';
 import { addQuestionAfter, addBlockAfter, addChoice } from './source/actions/edit/editor-add.ts';
 import { insertStaticBefore, insertDecisionBefore } from './source/actions/edit/editor-insert-before.ts';
 import { removeBlock, removeChoice, removeChoices } from './source/actions/edit/editor-remove.ts';
 import { removeQuestion } from './source/actions/edit/editor-remove-question.ts';
 import { applyEditorRedo, applyEditorUndo } from './source/actions/edit/editor-history.ts';
-import { applyMainZoom } from './zoom.ts';
+import { applyMainZoom } from './source/views/main-diagram/zoom.ts';
 import { loadDiagram } from './source/actions/file/diagram-load.ts';
-import { render } from './render.ts';
+import { render } from './source/views/main-diagram/render.ts';
 import { showOpenedFile } from './source/actions/file/open-file.ts';
 import { listAllPathIds } from './source/actions/file/path-export-all.ts';
 import { setNodeSize } from './source/actions/edit/editor-node-size.ts';
@@ -16,7 +16,7 @@ import { findRouteIdsToNode } from './source/model/phone-render.ts';
 import './source/actions/edit/editor-events.ts';
 import './main-events.ts';
 import './source/actions/edit/node-resize.ts';
-import './viewport-menu.ts';
+import './source/views/main-diagram/viewport-menu.ts';
 import './source/actions/navigation/path-view.ts';
 
 // render();

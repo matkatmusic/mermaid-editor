@@ -1,6 +1,6 @@
 import { checkTypedNodeName, commitNodeName, isNodeNameBoxInvalid, refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
 import { decisionShapeSwitch, destinationSelect, nodeAlignRow, nodeInspectorActions, nodeNameInput, nodeNotesInput, nodeTextInput, outputBox, walkBackBtn, walkBackCancelBtn, walkBackChoices, walkBackDialog } from '../../../dom.ts';
-import { getNodeId } from '../../../render-helpers.ts';
+import { getNodeId } from '../../views/main-diagram/render-helpers.ts';
 import { selectEditorNode } from './editor-actions.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
 import { setEditorActionPromise } from '../../model/editor-metadata.ts';

@@ -1,8 +1,8 @@
-import { codeBox, diagramBox, errorBox, errorLog } from './dom.ts';
-import { renderErrorMessageWithLineLinks } from './source/views/editor-drawer/error-line-links.ts';
-import type { Edge } from './dom.ts';
-import { chosenAnswers } from './state.ts';
-import { parseEdges } from './source/model/diagram-source.ts';
+import { codeBox, diagramBox, errorBox, errorLog } from '../../../dom.ts';
+import { renderErrorMessageWithLineLinks } from '../editor-drawer/error-line-links.ts';
+import type { Edge } from '../../../dom.ts';
+import { chosenAnswers } from '../../../state.ts';
+import { parseEdges } from '../../model/diagram-source.ts';
 
 export function findTrail(edges: Edge[]) {
   const bright = new Set<string>();

@@ -17,7 +17,7 @@ import type { PathDiagram, PathView, ViewEdit } from '../../model/path-view-mode
 // import { findRoots } from './phone-render.ts';
 // import { findRoots, findRouteIdsToNode } from './phone-render.ts';
 import { findRouteIdsToNode } from '../../model/phone-render.ts';
-import { render } from '../../../render.ts';
+import { render } from '../../views/main-diagram/render.ts';
 // import { state } from './state.ts';
 import { phonePath, state } from '../../../state.ts';
 import { choicesOf, parentOf } from '../../model/graph-slice.ts';

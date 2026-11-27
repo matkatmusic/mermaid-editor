@@ -2,7 +2,7 @@ import type { EditorGraph } from '../../model/editor-types.ts';
 import { parseEditorGraph } from '../../model/editor-graph-parse.ts';
 import { codeBox, diagramBox, drawer, drawerToggle, outputBox, searchClearBtn, searchCounter, searchInput, searchNextBtn, searchPreviousBtn } from '../../../dom.ts';
 import { selectEditorNode } from '../edit/editor-actions.ts';
-import { render } from '../../../render.ts';
+import { render } from '../../views/main-diagram/render.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
 import { measureSourceLines } from '../../views/editor-drawer/source-lines.ts';
 import { parsePropsLine } from '../../model/node-props.ts';
