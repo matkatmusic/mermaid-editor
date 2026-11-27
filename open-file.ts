@@ -28,7 +28,8 @@ export async function openFileFromDialog() {
     console.log('User canceled Open File');
     return;
   }
-  const { path, text } = await openResponse.json();
+  // const { path, text } = await openResponse.json();
+  const { path, text }: { path: string; text: string } = await openResponse.json();
   showOpenedFile(path, text);
 }
 
