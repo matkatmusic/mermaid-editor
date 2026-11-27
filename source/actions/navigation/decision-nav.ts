@@ -3,7 +3,7 @@ import { getEditorGraph } from '../../model/editor-graph.ts';
 import { state } from '../../../state.ts';
 import { decisionCounter, diagramBox, outputBox } from '../../../dom.ts';
 import { reportEditorValidationError } from '../../../render-helpers.ts';
-import { setStatus } from '../../../diagram-io.ts';
+import { setStatus } from '../../views/header-bar/diagram-io.ts';
 import { selectEditorNode } from '../edit/editor-actions.ts';
 import { render } from '../../../render.ts';
 import { findNearestFeedingChoice } from '../../model/decision-search.ts';

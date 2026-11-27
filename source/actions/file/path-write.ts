@@ -1,4 +1,4 @@
-import { setStatus } from '../../../diagram-io.ts';
+import { setStatus } from '../../views/header-bar/diagram-io.ts';
 import { state } from '../../../state.ts';
 
 declare global {

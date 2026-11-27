@@ -1,5 +1,5 @@
 import { codeBox } from './dom.ts';
-import { setDrawerOpen } from './diagram-io.ts';
+import { setDrawerOpen } from './source/views/header-bar/diagram-io.ts';
 import { measureSourceLines } from './source-lines.ts';
 
 function selectSourceLine(lineNumber: number) {

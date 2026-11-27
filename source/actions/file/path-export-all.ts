@@ -4,7 +4,7 @@ import type { Edge } from '../../../dom.ts';
 // import { findUnusedChoices } from './path-view-model.ts';
 import { findUnusedChoices, isViewLimitingEdits } from '../../model/path-view-model.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
-import { setStatus } from '../../../diagram-io.ts';
+import { setStatus } from '../../views/header-bar/diagram-io.ts';
 import { state } from '../../../state.ts';
 import { findRoots } from '../../model/phone-render.ts';
 import { buildChosenPathSource } from '../../model/path-export.ts';
