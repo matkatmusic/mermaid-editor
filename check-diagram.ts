@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseEditorGraph } from "./editor-graph-parse.ts";
 import { closeCdp, executeExpression, openCdp, waitForPort } from "./tests/cdp.ts";
+import { killWhenParentExits } from "./tests/kill-when-parent-exits.ts";
 
 const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const MERMAID_PATH = join(import.meta.dirname, "node_modules/mermaid/dist/mermaid.min.js");
@@ -29,6 +30,7 @@ async function getMermaidProblem(source: string) {
   const cdpPort = await getFreePort();
   const userDataDir = mkdtempSync(join(tmpdir(), "check-diagram-chrome-"));
   const chrome = spawn(CHROME_PATH, ["--headless=new", "--disable-gpu", `--remote-debugging-port=${cdpPort}`, `--user-data-dir=${userDataDir}`], { stdio: "ignore" });
+  killWhenParentExits(chrome.pid!);
   await waitForPort(cdpPort);
   await openCdp(cdpPort);
   await executeExpression(readFileSync(MERMAID_PATH, "utf8"));
