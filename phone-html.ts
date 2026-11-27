@@ -11,7 +11,7 @@ import { decodeLabelQuotes } from './source/model/editor-parse.ts';
 import { getNodeAlign } from './source/model/node-align.ts';
 import { CODE_BLOCK_STYLE, CODE_LINE_BREAK_PATTERN, FENCED_CODE_BLOCK_PATTERN } from './source/model/label-code.ts';
 import { isViewLimitingEdits } from './source/model/path-view-model.ts';
-import { findUndoDecisionId } from './path-view.ts';
+import { findUndoDecisionId } from './source/actions/navigation/path-view.ts';
 
 // How long after a click the phone keeps the animated border on the clicked node; matches the CSS animation length.
 const PHONE_CLICKED_BORDER_MS = 3000;

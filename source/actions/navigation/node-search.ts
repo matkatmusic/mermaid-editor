@@ -1,11 +1,11 @@
-import type { EditorGraph } from './source/model/editor-types.ts';
-import { parseEditorGraph } from './source/model/editor-graph-parse.ts';
-import { codeBox, diagramBox, drawer, drawerToggle, outputBox, searchClearBtn, searchCounter, searchInput, searchNextBtn, searchPreviousBtn } from './dom.ts';
-import { selectEditorNode } from './source/actions/edit/editor-actions.ts';
-import { render } from './render.ts';
+import type { EditorGraph } from '../../model/editor-types.ts';
+import { parseEditorGraph } from '../../model/editor-graph-parse.ts';
+import { codeBox, diagramBox, drawer, drawerToggle, outputBox, searchClearBtn, searchCounter, searchInput, searchNextBtn, searchPreviousBtn } from '../../../dom.ts';
+import { selectEditorNode } from '../edit/editor-actions.ts';
+import { render } from '../../../render.ts';
 import { moveNodeToViewportCenter } from './decision-nav.ts';
-import { measureSourceLines } from './source-lines.ts';
-import { parsePropsLine } from './source/model/node-props.ts';
+import { measureSourceLines } from '../../../source-lines.ts';
+import { parsePropsLine } from '../../model/node-props.ts';
 import { isNodeDrawn } from './path-view.ts';
 
 type SearchMatch = { start: number; end: number };

@@ -17,7 +17,7 @@ import './source/actions/edit/editor-events.ts';
 import './main-events.ts';
 import './source/actions/edit/node-resize.ts';
 import './viewport-menu.ts';
-import './path-view.ts';
+import './source/actions/navigation/path-view.ts';
 
 // render();
 // loadList();

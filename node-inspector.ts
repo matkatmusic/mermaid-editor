@@ -11,7 +11,7 @@ import { getNodeAlign } from './source/model/node-align.ts';
 import { clearInspectorFocus, updateNodeInspectorPosition } from './node-inspector-focus.ts';
 import { applyInspectorExtraHeight } from './inspector-resize.ts';
 import { showDestinationInInput } from './destination-picker.ts';
-import { disableRefusedButtons } from './path-view.ts';
+import { disableRefusedButtons } from './source/actions/navigation/path-view.ts';
 import { isViewLimitingEdits } from './source/model/path-view-model.ts';
 
 export function replaceDeclarationInLine(line: string, id: string, newToken: string) {

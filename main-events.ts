@@ -7,8 +7,8 @@ import { loadDiagram } from './source/actions/file/diagram-load.ts';
 import { saveDiagram } from './source/actions/file/diagram-save.ts';
 import { openFileFromDialog } from './source/actions/file/open-file.ts';
 import { render } from './render.ts';
-import { moveToDecision } from './decision-nav.ts';
-import { clearSearch, executeSearch, moveSearchSelection } from './node-search.ts';
+import { moveToDecision } from './source/actions/navigation/decision-nav.ts';
+import { clearSearch, executeSearch, moveSearchSelection } from './source/actions/navigation/node-search.ts';
 import { setMainZoomPercent } from './zoom.ts';
 import { applyPathHighlight } from './render-helpers.ts';
 

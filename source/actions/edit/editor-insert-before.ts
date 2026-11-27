@@ -7,7 +7,7 @@ import { applyEditorSource } from './editor-actions.ts';
 import { appendInlineDeclaration } from './editor-insert-after.ts';
 import type { EditorEdge } from '../../model/editor-types.ts';
 import { diagramBox, outputBox } from '../../../dom.ts';
-import { moveNodeToViewportCenter } from '../../../decision-nav.ts';
+import { moveNodeToViewportCenter } from '../navigation/decision-nav.ts';
 
 export function insertStaticBefore() {
   if (!state.selectedEditorNodeId)

@@ -5,12 +5,12 @@ import { replaceDeclarationInLine } from '../../../node-inspector.ts';
 import { decodeLabelLineBreaks, encodeLabelLineBreaks, encodeLabelQuotes } from '../../model/editor-parse.ts';
 import { setInspectorDestinationFocus } from '../../../node-inspector-focus.ts';
 import { getEditorGraph } from '../../model/editor-graph.ts';
-import { moveNodeToViewportCenter } from '../../../decision-nav.ts';
+import { moveNodeToViewportCenter } from '../navigation/decision-nav.ts';
 import { createDecisionAfter, createStaticAfter } from './editor-insert-after.ts';
 import { destinationSelect, diagramBox, nodeNotesInput, nodeTextInput, outputBox } from '../../../dom.ts';
 import { buildSourceWithNodeProps } from '../../model/node-props.ts';
 import { buildSourceWithoutNodeSize } from '../../model/node-size.ts';
-import { refuseEditInPathView } from '../../../path-view.ts';
+import { refuseEditInPathView } from '../navigation/path-view.ts';
 
 // Rewrites only this decision's declaration between Q_X{{"text"}} (hexagon) and Q_X{"text"} (diamond); the text, class lines and edges stay.
 export function updateDecisionShape(id: string | null, isHexagon: boolean) {

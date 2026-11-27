@@ -18,7 +18,7 @@ import { setNodeAlignment, setNodeJustification } from './editor-node-align.ts';
 import { resetNodeSize } from './editor-node-size.ts';
 import type { Alignment, Justification } from '../../model/node-align.ts';
 import { isViewLimitingEdits } from '../../model/path-view-model.ts';
-import { isNodeDrawn } from '../../../path-view.ts';
+import { isNodeDrawn } from '../navigation/path-view.ts';
 
 // The bounding box of all text lines of the label; the size wrapper that fills a sized block is not text.
 function isPointInsideLabelText(nodeEl: Element, x: number, y: number) {

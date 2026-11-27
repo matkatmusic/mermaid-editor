@@ -18,7 +18,7 @@ import './editor-inspector-events.ts';
 import './editor-class-events.ts';
 import './editor-classes-dialog.ts';
 // import { filterDownstreamView } from './path-view.ts';
-import { filterDownstreamView, handlePhoneTapInPathView, isNodeDrawn } from '../../../path-view.ts';
+import { filterDownstreamView, handlePhoneTapInPathView, isNodeDrawn } from '../navigation/path-view.ts';
 
 function setCodeBoxScrollToLine(lineNum: number) {
   const { tops } = measureSourceLines();

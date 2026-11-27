@@ -2,7 +2,7 @@
 declare const mermaid: import('mermaid').Mermaid;
 import { codeBox, darkModeToggle, decisionCounter, diagramBox, errorBox, errorLog, functionsOnlyToggle, getMermaidOptions, outputBox } from './dom.ts';
 import { getEditorGraph } from './source/model/editor-graph.ts';
-import { clearInvalidPhonePreview, updateDecisionCounter } from './decision-nav.ts';
+import { clearInvalidPhonePreview, updateDecisionCounter } from './source/actions/navigation/decision-nav.ts';
 import { parseEdges } from './source/model/diagram-source.ts';
 import { filterToFunctions } from './source/model/function-routing.ts';
 import { moveClassLinesToEnd } from './source/model/class-lines.ts';
@@ -18,7 +18,7 @@ import { renderSourceLines } from './source-lines.ts';
 import { buildSourceWithCodeTags } from './source/model/label-code.ts';
 import { buildSourceWithSizeWrappers } from './source/model/node-size.ts';
 import { updateOffscreenArrowHeads } from './offscreen-arrow-heads.ts';
-import { buildMainViewSource } from './path-view.ts';
+import { buildMainViewSource } from './source/actions/navigation/path-view.ts';
 
 let outputPointerHeld: Promise<void> | null = null;
 function holdNewDrawingUntilPointerIsUp() {

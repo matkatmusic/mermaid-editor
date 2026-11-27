@@ -7,7 +7,7 @@ import { getEditorGraph } from '../../model/editor-graph.ts';
 import { getDeclarationSuffix } from '../../model/editor-parse.ts';
 import { setEditorActionPromise } from '../../model/editor-metadata.ts';
 import { diagramBox, outputBox } from '../../../dom.ts';
-import { moveNodeToViewportCenter } from '../../../decision-nav.ts';
+import { moveNodeToViewportCenter } from '../navigation/decision-nav.ts';
 import { isViewLimitingEdits } from '../../model/path-view-model.ts';
 
 export async function createStaticAfter(sourceId: string, graph: EditorGraph) {

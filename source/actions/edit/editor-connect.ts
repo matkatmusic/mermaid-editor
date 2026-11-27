@@ -3,7 +3,7 @@ import { getEditorGraph } from '../../model/editor-graph.ts';
 import { setEditorActionPromise } from '../../model/editor-metadata.ts';
 import { buildSourceWithLinesReplaced } from '../../model/source-edit.ts';
 import { applyEditorSource, selectEditorNode } from './editor-actions.ts';
-import { refuseEditInPathView } from '../../../path-view.ts';
+import { refuseEditInPathView } from '../navigation/path-view.ts';
 
 export function connectNodesWithShiftClick(clickedId: string) {
   // A view blocks both shift-clicks, also the first one that only selects.

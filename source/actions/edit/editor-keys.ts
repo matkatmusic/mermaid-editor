@@ -1,5 +1,5 @@
 import { codeBox, diagramBox, nextDecisionBtn, outputBox, previousDecisionBtn, searchInput, zoomInBtn, zoomOutBtn } from '../../../dom.ts';
-import { moveNodeToViewportCenter } from '../../../decision-nav.ts';
+import { moveNodeToViewportCenter } from '../navigation/decision-nav.ts';
 import { state } from '../../../state.ts';
 import { saveEditorViewState } from '../file/editor-view-state.ts';
 import { applyEditorSource, executeEditorAction, selectEditorNode } from './editor-actions.ts';
@@ -10,7 +10,7 @@ import { refuseMoveWhileNodeNameIsInvalid } from './editor-rename.ts';
 import { buildBlockRemovedSource, buildChoiceRemovedSource } from './editor-remove.ts';
 import { buildQuestionRemovedSource } from './editor-remove-question.ts';
 // import { refuseEditInPathView } from './path-view.ts';
-import { isNodeDrawn, refuseEditInPathView } from '../../../path-view.ts';
+import { isNodeDrawn, refuseEditInPathView } from '../navigation/path-view.ts';
 
 function isTextBoxTarget(target: EventTarget | null) {
   const element = target as HTMLElement;
