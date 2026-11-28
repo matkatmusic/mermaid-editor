@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+import { executeAndWaitForRender, executeExpression } from "../../cdp.ts";
 import { dispatchNodeClick, openEditorDrawer, resetEditorFixture } from "../../editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -25,16 +26,18 @@ test('test_phone_choice_button_walks_a_decision_under_the_second_start_node', as
   await resetEditorFixture();
   await executeExpression("window.capturedErrors = []; window.addEventListener('error', (event) => window.capturedErrors.push(String(event.message))); window.addEventListener('unhandledrejection', (event) => window.capturedErrors.push('rejection: ' + String(event.reason && event.reason.message || event.reason)));");
   await executeExpression(`showOpenedFile('/tmp/puzzle-solver-rules.mmd', ${JSON.stringify(PUZZLE_SOLVER_RULES)})`);
-  await waitMilliseconds(1000);
+  // await waitMilliseconds(1000);
   // Step: pick the decision that follows B_LAUNCH in the main view; the phone shows the B_LAUNCH slice with its choice buttons.
-  await dispatchNodeClick('Q_JSONLS_GIVEN');
-  await waitMilliseconds(1000);
+  // await dispatchNodeClick('Q_JSONLS_GIVEN');
+  // await waitMilliseconds(1000);
+    await executeAndWaitForRender(() => dispatchNodeClick('Q_JSONLS_GIVEN'));
   assert.ok((await listPhoneNodeIds()).includes('B_LAUNCH'));
   const buttonIds = await listPhoneChoiceButtonIds();
   assert.ok(buttonIds.length > 0, 'the phone shows at least one choice button');
   // Step: press the first choice button; the answer joins the path and the phone walks from B_LAUNCH.
-  await executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${buttonIds[0]}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
-  await waitMilliseconds(1000);
+  // await executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${buttonIds[0]}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  // await waitMilliseconds(1000);
+    await executeAndWaitForRender(() => executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${buttonIds[0]}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`));
   // The fake file path /tmp/... is not the server's opened file, so its autosave error ("No file opened") is expected and ignored.
   // const phoneErrors: string[] = await executeExpression("JSON.stringify(window.capturedErrors.filter(message => !message.includes('No file opened')))").then(JSON.parse);
   const phoneErrors: string[] = await executeExpression<string>("JSON.stringify(window.capturedErrors.filter(message => !message.includes('No file opened')))").then(JSON.parse);

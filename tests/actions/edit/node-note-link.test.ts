@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, send } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { clickNodeWithMouse, KeyName, pressKey } from "../../real-input.ts";
 
@@ -20,9 +21,9 @@ const SOURCE = [
 async function openSourceAndSelectAlpha() {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
 }
 
 async function replaceTextInBoxAndPressEnter(boxId: string, text: string) {
@@ -30,7 +31,7 @@ async function replaceTextInBoxAndPressEnter(boxId: string, text: string) {
     await send("Input.insertText", { text });
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 test("test_the_notes_box_shows_the_note_that_names_the_selected_block", async () => {

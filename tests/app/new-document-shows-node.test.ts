@@ -1,15 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "../cdp.ts";
+// import { executeExpression, waitMilliseconds } from "../cdp.ts";
+import { executeAndWaitForRender, executeExpression } from "../cdp.ts";
 import { openEditorDrawer, resetEditorFixture } from "../editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 
 async function clickNewButton() {
     await resetEditorFixture();
-    await executeExpression("document.getElementById('newBtn').click()");
-    await waitMilliseconds(1000);
+    // await executeExpression("document.getElementById('newBtn').click()");
+    // await waitMilliseconds(1000);
+    await executeAndWaitForRender(() => executeExpression("document.getElementById('newBtn').click()"));
 }
 
 test("test_new_document_renders_its_node_without_an_error", async () => {
@@ -49,7 +51,7 @@ test("test_new_document_node_is_drawn_and_not_clipped_by_a_zero_size_svg", async
 test("test_a_diagram_with_two_unconnected_nodes_draws_both_nodes", async () => {
     await resetEditorFixture();
     await executeExpression("codeBox.value = 'flowchart TD\\n  B_ONE[One]\\n  B_TWO[Two]'; codeBox.dispatchEvent(new Event('input')); render()");
-    await waitMilliseconds(1000);
+    // await waitMilliseconds(1000);
     const hitNodeIds: string[] = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#diagram g.node')].map((node) => {
         const rect = node.getBoundingClientRect();
         const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);

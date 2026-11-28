@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression } from "../../cdp.ts";
 import { dispatchNodeClick, openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { clickInspectorAction } from "../../inspector-helpers.ts";
 
@@ -28,20 +29,20 @@ test('test_insert_static_block_after_centers_the_new_block_in_the_viewport', asy
   // Scenario: the new block is far from the top of the pane; the pane scrolls it to the center.
   await selectMiddleBlockAndScrollToTop();
   await clickInspectorAction('insert-static-after');
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   assert.ok(await measureVerticalOffsetFromPaneCenter('B_NEW_1') < 5);
 });
 
 test('test_add_decision_block_after_centers_the_new_decision_in_the_viewport', async () => {
   await selectMiddleBlockAndScrollToTop();
   await clickInspectorAction('add-decision-after');
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   assert.ok(await measureVerticalOffsetFromPaneCenter('Q_NEW_1') < 5);
 });
 
 test('test_insert_decision_and_leading_choice_before_centers_the_new_decision_in_the_viewport', async () => {
   await selectMiddleBlockAndScrollToTop();
   await clickInspectorAction('insert-decision-before');
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   assert.ok(await measureVerticalOffsetFromPaneCenter('Q_NEW_1') < 5);
 });

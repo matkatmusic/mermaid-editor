@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+import { executeAndWaitForRender, executeAndWaitForScrollEnd, executeExpression, send } from "../../cdp.ts";
 import { dispatchNodeClick, openEditorDrawer, resetEditorFixture } from "../../editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -17,14 +18,16 @@ const SHORT_WINDOW_HEIGHT = 800;
 async function openPuzzleSolverRules() {
     await resetEditorFixture();
     await executeExpression(`showOpenedFile('/tmp/puzzle-solver-rules.mmd', ${JSON.stringify(PUZZLE_SOLVER_RULES)})`);
-    await waitMilliseconds(1500);
+    // await waitMilliseconds(1500);
 }
 
 async function clickQuestionThenChooseAfter() {
-    await dispatchNodeClick(CLICKED_QUESTION_ID);
-    await waitMilliseconds(1000);
-    await executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${CHOSEN_CHOICE_ID}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
-    await waitMilliseconds(1000);
+    // await dispatchNodeClick(CLICKED_QUESTION_ID);
+    // await waitMilliseconds(1000);
+    await executeAndWaitForRender(() => dispatchNodeClick(CLICKED_QUESTION_ID));
+    // await executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${CHOSEN_CHOICE_ID}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+    // await waitMilliseconds(1000);
+    await executeAndWaitForScrollEnd('#output', () => executeAndWaitForRender(() => executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${CHOSEN_CHOICE_ID}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`)));
 }
 
 // async function measureVisibleHistory() {
@@ -55,16 +58,18 @@ test("test_clicking_a_deep_decision_then_choosing_keeps_the_path_to_it_visible_i
     // Step: open the puzzle diagram; click a decision deep in the tree.
     await send("Emulation.setDeviceMetricsOverride", { width: 1500, height: NORMAL_WINDOW_HEIGHT, deviceScaleFactor: 1, mobile: false });
     await openPuzzleSolverRules();
-    await dispatchNodeClick(CLICKED_QUESTION_ID);
-    await waitMilliseconds(1000);
+    // await dispatchNodeClick(CLICKED_QUESTION_ID);
+    // await waitMilliseconds(1000);
+    await executeAndWaitForRender(() => dispatchNodeClick(CLICKED_QUESTION_ID));
     // Step: the phone history starts at the start node and holds the path down to the clicked decision.
     // const idsAfterClick = await executeExpression("JSON.stringify([...document.querySelectorAll('#phoneHistory [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
     // const idsAfterClick = await executeExpression<string>("JSON.stringify([...document.querySelectorAll('#phoneHistory [data-node-id]')].map(el => el.dataset.nodeId))").then(JSON.parse);
     const idsAfterClick = await executeExpression<string>("JSON.stringify([...document.querySelectorAll('#phoneHistory [data-node-id]')].map(el => el.dataset.nodeId))").then((json) => JSON.parse(json) as string[]);
     assert.equal(idsAfterClick[0], "B_LAUNCH");
     // Step: choose "after"; the walk continues to the next open decision.
-    await executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${CHOSEN_CHOICE_ID}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
-    await waitMilliseconds(1000);
+    // await executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${CHOSEN_CHOICE_ID}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+    // await waitMilliseconds(1000);
+    await executeAndWaitForScrollEnd('#output', () => executeAndWaitForRender(() => executeExpression(`document.querySelector('#phoneDiagram button[data-choose="${CHOSEN_CHOICE_ID}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`)));
     // Step: the history still shows the clicked decision and the chosen answer, inside the part of the history the user can see.
     const measured = await measureVisibleHistory();
     assert.equal(measured.historyFirstId, "B_LAUNCH", JSON.stringify(measured));
@@ -79,8 +84,9 @@ test("test_clicking_a_decision_with_many_blocks_before_it_keeps_its_choices_insi
     // Step: a short window; click a decision whose six lead-in blocks are shown above it (task 82 picture).
     await send("Emulation.setDeviceMetricsOverride", { width: 1500, height: SHORT_WINDOW_HEIGHT, deviceScaleFactor: 1, mobile: false });
     await openPuzzleSolverRules();
-    await dispatchNodeClick("Q_PUZZLE_ANY_EVENT_LEFT");
-    await waitMilliseconds(1000);
+    // await dispatchNodeClick("Q_PUZZLE_ANY_EVENT_LEFT");
+    // await waitMilliseconds(1000);
+    await executeAndWaitForRender(() => dispatchNodeClick("Q_PUZZLE_ANY_EVENT_LEFT"));
     // const choiceGeometry = JSON.parse(await executeExpression(`JSON.stringify((() => {
     const choiceGeometry: { screenBottom: number; choiceBottoms: number[] } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const phone = document.getElementById('phoneOutput').getBoundingClientRect();

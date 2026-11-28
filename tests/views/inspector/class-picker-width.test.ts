@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, selectEditorNode, setEditorSource } from "../../editor-helpers.ts";
 import { SEARCH_FIXTURE } from "../../fixtures.ts";
 
@@ -16,7 +17,7 @@ test("test_class_picker_menu_grows_to_fit_the_longest_class_name_and_keeps_every
   await selectEditorNode("B_MIDDLE");
   // Step: open the class picker menu.
   await executeExpression("document.getElementById('classPickerBtn').click()");
-  await waitMilliseconds(200);
+  // await waitMilliseconds(200);
   // const measurements = JSON.parse(await executeExpression(`JSON.stringify({
   const measurements: { buttonWidth: number; listWidth: number; swatchWidths: number[]; rowsWithWrappedText: number; longRowTextHeight: number; shortRowTextHeight: number } = JSON.parse(await executeExpression<string>(`JSON.stringify({
     buttonWidth: document.getElementById('classPickerBtn').getBoundingClientRect().width,

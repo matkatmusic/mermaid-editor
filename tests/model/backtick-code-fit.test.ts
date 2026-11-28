@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "../cdp.ts";
+// import { executeExpression, waitMilliseconds } from "../cdp.ts";
+import { executeExpression } from "../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../editor-helpers.ts";
 import { clickNodeWithMouse } from "../real-input.ts";
 
@@ -14,7 +15,7 @@ const SOURCE = ["flowchart TD", '  B_START["Start"]', `  B_PUZZLE_ADD_GIT_COMMIT
 async function loadFixture() {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 // Fraction of a pixel that the browser may round away.
@@ -73,7 +74,7 @@ test("test_main_diagram_label_text_sits_inside_the_node_box_with_code_spans", as
 test("test_phone_block_text_sits_inside_the_block_with_code_spans", async () => {
     await loadFixture();
     await clickNodeWithMouse("B_PUZZLE_ADD_GIT_COMMITS");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
     const measured: PhoneBlockMeasurement = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const block = document.querySelector('#phoneDiagram [data-node-id="B_PUZZLE_ADD_GIT_COMMITS"]');

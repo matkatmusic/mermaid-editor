@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+import { executeAndWaitForRender, executeExpression, send, waitForExpression } from "../../cdp.ts";
 
 registerBrowserHooks(import.meta.url);
 
@@ -50,7 +51,7 @@ function assertEveryBlockIsCentered(measurement: ColumnMeasurement) {
 
 async function openColumnLikeAUser(text: string) {
     await executeExpression(`showOpenedFile('/tmp/column-centering-probe.mmd', ${JSON.stringify(text)})`);
-    await waitMilliseconds(1000);
+    // await waitMilliseconds(1000);
 }
 
 test("test_single_column_diagram_with_no_saved_scroll_is_centered_on_first_open", async () => {
@@ -73,8 +74,9 @@ test("test_saved_scroll_position_is_restored_as_saved", async () => {
 test("test_search_match_block_is_centered_in_the_visible_area", async () => {
     // Step: open the chain, then search for the text of the fourth block.
     await openColumnLikeAUser(COLUMN_TEXT);
-    await executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = 'four has'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-    await waitMilliseconds(1000);
+    // await executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = 'four has'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    // await waitMilliseconds(1000);
+    await executeAndWaitForRender(() => executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = 'four has'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`));
     // Step: every block's centre is at the centre of the visible area (the searched block was moved there).
     assertEveryBlockIsCentered(await measureColumn());
 });
@@ -83,7 +85,7 @@ test("test_column_stays_centered_after_a_zoom_change", async () => {
     // Step: open the chain and zoom in once.
     await openColumnLikeAUser(COLUMN_TEXT);
     await executeExpression("document.getElementById('zoomInBtn').click()");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     // Step: every block's centre is still at the centre of the visible area.
     assertEveryBlockIsCentered(await measureColumn());
 });
@@ -96,7 +98,8 @@ test("test_column_stays_centered_after_the_window_is_resized", async () => {
     // const height = await executeExpression("window.innerHeight");
     const height = await executeExpression<number>("window.innerHeight");
     await send("Emulation.setDeviceMetricsOverride", { width: width - 300, height, deviceScaleFactor: 1, mobile: false });
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForExpression(`window.innerWidth === ${width - 300}`);
     const measurement = await measureColumn();
     await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
     // Step: every block's centre is still at the centre of the visible area.
@@ -105,8 +108,9 @@ test("test_column_stays_centered_after_the_window_is_resized", async () => {
 
 test("test_new_document_block_is_centered_after_file_new", async () => {
     // Step: File > New.
-    await executeExpression("window.confirm = () => true; document.getElementById('newBtn').click()");
-    await waitMilliseconds(1000);
+    // await executeExpression("window.confirm = () => true; document.getElementById('newBtn').click()");
+    // await waitMilliseconds(1000);
+    await executeAndWaitForRender(() => executeExpression("window.confirm = () => true; document.getElementById('newBtn').click()"));
     // Step: the one new block's centre is at the centre of the visible diagram area, within 1 pixel.
     assertEveryBlockIsCentered(await measureColumn());
 });

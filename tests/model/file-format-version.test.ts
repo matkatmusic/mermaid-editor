@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "../browser-harness.ts";
-import { executeExpression, send, waitMilliseconds } from "../cdp.ts";
+// import { executeExpression, send, waitMilliseconds } from "../cdp.ts";
+import { executeExpression, send, waitForExpression } from "../cdp.ts";
 import { openEditorDrawer } from "../editor-helpers.ts";
 import { EDITOR_FIXTURE_NAME } from "../fixtures.ts";
 import { clickNodeWithMouse, KeyName, pressKey } from "../real-input.ts";
@@ -24,7 +25,7 @@ const PROPS_LINE_OF_B = '  %% ==props==: {"blockId":"B_B","note":"new note"}';
 async function loadFileWithText(text: string) {
     await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`, { method: "PUT", body: text });
     await executeExpression(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
 }
 
 async function readCodeBox(): Promise<string> {
@@ -42,7 +43,8 @@ test("test_save_writes_file_format_version_2_in_the_footer", async () => {
     // Step: load an old file, then click a block, which saves the file.
     await loadFileWithText(OLD_SOURCE);
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
+    await waitForExpression('pendingSaveCount === 0');
     const saved = await (await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${EDITOR_FIXTURE_NAME}`)).text();
     assert.ok(saved.includes('"fileFormatVersion":2'), saved);
     assert.ok(saved.includes(PROPS_LINE_OF_A), saved);
@@ -63,7 +65,7 @@ const BROKEN_SOURCE_WITHOUT_VERSION = 'flowchart TD\n  %% ==props==: {"blockId":
 // Opens one good file by path, then runs a load that must fail, and reads what the page still holds.
 async function readPageAfterFailedLoad(failingLoad: string) {
     await executeExpression(`showOpenedFile(${JSON.stringify(OPEN_PATH)}, 'flowchart TD\\n  B_KEPT["Kept"]')`);
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
     const failed: boolean = await executeExpression(`${failingLoad}.then(() => false, () => true)`);
     return { failed, status: await executeExpression("document.getElementById('status').textContent") as string, source: await readCodeBox() };
 }
@@ -95,18 +97,18 @@ test("test_a_note_with_commas_braces_and_quotes_is_saved_and_read_back", async (
     const note = 'Text, with {commas} and "quotes"';
     await loadFileWithText('flowchart TD\n  B_A["Alpha"]\n  B_B["Beta"]\n  B_A --> B_B');
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     await executeExpression("(() => { const box = document.getElementById('nodeNotesInput'); box.focus(); box.select(); })()");
     await send("Input.insertText", { text: note });
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     // Step: the diagram shows no error, and the box reads the note back after the file loads again.
     assert.equal(await executeExpression("document.getElementById('error').textContent"), "");
     await executeExpression(`loadDiagram(${JSON.stringify(EDITOR_FIXTURE_NAME)})`);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     assert.equal(await executeExpression("document.getElementById('nodeNotesInput').value"), note);
 });
 

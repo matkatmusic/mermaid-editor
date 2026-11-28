@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "../cdp.ts";
+// import { executeExpression, waitMilliseconds } from "../cdp.ts";
+import { executeExpression } from "../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../editor-helpers.ts";
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 const SIXTY_CHARACTERS = "abcdefghi ".repeat(6).trim().padEnd(60, "x");
@@ -12,7 +13,7 @@ const TOLERANCE_PX = 1;
 async function loadSource(source: string) {
     await resetEditorFixture();
     await setEditorSource(source);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 function buildSource(label: string, extraLines: string[] = []) {
     return ["flowchart TD", `  B_ONE["${label}"]`, '  B_TWO["Two"]', "  B_ONE --> B_TWO", ...extraLines].join("\n");

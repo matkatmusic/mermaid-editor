@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, send, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, send, waitForRender } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { clickNodeWithMouse } from "../../real-input.ts";
 
@@ -12,7 +13,7 @@ const TWO_BLOCKS = ["flowchart TD", '  B_START["Start"]', '  B_END["End"]', "  B
 async function loadTwoBlocks() {
     await resetEditorFixture();
     await setEditorSource(TWO_BLOCKS);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 async function getNodeTextAlign(): Promise<string> {

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { clickNodeWithMouse, KeyName, Modifier, pressKey } from "../../real-input.ts";
 
@@ -12,7 +13,7 @@ const THREE_BLOCKS = 'flowchart TD\n  B_A["A"]\n  B_B["B"]\n  B_C["C"]\n  B_A --
 async function startMultiSelectTest() {
     await resetEditorFixture();
     await setEditorSource(THREE_BLOCKS);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 // The page sends only `exists` when the badge is missing.
@@ -87,12 +88,12 @@ for (const drawerState of ["open", "closed"]) {
             await executeExpression("document.getElementById('drawerToggle').click()");
         if (drawerState === "open" && isClosed)
             await executeExpression("document.getElementById('drawerToggle').click()");
-        await waitMilliseconds(300);
+        // await waitMilliseconds(300);
         await clickNodeWithMouse("B_A");
         await clickNodeWithMouse("B_B", Modifier.Meta);
         const before = await getBadgeState();
         await executeExpression("(() => { const output = document.getElementById('output'); output.scrollTop += 150; output.scrollLeft += 150; })()");
-        await waitMilliseconds(200);
+        // await waitMilliseconds(200);
         const after = await getBadgeState();
         console.log(`MEASURED drawer ${drawerState}: ${JSON.stringify({ before, after })}`);
         assert.ok(before.offsetLeft >= 0 && before.offsetLeft <= 24, `offsetLeft ${before.offsetLeft}px`);

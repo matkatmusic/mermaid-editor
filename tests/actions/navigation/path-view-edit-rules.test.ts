@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerBrowserHooks, SERVER_PORT } from '../../browser-harness.ts';
-import { executeExpression, send, waitForRender, waitMilliseconds } from '../../cdp.ts';
+// import { executeExpression, send, waitForRender, waitMilliseconds } from '../../cdp.ts';
+import { executeAndWaitForRender, executeExpression, send, waitForEditorAction, waitForExpression, waitForRender } from '../../cdp.ts';
 import { dispatchNodeClick, openEditorDrawer, resetEditorFixture, setEditorSource } from '../../editor-helpers.ts';
 import { clickInspectorAction } from '../../inspector-helpers.ts';
 import { KeyName, Modifier, clickNodeWithMouse, pressKey } from '../../real-input.ts';
@@ -13,7 +14,7 @@ async function loadFullDiagram() {
     await resetEditorFixture();
     // A view stays on until a diagram is loaded, so reset first and then set the source.
     await setEditorSource(PATH_VIEW_SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 async function turnViewOn() {
@@ -43,7 +44,8 @@ function isSourceReadOnly(): Promise<boolean> {
 
 async function dispatchShiftClick(id: string) {
     await executeExpression(`document.querySelector('#diagram [id*="flowchart-${id}-"]').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }))`);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForEditorAction();
 }
 
 async function rightClickViewport() {
@@ -52,16 +54,18 @@ async function rightClickViewport() {
         const rect = document.getElementById('output').getBoundingClientRect();
         return { x: rect.left + 30, y: rect.top + 30 };
     })())`));
+    await executeExpression("document.getElementById('inspectorNotice').hidden = true");
     await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'right', clickCount: 1 });
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'right', clickCount: 1 });
-    await waitMilliseconds(200);
+    // await waitMilliseconds(200);
+    await waitForExpression(`!document.getElementById('inspectorNotice').hidden`);
 }
 
 async function assertDecisionSplicedWithOneChoice(action: string) {
     await turnViewOn();
     await selectBlock('B_YES');
     await clickInspectorAction(action);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const source = await readSource();
     assert.ok(source.includes('B_YES --> Q_NEW_1'), source);
     assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_Y'), source);
@@ -122,7 +126,8 @@ test('test_destination_change_is_refused_in_a_view', async () => {
     await selectBlock('B_YES');
     const before = await readSource();
     await executeExpression("(() => { const select = document.getElementById('destinationSelect'); select.value = ''; select.dispatchEvent(new Event('change', { bubbles: true })); })()");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForEditorAction();
     assert.equal(await readSource(), before);
     assert.equal(await readNotice(), 'Show the full diagram to make this change.');
 });
@@ -149,7 +154,7 @@ test('test_insert_decision_after_in_the_full_diagram_keeps_two_choices', async (
     await loadFullDiagram();
     await dispatchNodeClick('B_YES');
     await clickInspectorAction('insert-decision-after');
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const source = await readSource();
     assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_Y'), source);
     assert.ok(source.includes('Q_NEW_1 --> Q_CHOICE_NEW_1_N'), source);
@@ -169,31 +174,33 @@ test('test_source_editor_accepts_typing_after_the_view_turns_off', async () => {
 test('test_source_editor_accepts_typing_after_another_diagram_loads', async () => {
     await turnViewOn();
     await resetEditorFixture();
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     assert.equal(await isSourceReadOnly(), false);
 });
 
 test('test_source_editor_accepts_typing_after_a_file_opens', async () => {
     await turnViewOn();
     await executeExpression(`showOpenedFile('/tmp/path-view-rules.mmd', ${JSON.stringify(PATH_VIEW_SOURCE)})`);
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
     assert.equal(await isSourceReadOnly(), false);
 });
 
 test('test_source_editor_accepts_typing_after_a_new_diagram', async () => {
     await turnViewOn();
-    await executeExpression("document.getElementById('newBtn').click()");
-    await waitMilliseconds(1000);
+    // await executeExpression("document.getElementById('newBtn').click()");
+    // await waitMilliseconds(1000);
+    await executeAndWaitForRender(() => executeExpression("document.getElementById('newBtn').click()"));
     assert.equal(await isSourceReadOnly(), false);
 });
 
 test('test_source_editor_stays_read_only_after_an_export_in_a_view', async () => {
     await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/view-export.mmd`, { method: 'PUT', body: PATH_VIEW_SOURCE });
     await executeExpression("loadDiagram('view-export.mmd')");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickButtonWithMouse('#onePathViewBtn');
     await executeExpression("document.getElementById('exportAllPathsBtn').click()");
-    await waitMilliseconds(1500);
+    // await waitMilliseconds(1500);
+    await waitForExpression(`document.getElementById('status').textContent === 'Wrote 2 paths' && !document.getElementById('exportAllPathsBtn').disabled`);
     assert.equal(await executeExpression("document.getElementById('status').textContent"), 'Wrote 2 paths');
     assert.equal(await isSourceReadOnly(), true);
     await resetEditorFixture();

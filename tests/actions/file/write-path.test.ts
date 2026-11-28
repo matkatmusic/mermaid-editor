@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "../../browser-harness.ts";
-import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, waitForExpression, waitForRender } from "../../cdp.ts";
 
 registerBrowserHooks(import.meta.url);
 
@@ -15,7 +16,8 @@ test("test_write_chosen_path_writes_numbered_path_files_next_to_the_diagram", as
   await waitForRender();
   // Step: the first Write chosen path click writes accountability-path-0.mmd.
   await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+    await waitForExpression(`document.getElementById('status').textContent === 'Wrote accountability-path-0.mmd'`);
   // const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json());
   const names = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json() as Promise<string[]>);
   assert.ok(names.includes("accountability-path-0.mmd"), JSON.stringify(names));
@@ -31,7 +33,8 @@ test("test_write_chosen_path_writes_numbered_path_files_next_to_the_diagram", as
   assert.ok(!pathSource.includes("Q_CHOICE_THEM_DONE_SPEAKING_N"), pathSource);
   // Step: a second click writes the next number instead of overwriting.
   await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+    await waitForExpression(`document.getElementById('status').textContent === 'Wrote accountability-path-1.mmd'`);
   // const namesAfterSecond: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json());
   const namesAfterSecond = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((r) => r.json() as Promise<string[]>);
   assert.ok(namesAfterSecond.includes("accountability-path-1.mmd"), JSON.stringify(namesAfterSecond));
@@ -45,7 +48,8 @@ test("test_write_path_with_no_answer_writes_the_shown_blocks", async () => {
   await waitForRender();
   assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').disabled"), false);
   await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').click()");
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+    await waitForExpression(`document.getElementById('status').textContent === 'Wrote accountability-path-2.mmd'`);
   // Step: the third write in this file's server folder is path 2, with no decisions.
   const pathSource = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/accountability-path-2.mmd`).then((r) => r.text());
   assert.ok(pathSource.startsWith("%% Decisions made:\n%%   none\nflowchart TD\n"), pathSource);

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../browser-harness.ts";
-import { executeExpression, send, waitForRender, waitMilliseconds } from "../cdp.ts";
+// import { executeExpression, send, waitForRender, waitMilliseconds } from "../cdp.ts";
+import { executeExpression, send, waitForRender } from "../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../editor-helpers.ts";
 import { clickNodeWithMouse } from "../real-input.ts";
 
@@ -17,7 +18,7 @@ const CENTER_LINE = '%% ==props==: {"blockId":"B_ONE","justification":"center"}'
 async function loadFenceBlock(extraLines: string[] = []) {
     await resetEditorFixture();
     await setEditorSource(["flowchart TD", `  B_ONE["${FENCE_LABEL}"]`, '  B_TWO["Two"]', "  B_ONE --> B_TWO", ...extraLines].join("\n"));
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 // How far in px the "Intro" text starts to the right of the left edge of the code block.
@@ -34,7 +35,7 @@ async function measureIntroOffsetInMainView(): Promise<number> {
 
 async function readPhoneTextAlign(): Promise<string> {
     await clickNodeWithMouse("B_ONE");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     return executeExpression(`getComputedStyle(document.querySelector('#phoneDiagram [data-node-id="B_ONE"]')).textAlign`);
 }
 
@@ -73,7 +74,7 @@ test("test_phone_view_keeps_the_explicit_centre_justification_of_a_code_fence_bl
 
 async function selectBlock() {
     await clickNodeWithMouse("B_ONE");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 async function clickAlignButtonWithMouse(attributeName: "justification" | "alignment", value: string) {
@@ -134,7 +135,7 @@ test("test_a_click_on_justify_left_takes_the_justification_away_from_a_code_fenc
 test("test_a_click_on_align_bottom_writes_the_centre_justification_for_a_block_without_a_fence", async () => {
     await loadFenceBlock();
     await clickNodeWithMouse("B_TWO");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickAlignButtonWithMouse("alignment", "bottom");
     assert.deepEqual(await readPropsLines(), ['  %% ==props==: {"blockId":"B_TWO","alignment":"bottom","justification":"center"}']);
 });

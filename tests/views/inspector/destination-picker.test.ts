@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, send } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { clickNodeWithMouse, KeyName, pressKey } from "../../real-input.ts";
 
@@ -16,9 +17,9 @@ const SOURCE = [
 async function selectChoiceWithDestinationPicker() {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickNodeWithMouse("Q_CHOICE_ASK_YES");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
 }
 
 async function getPickerState(): Promise<{ inputValue: string; listIsOpen: boolean; listTexts: string[]; highlightedText: string | null; selectOptionTexts: string[] }> {
@@ -43,14 +44,14 @@ async function clickWithMouse(selector: string) {
     })())`));
     await send("Input.dispatchMouseEvent", { type: "mousePressed", x: center.x, y: center.y, button: "left", clickCount: 1 });
     await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: center.x, y: center.y, button: "left", clickCount: 1 });
-    await waitMilliseconds(200);
+    // await waitMilliseconds(200);
 }
 
 async function typeIntoDestinationInput(text: string) {
     await clickWithMouse("#destinationInput");
     await executeExpression("document.getElementById('destinationInput').select()");
     await send("Input.insertText", { text });
-    await waitMilliseconds(200);
+    // await waitMilliseconds(200);
 }
 
 test("test_destination_picker_shows_the_present_destination_when_not_in_use", async () => {
@@ -102,7 +103,7 @@ test("test_destination_picker_click_on_a_result_sets_the_destination_and_undo_re
     // Step: undo puts the old destination back.
     await executeExpression("document.getElementById('editorUndoBtn').click()");
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     const sourceAfterUndo: string = await executeExpression("codeBox.value");
     assert.ok(sourceAfterUndo.includes("Q_CHOICE_ASK_YES --> B_END"), sourceAfterUndo);
 });
@@ -149,9 +150,9 @@ test("test_destination_picker_rows_do_not_overlap_when_the_list_is_long", async 
     const longSource = SOURCE.replace('  B_CHERRY_PIE["Cherry"]', ['  B_CHERRY_PIE["Cherry"]', ...manyBlocks].join("\n"));
     await resetEditorFixture();
     await setEditorSource(longSource);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickNodeWithMouse("Q_CHOICE_ASK_YES");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     // Step: open the Destination list.
     await clickWithMouse("#destinationInput");
     // Step: read each row height, its text line height, and its position.

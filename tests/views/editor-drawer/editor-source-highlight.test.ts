@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "../../browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, waitForTwoFrames } from "../../cdp.ts";
 import { SCROLL_FIXTURE_NAME, scrollFixtureSource } from "../../fixtures.ts";
 import { dispatchNodeClick, findNodeLineIndex, measureSourceLineBounds, openEditorDrawer, selectEditorNode } from "../../editor-helpers.ts";
 
@@ -31,7 +32,7 @@ async function assertBandCoversNodeLine(id: string) {
 test("test_selected_node_line_gets_a_band_that_moves_with_the_selection_and_clears", async () => {
   // Scenario: a node click highlights its whole wrapped line; another click moves it; a null selection clears it.
   await executeExpression(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   await executeExpression("codeBox.scrollTop = 0");
   await selectEditorNode(null);
   assert.equal(await readHighlightBand(), null);
@@ -45,7 +46,8 @@ test("test_selected_node_line_gets_a_band_that_moves_with_the_selection_and_clea
 
   // Step: a narrower editor wraps the line differently, and the band follows the new rows.
   await executeExpression("document.getElementById('editor').style.width = '260px'");
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+    await waitForTwoFrames();
   await assertBandCoversNodeLine(SECOND_NODE_ID);
 
   await selectEditorNode(null);

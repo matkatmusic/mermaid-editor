@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, send, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, send, waitForRender, waitForTwoFrames } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { clickNodeWithMouse, getHighlightedNodeIds, Modifier } from "../../real-input.ts";
 
@@ -39,7 +40,7 @@ interface ScreenBox {
 async function loadSource(source: string) {
     await resetEditorFixture();
     await setEditorSource(source);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 // Scrolls the node to the middle of the pane and returns the screen box of its shape.
@@ -88,7 +89,7 @@ async function releaseMouse(x: number, y: number, modifiers: number = Modifier.N
     await send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1, modifiers });
     await executeExpression("window.editorActionPromise");
     await waitForRender();
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
 }
 
 async function pressAndMove(from: { x: number; y: number }, to: { x: number; y: number }, modifiers: number = Modifier.None) {
@@ -215,7 +216,7 @@ test("test_one_drag_is_one_history_entry_and_undo_restores_the_old_size", async 
     await dragMouse({ x: box.right - 2, y: middleY }, { x: box.right - 2 + 80, y: middleY });
     assert.equal(await readSizeLine("B_START"), '%% ==props==: {"blockId":"B_START","width":380,"height":100}');
     await executeExpression("window.applyEditorUndo(); window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     assert.equal(await readSizeLine("B_START"), '%% ==props==: {"blockId":"B_START","width":300,"height":100}');
     const restored = await readNodeSize("B_START");
     assert.ok(Math.abs(restored.width - before.width) < 1.5, JSON.stringify({ before, restored }));
@@ -247,7 +248,7 @@ test("test_the_drag_amount_is_divided_by_the_zoom", async () => {
         await executeExpression("document.getElementById('zoomInBtn').click()");
     }
     assert.equal(await executeExpression("document.getElementById('zoomLevel').textContent"), "150%");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     const before = await readNodeSize("B_START");
     const box = await getNodeScreenBox("B_START");
     const middleY = (box.top + box.bottom) / 2;
@@ -309,7 +310,8 @@ test("test_the_off_screen_arrow_heads_are_drawn_again_after_a_resize", async () 
         const rect = document.querySelectorAll('#diagram path.flowchart-link')[5].getBoundingClientRect();
         output.scrollTop += rect.top + rect.height / 2 - visibleBottom;
     })()`);
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
+    await waitForTwoFrames();
     // const headsBefore = await executeExpression("document.querySelectorAll('#diagram .offscreen-arrow-head').length");
     const headsBefore = await executeExpression<number>("document.querySelectorAll('#diagram .offscreen-arrow-head').length");
     assert.ok(headsBefore > 0, "a line that leaves the view has an arrow head");

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerBrowserHooks } from '../../browser-harness.ts';
-import { executeExpression, waitMilliseconds } from '../../cdp.ts';
+// import { executeExpression, waitMilliseconds } from '../../cdp.ts';
+import { executeExpression } from '../../cdp.ts';
 import { openEditorDrawer, resetEditorFixture } from '../../editor-helpers.ts';
 import { PATH_VIEW_SOURCE, clickButtonWithMouse, loadPathViewSource, readErrorLog, readShownEdgeIds, readShownNodeIds } from '../../path-view-helpers.ts';
 // import { walkPaths } from '../path-view-model.ts';
@@ -69,7 +70,7 @@ async function assertViewIsOff() {
 
 async function replaceSourceAndRender(from: string, to: string) {
     await executeExpression(`codeBox.value = codeBox.value.replace(${JSON.stringify(from)}, ${JSON.stringify(to)}); render()`);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 // test('test_path_view_order_matches_export_all_paths', async () => {
@@ -157,14 +158,14 @@ test('test_view_buttons_are_disabled_while_functions_only_is_on', async () => {
 test('test_loading_another_diagram_turns_the_view_off', async () => {
     await turnViewOn();
     await resetEditorFixture();
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
     await assertViewIsOff();
 });
 
 test('test_opening_a_file_turns_the_view_off', async () => {
     await turnViewOn();
     await executeExpression(`showOpenedFile('/tmp/path-view-other.mmd', ${JSON.stringify(PATH_VIEW_SOURCE)})`);
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
     await assertViewIsOff();
 });
 

@@ -1,12 +1,15 @@
-import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
+import { executeExpression, waitForExpression, waitForRender, waitMilliseconds } from "./cdp.ts";
 import { SEARCH_FIXTURE } from "./fixtures.ts";
 import { resetEditorFixture, selectEditorNode, setEditorSource } from "./editor-helpers.ts";
 
 export async function typeSearch(query: string) {
   // Scenario: put text in the search field and fire the input event that one keypress fires.
-  await executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = ${JSON.stringify(query)}; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  // await executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = ${JSON.stringify(query)}; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    await executeExpression(`(() => { window.renderIdBeforeSearch = state.renderId; const input = document.getElementById('searchInput'); input.value = ${JSON.stringify(query)}; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   // A second render started before the keypress's own render ends discards that render's centering.
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+    await waitForExpression("state.renderId === window.renderIdBeforeSearch || document.querySelector('#diagram svg')?.id === 'diagram-' + (state.renderId - 1)");
   await waitForRender();
 }
 

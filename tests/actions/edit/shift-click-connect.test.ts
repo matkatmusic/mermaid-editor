@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, waitForEditorAction } from "../../cdp.ts";
 import { dispatchNodeClick, openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { inspectorFocus } from "../../inspector-helpers.ts";
 
@@ -11,7 +12,8 @@ const THREE_BLOCKS = 'flowchart TD\n  B_A["A"]\n  B_B["B"]\n  B_C["C"]\n  B_A --
 
 async function dispatchShiftClick(id: string) {
   await executeExpression(`document.querySelector('[id*="flowchart-${id}-"]').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }))`);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+  await waitForEditorAction();
 }
 
 test('test_shift_click_two_nodes_adds_an_edge_from_the_first_to_the_second', async () => {

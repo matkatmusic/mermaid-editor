@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeAndWaitForRender, executeExpression, waitForRender } from "../../cdp.ts";
 import { nodeIsInMainView } from "../../search-helpers.ts";
 import { dispatchNodeClick, openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 
@@ -17,10 +18,11 @@ test('test_decision_navigation_steps_through_every_decision_in_source_order_and_
   assert.equal(initialCounter, '1 / 2', initialError);
   assert.equal(await executeExpression("document.getElementById('nextDecisionBtn').nextElementSibling?.id"), 'decisionCounter');
   // Step: navigating sets the current decision and advances the counter.
-  await executeExpression("document.getElementById('nextDecisionBtn').click()");
+  // await executeExpression("document.getElementById('nextDecisionBtn').click()");
   // A second render started before the click's own render ends discards the click's centering.
-  await waitMilliseconds(500);
-  await waitForRender();
+  // await waitMilliseconds(500);
+  // await waitForRender();
+    await executeAndWaitForRender(() => executeExpression("document.getElementById('nextDecisionBtn').click()"));
   assert.equal(await executeExpression("document.getElementById('selectedNode').textContent"), 'Q_SECOND');
   assert.equal(await executeExpression("document.getElementById('decisionCounter').textContent"), '2 / 2');
   assert.equal(await executeExpression("currentBottomQ"), 'Q_SECOND');

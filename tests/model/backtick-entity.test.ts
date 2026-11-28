@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../browser-harness.ts";
-import { executeExpression, send, waitMilliseconds } from "../cdp.ts";
+// import { executeExpression, send, waitMilliseconds } from "../cdp.ts";
+import { executeExpression, send } from "../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../editor-helpers.ts";
 import { clickNodeWithMouse, KeyName, pressKey } from "../real-input.ts";
 
@@ -13,7 +14,7 @@ const FILE_LABEL = "#96;if (i < puzzle.size())#96;<br/>Is there a pair of the or
 async function loadFixture() {
     await resetEditorFixture();
     await setEditorSource('flowchart TD\n  B_A["Alpha"]\n  B_B["Beta"]\n  B_A --> B_B');
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 async function typeNodeTextAndPressEnter(id: string, text: string) {
@@ -22,7 +23,7 @@ async function typeNodeTextAndPressEnter(id: string, text: string) {
     await send("Input.insertText", { text });
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 async function getCodeSpanTexts(selector: string): Promise<string[]> {
@@ -50,7 +51,7 @@ test("test_saved_backtick_entities_show_as_code_spans_and_as_backticks_in_node_t
     assert.deepEqual(await getCodeSpanTexts('#diagram [id*="flowchart-B_A-"]'), ["if (i < puzzle.size())"]);
     // The phone block shows the same code span.
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     assert.deepEqual(await getCodeSpanTexts('#phoneDiagram [data-node-id="B_A"]'), ["if (i < puzzle.size())"]);
     // The Node text box shows backticks and a real line break, not #96;.
     assert.equal(await executeExpression("document.getElementById('nodeTextInput').value"), USER_LABEL);
@@ -78,7 +79,7 @@ test("test_a_backtick_in_the_middle_of_node_text_is_saved_as_an_entity", async (
 test("test_a_file_label_with_raw_backticks_still_shows_a_code_span_until_it_is_saved", async () => {
     await resetEditorFixture();
     await setEditorSource('flowchart TD\n  B_A["`code` first"]\n  B_B["Beta"]\n  B_A --> B_B');
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     assert.deepEqual(await getCodeSpanTexts('#diagram [id*="flowchart-B_A-"]'), ["code"]);
     await clickNodeWithMouse("B_A");
     assert.equal(await executeExpression("document.getElementById('nodeTextInput').value"), "`code` first");
