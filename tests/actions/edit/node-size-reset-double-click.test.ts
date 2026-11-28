@@ -23,7 +23,7 @@ const TOLERANCE_PX = 1.5;
 async function loadSource(extraLines: string[]) {
     await resetEditorFixture();
     await setEditorSource([SOURCE, ...extraLines].join("\n"));
-    await waitMilliseconds(700);
+    // await waitMilliseconds(700);
 }
 type Point = { x: number; y: number };
 // Where to double click: "empty" is 12 px inside the left edge of the shape at its middle height; "text" is the middle of the text.
@@ -48,7 +48,7 @@ async function doubleClickWithMouse(point: Point) {
         await waitMilliseconds(40);
     }
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(700);
+    // await waitMilliseconds(700);
 }
 async function readSourceLines(): Promise<string[]> {
     // return (await executeExpression("codeBox.value")).split("\n");
@@ -82,10 +82,10 @@ test("test_undo_restores_the_size_line_after_the_reset_and_redo_removes_it_again
     await loadSource([SIZE_LINE_B_ONE]);
     await doubleClickWithMouse(await findClickPoint("B_ONE", "empty"));
     await executeExpression("window.applyEditorUndo(); window.editorActionPromise");
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
     assert.ok((await readSourceLines()).includes(SIZE_LINE_B_ONE));
     await executeExpression("window.applyEditorRedo(); window.editorActionPromise");
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
     assert.ok(!(await readSourceLines()).some((line) => line.includes('"blockId":"B_ONE"')));
 });
 test("test_double_click_on_the_text_keeps_the_size_line_and_opens_the_node_text_editor", async () => {

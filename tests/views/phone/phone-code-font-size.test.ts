@@ -28,9 +28,9 @@ type FontSizes = Record<"pickedButton" | "pickedButtonCode" | "activeQuestion" |
 async function loadPhoneWithActiveSecondQuestion() {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
     await clickNodeWithMouse("Q_TWO");
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 async function readFontSizes(): Promise<FontSizes> {
     return JSON.parse(await executeExpression(`JSON.stringify((() => {

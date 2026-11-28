@@ -29,13 +29,13 @@ test('test_each_added_choice_is_centered_in_the_viewport', async () => {
   await setEditorSource(PUZZLE_SOLVER_RULES);
   await dispatchNodeClick('B_HISTORY_COMPLETE_IN_GIT');
   await clickInspectorAction('add-decision-after');
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   const decisionId = (await inspectorFocus()).selectedId;
   const offsets: { id: string; x: number; y: number }[] = [];
   for (let choiceNumber = 1; choiceNumber <= 6; choiceNumber++) {
     await dispatchNodeClick(decisionId);
     await clickInspectorAction('add-choice');
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const choiceId = (await inspectorFocus()).selectedId;
     offsets.push({ id: choiceId, ...(await measureOffsetFromPaneCenter(choiceId)) });
   }

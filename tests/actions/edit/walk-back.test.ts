@@ -26,7 +26,7 @@ test("test_walk_back_button_selects_the_parent_and_asks_when_there_are_several",
   ].join("\n");
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/walk-back-demo.mmd`, { method: "PUT", body: source });
   await executeExpression("loadDiagram('walk-back-demo.mmd')");
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   // Step: one parent, so the click selects it with no modal.
   await selectEditorNode("B_MID");
   await executeExpression("document.getElementById('walkBackBtn').click()");

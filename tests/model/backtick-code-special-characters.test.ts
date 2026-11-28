@@ -24,7 +24,7 @@ const SOURCE = [
 async function loadFixture() {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 test("test_main_diagram_code_spans_show_angle_brackets_and_ampersands_exactly", async () => {
@@ -44,7 +44,7 @@ test("test_phone_block_code_spans_show_angle_brackets_and_ampersands_exactly", a
     await loadFixture();
     for (const [id, codeText] of Object.entries(CODE_TEXTS)) {
         await clickNodeWithMouse(id);
-        await waitMilliseconds(300);
+        // await waitMilliseconds(300);
         // const codeTexts = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id="${id}"] code')].map((code) => code.textContent))`));
         const codeTexts: string[] = JSON.parse(await executeExpression(`JSON.stringify([...document.querySelectorAll('#phoneDiagram [data-node-id="${id}"] code')].map((code) => code.textContent))`));
         assert.deepEqual(codeTexts, [codeText], `phone block ${id}`);

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "../../browser-harness.ts";
-import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, waitForExpression, waitForRender } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -110,7 +111,8 @@ test('test_write_path_keeps_the_auto_picked_single_choice_step', async () => {
   await executeExpression("document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_A_GO\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
   await waitForRender();
   await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+  await waitForExpression(`document.getElementById('status').textContent.startsWith('Wrote ')`);
   // Step: the status line names the file just written.
   const status: string = await executeExpression("document.getElementById('status').textContent");
   const writtenName = status.replace('Wrote ', '');

@@ -5,10 +5,12 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { registerBrowserHooks } from '../../browser-harness.ts';
-import { executeExpression, waitMilliseconds } from '../../cdp.ts';
+// import { executeExpression, waitMilliseconds } from '../../cdp.ts';
+import { executeExpression, waitForExpression } from '../../cdp.ts';
 import { openEditorDrawer, resetEditorFixture } from '../../editor-helpers.ts';
 import { clickNodeWithMouse } from '../../real-input.ts';
-import { PATH_VIEW_SOURCE, clickButtonWithMouse, readShownNodeIds } from '../../path-view-helpers.ts';
+// import { PATH_VIEW_SOURCE, clickButtonWithMouse, readShownNodeIds } from '../../path-view-helpers.ts';
+import { PATH_VIEW_SOURCE, clickButtonWithMouse, dispatchClickWithMouse, readShownNodeIds } from '../../path-view-helpers.ts';
 import { parseEditorGraph } from '../../../source/model/editor-graph-parse.ts';
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -45,7 +47,7 @@ async function openDiagramFile(source: string = PATH_VIEW_SOURCE) {
     await resetEditorFixture();
     // await executeExpression(`showOpenedFile(${JSON.stringify(file)}, ${JSON.stringify(PATH_VIEW_SOURCE)})`);
     await executeExpression(`showOpenedFile(${JSON.stringify(file)}, ${JSON.stringify(source)})`);
-    await waitMilliseconds(1000);
+    // await waitMilliseconds(1000);
     // The test reads what the page writes to the clipboard.
     await executeExpression('window.copied = []; navigator.clipboard.writeText = async (text) => { window.copied.push(text); };');
     return file;
@@ -53,7 +55,7 @@ async function openDiagramFile(source: string = PATH_VIEW_SOURCE) {
 
 async function clickFilter(id: string) {
     await clickNodeWithMouse(id);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 function readCopiedTexts(): Promise<string[]> {
@@ -86,7 +88,9 @@ test('test_one_path_copy_button_copies_the_command_for_the_shown_path', async ()
     const file = await openDiagramFile();
     await clickButtonWithMouse('#onePathViewBtn');
     await clickButtonWithMouse('#nextViewPathBtn');
-    await clickButtonWithMouse('#copyPathCommandBtn');
+    // await clickButtonWithMouse('#copyPathCommandBtn');
+    await dispatchClickWithMouse('#copyPathCommandBtn');
+    await waitForExpression('window.copied.length > 0');
     assert.deepEqual(await readCopiedTexts(), [`bun mermaid-editor/source/command-line/print-path.ts "${file}" --path 0x01`]);
 });
 
@@ -94,7 +98,9 @@ test('test_copied_one_path_command_prints_the_shown_path_to_its_last_choice', as
     await openDiagramFile();
     await clickButtonWithMouse('#onePathViewBtn');
     await clickButtonWithMouse('#nextViewPathBtn');
-    await clickButtonWithMouse('#copyPathCommandBtn');
+    // await clickButtonWithMouse('#copyPathCommandBtn');
+    await dispatchClickWithMouse('#copyPathCommandBtn');
+    await waitForExpression('window.copied.length > 0');
     const [command] = await readCopiedTexts();
     assert.deepEqual(listPrintedIds(command), ['B_START', 'Q_ASK', 'Q_CHOICE_ASK_NO']);
 });
@@ -103,7 +109,9 @@ test('test_downstream_copy_button_copies_the_command_for_the_clicked_route', asy
     const file = await openDiagramFile();
     await clickButtonWithMouse('#downstreamViewBtn');
     await clickFilter('B_NO');
-    await clickButtonWithMouse('#copyDownstreamCommandBtn');
+    // await clickButtonWithMouse('#copyDownstreamCommandBtn');
+    await dispatchClickWithMouse('#copyDownstreamCommandBtn');
+    await waitForExpression('window.copied.length > 0');
     assert.deepEqual(await readCopiedTexts(), [`bun mermaid-editor/source/command-line/print-path.ts "${file}" --path 0x01 --to B_NO --includeAfter`]);
 });
 
@@ -113,7 +121,9 @@ test('test_copied_downstream_command_prints_the_blocks_on_screen', async () => {
     await clickFilter('Q_ASK');
     await clickFilter('B_NO');
     const shownIds = await readShownNodeIds();
-    await clickButtonWithMouse('#copyDownstreamCommandBtn');
+    // await clickButtonWithMouse('#copyDownstreamCommandBtn');
+    await dispatchClickWithMouse('#copyDownstreamCommandBtn');
+    await waitForExpression('window.copied.length > 0');
     const [command] = await readCopiedTexts();
     assert.deepEqual(listPrintedIds(command), shownIds);
 });

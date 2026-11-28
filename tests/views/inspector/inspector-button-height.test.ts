@@ -16,9 +16,9 @@ test("test_inspector_buttons_are_twenty_to_twenty_five_percent_shorter_and_keep_
     // Scenario: select a static block; its action buttons show in the inspector.
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
     const measured: { count: number; heights: number[]; fontSizes: number[]; walkBackHeight: number } = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const buttons = [...document.querySelectorAll('#nodeInspectorActions button')];

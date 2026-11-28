@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, send, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeAndWaitForRender, executeExpression, send, waitForRender } from "../../cdp.ts";
 import { openEditorDrawer } from "../../editor-helpers.ts";
 import { SEARCH_FIXTURE } from "../../fixtures.ts";
 import { nodeIsInMainView, searchState, startSearchTest } from "../../search-helpers.ts";
@@ -17,13 +18,25 @@ async function typeIntoSearchBox(query: string) {
   await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 });
   for (const character of query)
     await send("Input.dispatchKeyEvent", { type: "char", text: character, key: character });
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+  await waitForRender();
+}
+
+async function typeIntoSearchBoxAndWaitForRender(query: string) {
+  // Scenario: real keystrokes in the Search box, for a query whose last key starts a render.
+  await executeExpression("(() => { const input = document.getElementById('searchInput'); input.focus(); input.select(); })()");
+  await send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 });
+  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 });
+  for (const character of query.slice(0, -1))
+    await send("Input.dispatchKeyEvent", { type: "char", text: character, key: character });
+  const lastCharacter = query.slice(-1);
+  await executeAndWaitForRender(() => send("Input.dispatchKeyEvent", { type: "char", text: lastCharacter, key: lastCharacter }));
   await waitForRender();
 }
 
 async function clickSearchButton(id: string) {
   await executeExpression(`document.getElementById('${id}').click()`);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
 }
 
 async function readSourceSelection(): Promise<{ start: number; end: number; text: string }> {
@@ -74,7 +87,8 @@ test("test_search_opens_the_closed_drawer_to_show_the_match", async () => {
   await startSearchTest();
   await executeExpression("document.getElementById('drawer').classList.contains('closed') || document.getElementById('drawerToggle').click()");
   assert.equal(await executeExpression("document.getElementById('drawer').classList.contains('closed')"), true);
-  await typeIntoSearchBox("middle");
+  // await typeIntoSearchBox("middle");
+  await typeIntoSearchBoxAndWaitForRender("middle");
   assert.equal(await executeExpression("document.getElementById('drawer').classList.contains('closed')"), false);
 });
 
@@ -91,14 +105,16 @@ test("test_search_scrolls_the_source_editor_to_a_match_far_down", async () => {
 test("test_search_counts_every_source_occurrence_as_one_match", async () => {
   // Scenario: Q_FIRST appears on its definition line and on three edge lines.
   await startSearchTest();
-  await typeIntoSearchBox("q_first");
+  // await typeIntoSearchBox("q_first");
+  await typeIntoSearchBoxAndWaitForRender("q_first");
   assert.equal((await searchState()).counter, "1 / 4");
 });
 
 test("test_search_match_on_a_node_definition_line_selects_and_centers_that_node", async () => {
   // Scenario: the first "q_second" is on the definition line of Q_SECOND.
   await startSearchTest();
-  await typeIntoSearchBox("q_second");
+  // await typeIntoSearchBox("q_second");
+  await typeIntoSearchBoxAndWaitForRender("q_second");
   assert.equal((await searchState()).selected, "Q_SECOND");
   assert.equal(await nodeIsInMainView("Q_SECOND"), true);
 });
@@ -106,7 +122,8 @@ test("test_search_match_on_a_node_definition_line_selects_and_centers_that_node"
 test("test_search_match_inside_an_edge_line_selects_the_node_the_match_is_inside", async () => {
   // Scenario: the second "q_first" is on the edge "B_START --> Q_FIRST", inside the Q_FIRST part, not the first node of the line.
   await startSearchTest();
-  await typeIntoSearchBox("q_first");
+  // await typeIntoSearchBox("q_first");
+  await typeIntoSearchBoxAndWaitForRender("q_first");
   await clickSearchButton("searchNextBtn");
   assert.equal((await searchState()).counter, "2 / 4");
   assert.equal((await searchState()).selected, "Q_FIRST");
@@ -115,6 +132,7 @@ test("test_search_match_inside_an_edge_line_selects_the_node_the_match_is_inside
 test("test_search_match_outside_every_node_part_selects_the_first_node_of_the_line", async () => {
   // Scenario: "-->" is not inside any node part; the first "-->" is on "B_START --> Q_FIRST", so B_START is selected.
   await startSearchTest();
-  await typeIntoSearchBox("-->");
+  // await typeIntoSearchBox("-->");
+  await typeIntoSearchBoxAndWaitForRender("-->");
   assert.equal((await searchState()).selected, "B_START");
 });

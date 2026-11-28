@@ -12,9 +12,9 @@ const SOURCE = 'flowchart TD\n  B_A["Alpha"]\n  B_B["Beta"]\n  B_A --> B_B';
 async function selectNodeAndFocusBox(id: string, boxId: string) {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickNodeWithMouse(id);
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     await executeExpression(`(() => { const box = document.getElementById('${boxId}'); box.focus(); box.select(); })()`);
 }
 
@@ -26,7 +26,7 @@ async function getSourceLines(): Promise<string[]> {
 async function pressEnterAndWaitForWrite() {
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 test("test_shift_enter_in_node_text_adds_a_line_break_and_does_not_write", async () => {
@@ -59,7 +59,7 @@ test("test_node_text_box_shows_br_as_a_line_break_and_a_second_edit_does_not_dou
     // Step: select another node, then select B_A again.
     await clickNodeWithMouse("B_B");
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     assert.equal(await executeExpression("document.getElementById('nodeTextInput').value"), "One\nTwo");
     // Step: add "!" at the end and write.
     await executeExpression("(() => { const box = document.getElementById('nodeTextInput'); box.focus(); box.setSelectionRange(box.value.length, box.value.length); })()");
@@ -108,7 +108,7 @@ test("test_notes_box_shows_br_as_a_line_break_after_reselecting_and_a_second_edi
     await pressEnterAndWaitForWrite();
     await clickNodeWithMouse("B_B");
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     assert.equal(await executeExpression("document.getElementById('nodeNotesInput').value"), "One\nTwo");
     await executeExpression("(() => { const box = document.getElementById('nodeNotesInput'); box.focus(); box.setSelectionRange(box.value.length, box.value.length); })()");
     await send("Input.insertText", { text: "!" });
@@ -128,9 +128,9 @@ test("test_pasted_text_with_line_breaks_in_notes_is_written_with_br", async () =
 test("test_each_text_box_has_one_tiny_helper_line_below_it", async () => {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
     type Hint = { text: string; fontSize: number; gapBelowBox: number; leftOffset: number; hintHeight: number };
     const measured: { labelFont: number; text: Hint; notes: Hint } = JSON.parse(await executeExpression(`JSON.stringify((() => {

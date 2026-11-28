@@ -12,9 +12,9 @@ const SOURCE = 'flowchart TD\n  B_A["Alpha"]\n  B_B["Beta"]\n  B_A --> B_B';
 async function selectBlockAndTypeBadName() {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     await executeExpression("(() => { const box = document.getElementById('nodeNameInput'); box.focus(); box.select(); })()");
     await send("Input.insertText", { text: "bad-name" });
 }
@@ -65,7 +65,7 @@ test("test_click_on_another_node_works_again_after_the_name_is_fixed", async () 
     await send("Input.insertText", { text: "GOOD" });
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     await clickNodeWithMouse("B_B");
     assert.equal(await executeExpression("selectedEditorNodeId"), "B_B");
 });

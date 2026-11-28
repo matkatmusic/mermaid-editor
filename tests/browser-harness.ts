@@ -145,7 +145,7 @@ async function initSetup(fileName: string) {
   const lastOpenedReply = await (await fetch(`http://localhost:${SERVER_PORT}/api/last-opened`)).text();
   assert.ok(codeValue.includes("RAISE_ISSUE"), `last opened: ${lastOpenedReply.slice(0, 200)}\ncode box: ${codeValue.slice(0, 200)}`);
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(300);
+  // await waitMilliseconds(300);
 }
 
 function clearSetupFailure() {}

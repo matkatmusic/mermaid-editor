@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerBrowserHooks, SERVER_PORT } from '../../browser-harness.ts';
-import { executeExpression, send, waitMilliseconds } from '../../cdp.ts';
+// import { executeExpression, send, waitMilliseconds } from '../../cdp.ts';
+import { executeAndWaitForRender, executeExpression, send, waitForEditorAction } from '../../cdp.ts';
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from '../../editor-helpers.ts';
 import { EDITOR_FIXTURE_NAME } from '../../fixtures.ts';
 import { clickInspectorAction } from '../../inspector-helpers.ts';
@@ -24,7 +25,7 @@ const TWO_DECISION_SOURCE = PATH_VIEW_SOURCE.replace('  B_NO --> B_END', [
 async function turnViewOn(source: string = PATH_VIEW_SOURCE) {
     await resetEditorFixture();
     await setEditorSource(source);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickButtonWithMouse('#onePathViewBtn');
 }
 
@@ -34,13 +35,13 @@ async function selectBlock(id: string) {
 
 async function runInspectorAction(action: string) {
     await clickInspectorAction(action);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 async function writeInput(inputId: string, value: string) {
     await executeExpression(`(() => { const input = document.getElementById('${inputId}'); input.value = ${JSON.stringify(value)}; input.dispatchEvent(new Event('change', { bubbles: true })); })()`);
     await executeExpression('window.editorActionPromise');
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 async function renameSelectedBlock(namePart: string) {
@@ -49,7 +50,7 @@ async function renameSelectedBlock(namePart: string) {
         await send('Input.dispatchKeyEvent', { type: 'char', text: character, key: character });
     await pressKey(KeyName.Tab);
     await executeExpression('window.editorActionPromise');
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 function readSelectedId(): Promise<string | null> {
@@ -145,10 +146,12 @@ test('test_undo_and_redo_in_a_view_draw_the_view_again', async () => {
     await selectBlock('B_YES');
     await runInspectorAction('insert-static-after');
     await executeExpression("document.getElementById('editorUndoBtn').click()");
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
+    await waitForEditorAction();
     await assertShownOnFirstPath(YES_NODE_IDS);
     await executeExpression("document.getElementById('editorRedoBtn').click()");
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
+    await waitForEditorAction();
     await assertShownOnFirstPath([...YES_NODE_IDS, 'B_NEW_1']);
 });
 
@@ -162,11 +165,13 @@ test('test_class_size_alignment_and_note_edits_show_in_a_view', async () => {
 
 test('test_search_in_a_view_skips_blocks_the_view_does_not_draw', async () => {
     await turnViewOn();
-    await executeExpression("(() => { const input = document.getElementById('searchInput'); input.value = ' block\"'; input.dispatchEvent(new Event('input', { bubbles: true })); })()");
-    await waitMilliseconds(800);
+    // await executeExpression("(() => { const input = document.getElementById('searchInput'); input.value = ' block\"'; input.dispatchEvent(new Event('input', { bubbles: true })); })()");
+    // await waitMilliseconds(800);
+    await executeAndWaitForRender(() => executeExpression("(() => { const input = document.getElementById('searchInput'); input.value = ' block\"'; input.dispatchEvent(new Event('input', { bubbles: true })); })()"));
     assert.equal(await readSelectedId(), 'B_YES');
-    await executeExpression("document.getElementById('searchNextBtn').click()");
-    await waitMilliseconds(800);
+    // await executeExpression("document.getElementById('searchNextBtn').click()");
+    // await waitMilliseconds(800);
+    await executeAndWaitForRender(() => executeExpression("document.getElementById('searchNextBtn').click()"));
     assert.equal(await readSelectedId(), 'B_YES');
 });
 
@@ -175,7 +180,7 @@ test('test_walk_back_in_a_view_skips_blocks_the_view_does_not_draw', async () =>
     // B_END has two parents; the first path draws only B_YES.
     await selectBlock('B_END');
     await executeExpression("document.getElementById('walkBackBtn').click()");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     assert.equal(await readSelectedId(), 'B_YES');
 });
 

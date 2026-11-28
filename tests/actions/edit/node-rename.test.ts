@@ -29,9 +29,9 @@ const MOOD_SOURCE = [
 async function openSourceAndSelect(source: string, id: string) {
   await resetEditorFixture();
   await setEditorSource(source);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   await clickNodeWithMouse(id);
-  await waitMilliseconds(300);
+  // await waitMilliseconds(300);
 }
 
 async function typeNameKeyByKey(name: string) {
@@ -47,7 +47,7 @@ async function typeNameThenPress(name: string, key: typeof KeyName.Tab | typeof 
   await typeNameKeyByKey(name);
   await pressKey(key);
   await executeExpression("window.editorActionPromise");
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
 }
 
 async function readSource(): Promise<string> {
@@ -192,7 +192,7 @@ test("test_click_away_from_node_name_applies_the_rename", async () => {
   await typeNameKeyByKey("FINISH");
   await clickNodeWithMouse("B_START");
   await executeExpression("window.editorActionPromise");
-  await waitMilliseconds(800);
+  // await waitMilliseconds(800);
   const source = await readSource();
   assert.equal(countWholeWord(source, "B_END"), 0);
   assert.equal(countWholeWord(source, "B_FINISH"), 4);

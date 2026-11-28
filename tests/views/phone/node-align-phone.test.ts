@@ -41,7 +41,7 @@ test("test_a_block_with_no_align_line_has_centred_text_in_the_phone_view", async
     // Step: three-node diagram with no align line.
     await resetEditorFixture();
     await setEditorSource(BODY);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
     // Step: the block row and the question row of the phone view keep the present look: centred text.
     assert.equal(await readPhoneTextAlign("B_START"), "center");
     assert.equal(await readPhoneTextAlign("Q_A"), "center");
@@ -50,7 +50,7 @@ test("test_a_block_with_no_align_line_has_centred_text_in_the_phone_view", async
 test("test_justify_left_and_right_in_the_inspector_move_the_phone_view_text_of_a_block_and_a_question", async () => {
     await resetEditorFixture();
     await setEditorSource(BODY);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
     // Step: select the block with the mouse and click "Justify left" with the mouse.
     await clickNodeWithMouse("B_START");
     await clickJustificationButtonWithMouse("left");

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeAndWaitForRender, executeExpression, waitForExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
 import { openEditorDrawer } from "../../editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -26,23 +27,25 @@ test('test_dark_mode_toggle_off_restores_the_light_background_and_on_restores_da
 
 test('test_masked_decision_color_follows_dark_mode', async () => {
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   await executeExpression("document.getElementById('resetBtn').click()");
   await waitForRender();
   await executeExpression(`document.querySelector('#phoneDiagram [data-choose="Q_CHOICE_THEM_DONE_SPEAKING_Y"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
-  await waitMilliseconds(400);
+  // await waitMilliseconds(400);
+  await waitForExpression("document.querySelector('#phoneDiagram .phone-decision-past') !== null");
   const maskColor = () => executeExpression(
     "getComputedStyle(document.querySelector('#phoneDiagram .phone-decision-past'), '::after').backgroundColor"
   );
   const setDark = (on: boolean) => executeExpression(`(() => { const toggle = document.getElementById('darkModeToggle'); toggle.checked = ${on}; toggle.dispatchEvent(new Event('change')); })()`);
   await setDark(true);
-  await waitMilliseconds(400);
+  // await waitMilliseconds(400);
   assert.equal(await maskColor(), 'rgba(255, 255, 255, 0.55)');
   await setDark(false);
-  await waitMilliseconds(400);
+  // await waitMilliseconds(400);
   assert.equal(await maskColor(), 'rgba(0, 0, 0, 0.55)');
   await executeExpression("document.getElementById('resetBtn').click()");
   await waitForRender();
-  await setDark(true);
-  await waitMilliseconds(400);
+  // await setDark(true);
+  // await waitMilliseconds(400);
+  await executeAndWaitForRender(() => setDark(true));
 });

@@ -18,7 +18,7 @@ const SOURCE = [
 async function showBlocksInPhoneView() {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
 }
 
 // test("test_phone_block_is_as_wide_as_its_long_code_line", async () => {

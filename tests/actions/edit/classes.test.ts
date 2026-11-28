@@ -43,7 +43,7 @@ test("test_class_picker_always_shows_the_nodes_actual_class", async () => {
   // Scenario: this is the bug being fixed - the picker must read the node's real class, not stale state.
   await resetEditorFixture();
   await executeExpression(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   // Step: B_SELF_RESTATE_ISSUE is classed "action" in accountability.mmd's classDef lines.
   await dispatchNodeClick("B_SELF_RESTATE_ISSUE");
   // const picker = await executeExpression(`JSON.stringify({
@@ -103,7 +103,7 @@ test("test_classes_dialog_renames_recolors_and_deletes_a_class", async () => {
   await resetEditorFixture();
   await setEditorSource('flowchart TD\n  B_ONE["One"]\n  classDef mine fill:#ff0000,stroke:#000000\n  class B_ONE mine');
   await executeExpression("document.getElementById('classesMenuBtn').click()");
-  await waitMilliseconds(100);
+  // await waitMilliseconds(100);
   // const initialRow = await executeExpression(`JSON.stringify((() => {
   //   })())`).then(JSON.parse);
   const initialRow = await executeExpression<string>(`JSON.stringify((() => {
@@ -118,17 +118,17 @@ test("test_classes_dialog_renames_recolors_and_deletes_a_class", async () => {
     input.dispatchEvent(new Event('change', { bubbles: true }));
   })()`);
   await executeExpression("window.editorActionPromise");
-  await waitMilliseconds(200);
+  // await waitMilliseconds(200);
   // let source = await executeExpression("codeBox.value");
   let source = await executeExpression<string>("codeBox.value");
   assert.match(source, /classDef renamed fill:#ff0000,stroke:#000000/);
   assert.match(source, /class B_ONE renamed/);
   // Step: deleting the class from the dialog comments out its classDef; the node becomes unclassed.
   await executeExpression("document.getElementById('classesMenuBtn').click()");
-  await waitMilliseconds(100);
+  // await waitMilliseconds(100);
   await executeExpression("document.querySelector('.classes-row .classes-delete').click()");
   await executeExpression("window.editorActionPromise");
-  await waitMilliseconds(200);
+  // await waitMilliseconds(200);
   // source = await executeExpression("codeBox.value");
   source = await executeExpression<string>("codeBox.value");
   assert.match(source, /%% classDef renamed fill:#ff0000,stroke:#000000/);

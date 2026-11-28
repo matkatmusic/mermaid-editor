@@ -39,7 +39,7 @@ async function selectedLineBounds() {
 test("test_clicking_a_node_scrolls_the_source_to_its_declaration_only_when_the_drawer_is_open", async () => {
   // Scenario: a node click scrolls the source only when the drawer is open.
   await executeExpression(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   assert.ok(await executeExpression("codeBox.scrollHeight > codeBox.clientHeight"));
 
   // Step: with the drawer open, the selected line ends up in the visible area and nothing else scrolls.

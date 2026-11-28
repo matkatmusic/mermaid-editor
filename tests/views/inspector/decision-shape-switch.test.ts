@@ -29,9 +29,9 @@ const SOURCE = [
 async function loadFixtureAndSelect(id: string) {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
     await clickNodeWithMouse(id);
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
 }
 
 interface SwitchState {
@@ -59,7 +59,7 @@ async function clickSwitchWithMouse() {
     await send("Input.dispatchMouseEvent", { type: "mousePressed", x: center.x, y: center.y, button: "left", clickCount: 1 });
     await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: center.x, y: center.y, button: "left", clickCount: 1 });
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 async function readSourceLines(): Promise<string[]> {
@@ -132,9 +132,9 @@ test("test_a_new_decision_block_starts_as_a_hexagon_with_the_switch_on_the_hexag
     await loadFixtureAndSelect("B_END");
     await executeExpression("document.querySelector('#nodeInspectorActions [data-action=\"insert-decision-after\"]').click()");
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickNodeWithMouse("Q_NEW_1");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     assert.ok((await readSourceLines()).includes('  Q_NEW_1{{"New Decision"}}'));
     assert.deepEqual(await readSwitchState(), { isShown: true, isOnDiamondSide: false });
 });
@@ -142,6 +142,6 @@ test("test_a_new_decision_block_starts_as_a_hexagon_with_the_switch_on_the_hexag
 test("test_the_switch_is_hidden_while_several_nodes_are_selected", async () => {
     await loadFixtureAndSelect("Q_HEX");
     await clickNodeWithMouse("Q_DIAMOND", Modifier.Meta);
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     assert.equal((await readSwitchState()).isShown, false);
 });

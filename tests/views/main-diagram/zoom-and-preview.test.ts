@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, waitForExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
 import { dispatchNodeClick, openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { clickInspectorAction } from "../../inspector-helpers.ts";
 
@@ -30,7 +31,8 @@ test('test_main_view_click_shows_the_path_to_the_clicked_node_in_the_phone', asy
 
   // The start node alone gives an empty path.
   await dispatchNodeClick('B_ROOT');
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+  await waitForRender();
   assert.equal(await executeExpression('phonePath.length'), 0);
 
   // A decision is the open decision at the end of its path.
@@ -82,11 +84,12 @@ test('test_header_zoom_controls_resize_only_the_main_mermaid_diagram', async () 
 
 test('test_previous_selections_stay_masked_through_each_phone_choice', async () => {
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   await executeExpression("document.getElementById('resetBtn').click()");
   await waitForRender();
   await executeExpression(`document.querySelector('#phoneDiagram [data-choose="Q_CHOICE_THEM_DONE_SPEAKING_Y"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
-  await waitMilliseconds(400);
+  // await waitMilliseconds(400);
+  await waitForExpression(`!!document.querySelector('#phoneDiagram [data-node-id="Q_THEM_DONE_SPEAKING"]')?.closest('.phone-decision-past')`); // no scroll wait: the test asserts nothing about the scroll position
   // const firstState = await executeExpression(`JSON.stringify((() => {
   const firstState = await executeExpression<string>(`JSON.stringify((() => {
     return {
@@ -100,7 +103,8 @@ test('test_previous_selections_stay_masked_through_each_phone_choice', async () 
   assert.equal(firstState.activeId, 'Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID');
   assert.equal(firstState.separatorCount, 1);
   await executeExpression(`document.querySelector('#phoneDiagram [data-choose="Q_CHOICE_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID_N"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
-  await waitMilliseconds(400);
+  // await waitMilliseconds(400);
+  await waitForExpression(`!!document.querySelector('#phoneDiagram [data-node-id="Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID"]')?.closest('.phone-decision-past')`); // no scroll wait: the test asserts nothing about the scroll position
   // const secondState = await executeExpression(`JSON.stringify((() => {
   const secondState = await executeExpression<string>(`JSON.stringify((() => {
     return {

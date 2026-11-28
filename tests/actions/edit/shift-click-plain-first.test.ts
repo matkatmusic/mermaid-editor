@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, waitForEditorAction } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { EDITOR_FIXTURE_NAME } from "../../fixtures.ts";
 import { clickNodeWithMouse, Modifier } from "../../real-input.ts";
@@ -40,7 +41,8 @@ test("test_real_mouse_a_pick_does_not_survive_a_diagram_load", async () => {
     await setEditorSource(THREE_BLOCKS);
     // Step: Shift-click B_A. The load cancelled the pick, so B_C --> B_A is not added.
     await clickNodeWithMouse("B_A", Modifier.Shift);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForEditorAction();
     const source = await getCodeBoxSource();
     assert.ok(!source.includes("B_C --> B_A"), source);
 });
@@ -51,7 +53,8 @@ test("test_real_mouse_plain_click_on_a_then_shift_click_on_b_adds_an_edge_from_a
     await setEditorSource(THREE_BLOCKS);
     await clickNodeWithMouse("B_C", Modifier.None);
     await clickNodeWithMouse("B_A", Modifier.Shift);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForEditorAction();
     // Step: the source gained `B_C --> B_A` and kept `B_A --> B_B`.
     const source = await getCodeBoxSource();
     assert.ok(source.includes("B_C --> B_A"), source);
@@ -66,7 +69,8 @@ test("test_real_mouse_shift_click_makes_no_text_selection_after_a_plain_click", 
     const selectionAfterPlainClick = await getTextSelectionState();
     // Step: Shift-click B_A.
     await clickNodeWithMouse("B_A", Modifier.Shift);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForEditorAction();
     // Step: the link rewrote the source, so the Editor drawer holds no selected range, is not focused, and the page has no text selection.
     assert.ok(selectionAfterPlainClick.codeBoxEnd > selectionAfterPlainClick.codeBoxStart);
     const selectionAfterShiftClick = await getTextSelectionState();
@@ -81,7 +85,8 @@ test("test_real_mouse_shift_click_makes_no_text_selection_after_a_plain_click_an
     await setEditorSource(THREE_BLOCKS);
     await clickNodeWithMouse("B_A", Modifier.None);
     await clickNodeWithMouse("B_C", Modifier.Shift);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForEditorAction();
     const selectionAfterLink = await getTextSelectionState();
     // Step: the link did not leave a selection of the whole source in the Editor drawer.
     assert.equal(selectionAfterLink.codeBoxIsFocused, false);
@@ -93,7 +98,8 @@ test("test_real_mouse_shift_click_with_no_selected_node_starts_a_pick_and_adds_n
     await resetEditorFixture();
     await setEditorSource(THREE_BLOCKS);
     await clickNodeWithMouse("B_C", Modifier.Shift);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForEditorAction();
     // Step: B_C is selected and the source has no new edge.
     assert.equal(await getSelectedNodeId(), "B_C");
     const source = await getCodeBoxSource();
@@ -106,7 +112,8 @@ test("test_real_mouse_shift_click_on_the_selected_node_adds_no_edge_and_keeps_it
     await setEditorSource(THREE_BLOCKS);
     await clickNodeWithMouse("B_C", Modifier.None);
     await clickNodeWithMouse("B_C", Modifier.Shift);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForEditorAction();
     // Step: no `B_C --> B_C`, and B_C is still selected.
     const source = await getCodeBoxSource();
     assert.ok(!source.includes("B_C --> B_C"), source);
@@ -119,7 +126,8 @@ test("test_real_mouse_the_from_node_stays_selected_after_a_link", async () => {
     await setEditorSource(THREE_BLOCKS);
     await clickNodeWithMouse("B_C", Modifier.None);
     await clickNodeWithMouse("B_A", Modifier.Shift);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForEditorAction();
     // Step: B_C, the node that the link starts from, is still the selected node.
     assert.ok((await getCodeBoxSource()).includes("B_C --> B_A"));
     assert.equal(await getSelectedNodeId(), "B_C");

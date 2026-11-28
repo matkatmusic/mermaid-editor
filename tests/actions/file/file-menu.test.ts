@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, waitForExpression, waitForRender } from "../../cdp.ts";
 import { openEditorDrawer } from "../../editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -37,24 +38,33 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
 
   // Step: Reset entry clears a chosen phone path and closes the menu.
   await executeExpression("document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_THEM_DONE_SPEAKING_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(100);
+  // await waitMilliseconds(100);
+  await waitForExpression("selectedEditorNodeId === 'Q_DO_I_UNDERSTAND_EVERYTHING_THEY_SAID'"); // no scroll wait: the test asserts nothing about the scroll position
   assert.equal(await executeExpression("phonePath.length"), 1);
   await executeExpression("document.getElementById('fileMenu').open = true");
+  const svgIdBeforeReset = await executeExpression<string>("document.querySelector('#diagram svg').id");
   await executeExpression("document.getElementById('resetBtn').click()");
-  await waitMilliseconds(100);
+  // await waitMilliseconds(100);
+  await waitForExpression(`document.querySelector('#diagram svg') !== null && document.querySelector('#diagram svg').id !== ${JSON.stringify(svgIdBeforeReset)}`);
   assert.equal(await executeExpression("phonePath.length"), 0);
   assert.equal(await executeExpression("document.getElementById('fileMenu').open"), false);
 
   // Step: Save entry PUTs the diagram to the server and closes the menu.
   // const saved = await executeExpression(`(async () => {
   // })()`).then(JSON.parse);
-  const saved = await executeExpression<string>(`(async () => {
-    let posted = null;
-    const originalFetch = window.fetch;
+  // const saved = await executeExpression<string>(`(async () => {
+  await executeExpression(`(() => {
+    // let posted = null;
+    window.posted = null;
+    // const originalFetch = window.fetch;
+    window.originalFetch = window.fetch;
     window.fetch = (url, opts) => { if (opts && opts.method === 'PUT') posted = String(url); return originalFetch(url, opts); };
     document.getElementById('fileMenu').open = true;
     document.getElementById('saveBtn').click();
-    await new Promise(r => setTimeout(r, 200));
+  })()`);
+  // await new Promise(r => setTimeout(r, 200));
+  await waitForExpression("document.getElementById('status').textContent === 'Saved accountability.mmd'");
+  const saved = await executeExpression<string>(`(() => {
     window.fetch = originalFetch;
     return JSON.stringify({ posted, open: document.getElementById('fileMenu').open });
   })()`).then((text) => JSON.parse(text) as { posted: string | null; open: boolean });
@@ -79,7 +89,8 @@ test('test_file_menu_replaces_the_four_toolbar_buttons', async () => {
   // Step: New entry resets the editor source and closes the menu.
   await executeExpression("document.getElementById('fileMenu').open = true");
   await executeExpression("document.getElementById('newBtn').click()");
-  await waitMilliseconds(100);
+  // await waitMilliseconds(100);
+  await waitForExpression("!!document.querySelector('#diagram [id*=\"flowchart-B_NEW-\"]')");
   assert.equal(await executeExpression("codeBox.value"), NEW_DOCUMENT_SOURCE);
   assert.equal(await executeExpression("document.getElementById('fileMenu').open"), false);
 
@@ -92,16 +103,21 @@ test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', asyn
   // Scenario: fake OS file dialogs record every write, so no real disk file is touched.
   // const result = await executeExpression(`(async () => {
   // })()`).then(JSON.parse);
-  const result = await executeExpression<string>(`(async () => {
-    const writes = [];
+  // const result = await executeExpression<string>(`(async () => {
+  await executeExpression(`(() => {
+    // const writes = [];
+    window.writes = [];
     const fakeHandle = (name, text) => ({
       name,
       getFile: async () => new File([text], name),
       createWritable: async () => ({ write: async (data) => writes.push(name + ':' + data), close: async () => {} }),
     });
-    const originalFetch = window.fetch;
-    const originalSave = window.showSaveFilePicker;
-    let saveDialogs = 0;
+    // const originalFetch = window.fetch;
+    window.originalFetch = window.fetch;
+    // const originalSave = window.showSaveFilePicker;
+    window.originalSave = window.showSaveFilePicker;
+    // let saveDialogs = 0;
+    window.saveDialogs = 0;
     window.fetch = async (url, opts) => {
       if (!String(url).startsWith('/api/open-file'))
         return originalFetch(url, opts);
@@ -113,16 +129,26 @@ test('test_save_overwrites_the_opened_file_and_save_as_uses_the_os_dialog', asyn
     };
     window.showSaveFilePicker = async () => { saveDialogs++; return fakeHandle('picked.mmd', ''); };
     document.getElementById('openFileBtn').click();
-    await new Promise(r => setTimeout(r, 300));
-    document.getElementById('saveBtn').click();
-    await new Promise(r => setTimeout(r, 200));
-    const afterOpenSave = { writes: writes.slice(), saveDialogs };
+  })()`);
+  // await new Promise(r => setTimeout(r, 300));
+  await waitForExpression("!!document.querySelector('#diagram [id*=\"flowchart-B_OPENED-\"]')");
+  await executeExpression("document.getElementById('saveBtn').click()");
+  // await new Promise(r => setTimeout(r, 200));
+  await waitForExpression("document.getElementById('status').textContent === 'Saved /tmp/opened.mmd'");
+  await executeExpression(`(() => {
+    // const afterOpenSave = { writes: writes.slice(), saveDialogs };
+    window.afterOpenSave = { writes: writes.slice(), saveDialogs };
     document.getElementById('newBtn').click();
-    await new Promise(r => setTimeout(r, 200));
-    document.getElementById('saveBtn').click();
-    await new Promise(r => setTimeout(r, 200));
-    document.getElementById('saveBtn').click();
-    await new Promise(r => setTimeout(r, 200));
+  })()`);
+  // await new Promise(r => setTimeout(r, 200));
+  await waitForExpression("!!document.querySelector('#diagram [id*=\"flowchart-B_NEW-\"]')");
+  await executeExpression("document.getElementById('saveBtn').click()");
+  // await new Promise(r => setTimeout(r, 200));
+  await waitForExpression("document.getElementById('status').textContent === 'Saved picked.mmd'");
+  await executeExpression("document.getElementById('saveBtn').click()");
+  // await new Promise(r => setTimeout(r, 200));
+  await waitForExpression("writes.length === 3");
+  const result = await executeExpression<string>(`(() => {
     window.fetch = originalFetch;
     window.showSaveFilePicker = originalSave;
     return JSON.stringify({ afterOpenSave, writes, saveDialogs });
@@ -140,15 +166,23 @@ test('test_canceling_the_open_dialog_logs_a_message_and_leaves_the_diagram_uncha
   // Scenario: the user dismisses the OS open dialog; the server answers 204.
   // const result = await executeExpression(`(async () => {
   // })()`).then(JSON.parse);
-  const result = await executeExpression<string>(`(async () => {
-    const originalFetch = window.fetch;
-    const originalLog = console.log;
-    const messages = [];
-    const before = document.getElementById('code').value;
+  // const result = await executeExpression<string>(`(async () => {
+  await executeExpression(`(() => {
+    // const originalFetch = window.fetch;
+    window.originalFetch = window.fetch;
+    // const originalLog = console.log;
+    window.originalLog = console.log;
+    // const messages = [];
+    window.messages = [];
+    // const before = document.getElementById('code').value;
+    window.before = document.getElementById('code').value;
     window.fetch = async (url, opts) => url === '/api/open-file' ? new Response(null, { status: 204 }) : originalFetch(url, opts);
     console.log = (...args) => { messages.push(args.join(' ')); };
     document.getElementById('openFileBtn').click();
-    await new Promise(r => setTimeout(r, 200));
+  })()`);
+  // await new Promise(r => setTimeout(r, 200));
+  await waitForExpression("messages.includes('User canceled Open File')");
+  const result = await executeExpression<string>(`(() => {
     window.fetch = originalFetch;
     console.log = originalLog;
     return JSON.stringify({ messages, unchanged: document.getElementById('code').value === before });

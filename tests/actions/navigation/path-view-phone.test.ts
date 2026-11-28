@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerBrowserHooks } from '../../browser-harness.ts';
-import { executeExpression, waitMilliseconds } from '../../cdp.ts';
+// import { executeExpression, waitMilliseconds } from '../../cdp.ts';
+import { executeAndWaitForRender, executeExpression } from '../../cdp.ts';
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from '../../editor-helpers.ts';
 import { clickNodeWithMouse } from '../../real-input.ts';
 import { PATH_VIEW_SOURCE, clickButtonWithMouse, readErrorLog, readShownNodeIds } from '../../path-view-helpers.ts';
@@ -32,7 +33,7 @@ const LOOP_SOURCE = [
 async function loadFullDiagram(source: string = PATH_VIEW_SOURCE) {
     await resetEditorFixture();
     await setEditorSource(source);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 async function turnOnePathViewOn(source: string = PATH_VIEW_SOURCE) {
@@ -47,12 +48,13 @@ async function turnDownstreamToggleOn() {
 
 async function clickBlock(id: string) {
     await clickNodeWithMouse(id);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 async function tapPhone(selector: string) {
-    await executeExpression(`document.querySelector('#phoneDiagram ${selector}').click()`);
-    await waitMilliseconds(800);
+    // await executeExpression(`document.querySelector('#phoneDiagram ${selector}').click()`);
+    // await waitMilliseconds(800);
+    await executeAndWaitForRender(() => executeExpression(`document.querySelector('#phoneDiagram ${selector}').click()`));
 }
 
 const CHOOSE_YES = '[data-choose="Q_CHOICE_ASK_YES"]';
@@ -109,7 +111,7 @@ test('test_phone_click_on_a_block_outside_the_view_raises_no_error', async () =>
     await executeExpression("window.capturedErrors = []; window.addEventListener('error', (event) => window.capturedErrors.push(String(event.message)));");
     // The phone shows only drawn blocks, so the row for a hidden block is made by hand.
     await executeExpression("(() => { const row = document.createElement('div'); row.className = 'phone-block'; row.dataset.nodeId = 'B_NO'; document.getElementById('phoneDiagram').append(row); row.click(); })()");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     // assert.deepEqual(await readJson('window.capturedErrors'), []);
     assert.deepEqual(await readJson<string[]>('window.capturedErrors'), []);
 });

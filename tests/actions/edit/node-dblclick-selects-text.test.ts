@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+import { executeAndWaitForRender, executeExpression, send, waitMilliseconds } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { SEARCH_FIXTURE } from "../../fixtures.ts";
 
@@ -18,11 +19,16 @@ async function doubleClickNodeWithMouse(id: string) {
   })())`));
   for (const clickCount of [1, 2]) {
     await send("Input.dispatchMouseEvent", { type: "mousePressed", x: center.x, y: center.y, button: "left", clickCount });
-    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: center.x, y: center.y, button: "left", clickCount });
+    // await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: center.x, y: center.y, button: "left", clickCount });
+    const release = () => send("Input.dispatchMouseEvent", { type: "mouseReleased", x: center.x, y: center.y, button: "left", clickCount });
+    if (clickCount === 2)
+      await executeAndWaitForRender(release);
+    else
+      await release();
     // A person's two clicks are about 150 ms apart.
     await waitMilliseconds(150);
   }
-  await waitMilliseconds(800);
+  // await waitMilliseconds(800);
 }
 
 // async function readNodeTextSelection() {
@@ -55,7 +61,7 @@ test("test_double_clicking_a_block_node_selects_all_of_the_node_text_input", asy
 test("test_double_clicking_a_node_of_a_large_diagram_selects_all_of_the_node_text_input", async () => {
   // Scenario: a large diagram renders slowly, so the render started by the first click ends after the double click.
   await executeExpression("loadDiagram('accountability.mmd')");
-  await waitMilliseconds(1500);
+  // await waitMilliseconds(1500);
   // Step: double click the question Q_THEM_DONE_SPEAKING with the mouse.
   await doubleClickNodeWithMouse("Q_THEM_DONE_SPEAKING");
   // Step: the Node Text input has focus and all of its text is selected.
