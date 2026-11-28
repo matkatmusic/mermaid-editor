@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 // import { send, executeExpression, waitMilliseconds } from "../../cdp.ts";
-import { send, executeExpression, executeAndWaitForRender, executeAndWaitForScrollEnd } from "../../cdp.ts";
+// import { send, executeExpression, executeAndWaitForRender, executeAndWaitForScrollEnd } from "../../cdp.ts";
+import { send, executeExpression, executeAndWaitForRender, executeAndWaitForScrollEnd, waitMilliseconds } from "../../cdp.ts";
 import { registerBrowserHooks } from "../../browser-harness.ts";
 import { openEditorDrawer, resetEditorFixture } from "../../editor-helpers.ts";
 import { getHighlightedNodeIds } from "../../real-input.ts";
@@ -117,9 +118,9 @@ test("test_clicking_the_chosen_choice_button_scrolls_the_main_view_to_center_and
     const offsetBefore = await measureCenterOffsetBetweenBlockAndMainView(choiceId);
     assert.ok(Math.abs(offsetBefore.vertical) > 200, `choice must start off center, vertical offset was ${offsetBefore.vertical}`);
     // Click the green chosen button with a real mouse.
-    // await clickPhoneRowWithMouse(choiceId);
-    // await waitMilliseconds(1500);
-    await executeAndWaitForScrollEnd('#output', () => clickPhoneRowWithMouse(choiceId));
+    await clickPhoneRowWithMouse(choiceId);
+    await waitMilliseconds(1500);
+    // await executeAndWaitForScrollEnd('#output', () => clickPhoneRowWithMouse(choiceId));
     // The choice is centered in the main view and is the one selected node.
     const offsetAfter = await measureCenterOffsetBetweenBlockAndMainView(choiceId);
     assert.ok(Math.abs(offsetAfter.vertical) <= CENTER_TOLERANCE_PIXELS, `vertical offset was ${offsetAfter.vertical}`);
