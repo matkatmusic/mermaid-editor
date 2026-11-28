@@ -6,7 +6,8 @@ import { openEditorDrawer, resetEditorFixture, setEditorSource } from "./editor-
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
 
-const TALL_SOURCE = ["flowchart TD", ...Array.from({ length: 40 }, (_unused, index) => `  N${index} --> N${index + 1}`)].join("\n");
+// const TALL_SOURCE = ["flowchart TD", ...Array.from({ length: 40 }, (_unused, index) => `  N${index} --> N${index + 1}`)].join("\n");
+const TALL_SOURCE = ["flowchart TD", ...Array.from({ length: 41 }, (_unused, index) => `  B_N${index}[Step ${index}]`), ...Array.from({ length: 40 }, (_unused, index) => `  B_N${index} --> B_N${index + 1}`)].join("\n");
 
 async function loadTallDiagram() {
     await resetEditorFixture();
@@ -31,7 +32,8 @@ test("test_executeAndWaitForRender_returns_after_the_new_drawing_is_on_screen", 
     await waitForRender();
     const svgIdBefore = await executeExpression<string>("document.querySelector('#diagram svg').id");
     // The action edits the source and starts a drawing without waiting for it.
-    await executeAndWaitForRender(() => executeExpression("codeBox.value = 'flowchart TD\\n  A[One] --> B[Two]'; render(); true"));
+    // await executeAndWaitForRender(() => executeExpression("codeBox.value = 'flowchart TD\\n  A[One] --> B[Two]'; render(); true"));
+    await executeAndWaitForRender(() => executeExpression("codeBox.value = 'flowchart TD\\n  B_ONE[One]\\n  B_TWO[Two]\\n  B_ONE --> B_TWO'; render(); true"));
     const svgIdAfter = await executeExpression<string>("document.querySelector('#diagram svg').id");
     assert.notEqual(svgIdAfter, svgIdBefore);
 });
