@@ -177,7 +177,7 @@ test("test_clicking_an_arrow_head_of_a_line_that_goes_up_centers_the_end_block_a
     // Step: click the extra arrow head with the real mouse.
     // await clickArrowHeadWithMouse("L_B_N23_B_N8_0");
     // await waitMilliseconds(1500);
-    await executeAndWaitForScrollEnd('#output', () => clickArrowHeadWithMouse("L_B_N23_B_N8_0")); // replaces the action line and the wait
+    await executeAndWaitForScrollEnd('#output', () => clickArrowHeadWithMouse("L_B_N23_B_N8_0"));
     // Step: the end block B_N8 is in the middle of the visible area and no block is selected.
     assert.ok(await measureBlockDistanceFromCenter("B_N8") <= CENTERED_WITHIN_PX);
     assert.equal(await executeExpression("document.querySelectorAll('#diagram .editor-selected').length"), 0);
@@ -194,7 +194,7 @@ test("test_clicking_an_arrow_head_of_a_line_that_goes_down_centers_the_end_block
     const distanceBeforeClick = await measureBlockDistanceFromCenter("B_N4");
     // await clickArrowHeadWithMouse("L_B_N3_B_N4_0");
     // await waitMilliseconds(1500);
-    await executeAndWaitForScrollEnd('#output', () => clickArrowHeadWithMouse("L_B_N3_B_N4_0")); // replaces the action line and the wait
+    await executeAndWaitForScrollEnd('#output', () => clickArrowHeadWithMouse("L_B_N3_B_N4_0"));
     // Step: the end block B_N4 is in the middle of the visible area.
     const distance = await measureBlockDistanceFromCenter("B_N4");
     assert.ok(distance <= CENTERED_WITHIN_PX, `B_N4 is ${distance}px from the middle, was ${distanceBeforeClick}px before the click`);
@@ -235,7 +235,7 @@ test("test_command_clicking_the_visible_part_of_a_line_centers_the_start_block",
     // Step: Command-click that point; the start block B_N8 is in the middle of the visible area.
     // await commandClickWithMouse(point.x, point.y);
     // await waitMilliseconds(1500);
-    await executeAndWaitForScrollEnd('#output', () => commandClickWithMouse(point.x, point.y)); // replaces the action line and the wait
+    await executeAndWaitForScrollEnd('#output', () => commandClickWithMouse(point.x, point.y));
     const distance = await measureBlockDistanceFromCenter("B_N8");
     assert.ok(distance <= CENTERED_WITHIN_PX, `B_N8 is ${distance}px from the middle`);
 });
@@ -254,7 +254,7 @@ test("test_command_clicking_an_extra_arrow_head_centers_the_start_block", async 
     // Step: Command-click the extra arrow head; the start block B_N3 is in the middle of the visible area.
     // await commandClickWithMouse(center.x, center.y);
     // await waitMilliseconds(1500);
-    await executeAndWaitForScrollEnd('#output', () => commandClickWithMouse(center.x, center.y)); // replaces the action line and the wait
+    await executeAndWaitForScrollEnd('#output', () => commandClickWithMouse(center.x, center.y));
     const distance = await measureBlockDistanceFromCenter("B_N3");
     assert.ok(distance <= CENTERED_WITHIN_PX, `B_N3 is ${distance}px from the middle`);
 });
