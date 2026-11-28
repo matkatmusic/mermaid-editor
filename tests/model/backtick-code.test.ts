@@ -12,7 +12,7 @@ const SOURCE = 'flowchart TD\n  B_A["Use `bytes` and `count` here"]\n  B_B["It`s
 async function startBacktickTest() {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 test("test_main_diagram_shows_text_in_backticks_as_a_code_span_without_the_backticks", async () => {
@@ -55,14 +55,14 @@ test("test_the_file_and_the_node_text_box_keep_the_raw_backticks", async () => {
     // assert.ok((await executeExpression("codeBox.value")).includes('B_A["Use `bytes` and `count` here"]'));
     assert.ok((await executeExpression<string>("codeBox.value")).includes('B_A["Use `bytes` and `count` here"]'));
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     assert.equal(await executeExpression("document.getElementById('nodeTextInput').value"), "Use `bytes` and `count` here");
 });
 
 test("test_phone_view_shows_text_in_backticks_as_a_code_span_without_the_backticks", async () => {
     await startBacktickTest();
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
     const measured: { codeTexts: string[]; blockText: string; fontFamily: string; backgroundColor: string } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const block = document.querySelector('#phoneDiagram [data-node-id="B_A"]');

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeAndWaitForRender, executeExpression, waitForRender } from "../../cdp.ts";
 import { openEditorDrawer, selectEditorNode, setEditorSource } from "../../editor-helpers.ts";
 import { SEARCH_FIXTURE } from "../../fixtures.ts";
 import { nodeIsInMainView, searchState, startSearchTest, typeSearch } from "../../search-helpers.ts";
@@ -61,8 +62,9 @@ test('test_each_search_keypress_reruns_the_search_and_jumps_to_the_new_first_hit
   await typeSearch('s');
   assert.equal((await searchState()).selected, 'B_START');
   // Step: two fast keypresses end on the hit of the last keypress, not on a stale earlier hit.
-  await executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = 'st'; input.dispatchEvent(new Event('input', { bubbles: true })); input.value = 'se'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-  await waitMilliseconds(600);
+  // await executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = 'st'; input.dispatchEvent(new Event('input', { bubbles: true })); input.value = 'se'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  // await waitMilliseconds(600);
+  await executeAndWaitForRender(() => executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = 'st'; input.dispatchEvent(new Event('input', { bubbles: true })); input.value = 'se'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`));
   assert.equal((await searchState()).selected, 'Q_SECOND');
 });
 
@@ -82,10 +84,11 @@ test('test_search_cycle_buttons_show_only_for_two_or_more_hits_and_step_through_
   assert.equal(twoHits.nextHidden, false);
   assert.equal(twoHits.selected, 'Q_FIRST');
   // Step: Next steps to the second hit and keeps the selected item widget open.
-  await executeExpression("document.getElementById('searchNextBtn').click()");
+  // await executeExpression("document.getElementById('searchNextBtn').click()");
   // A second render started before the click's own render ends discards the click's centering.
-  await waitMilliseconds(500);
-  await waitForRender();
+  // await waitMilliseconds(500);
+  // await waitForRender();
+  await executeAndWaitForRender(() => executeExpression("document.getElementById('searchNextBtn').click()"));
   const second = await searchState();
   assert.equal(second.selected, 'Q_SECOND');
   assert.equal(second.counter, '2 / 2');
@@ -120,7 +123,7 @@ test('test_remove_deletes_a_question_with_no_edges_and_the_search_count_drops_by
   // Step: select the question with no edges and click Remove.
   await selectEditorNode('Q_LONELY');
   await executeExpression(`document.querySelector('#nodeInspectorActions button[data-action="remove"]').click(); window.editorActionPromise`);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   // Step: the definition line is gone from the source and the diagram.
   assert.equal(await executeExpression("codeBox.value.includes('Q_LONELY')"), false);
   assert.equal(await executeExpression("!!document.querySelector('#diagram [id*=\"flowchart-Q_LONELY-\"]')"), false);
@@ -135,7 +138,7 @@ test('test_search_clear_button_shows_with_text_and_empties_the_field', async () 
   assert.equal((await searchState()).clearHidden, false);
   // Step: clicking clear empties the field and hides the clear button, the cycle buttons, and the counter.
   await executeExpression("document.getElementById('searchClearBtn').click()");
-  await waitMilliseconds(100);
+  // await waitMilliseconds(100);
   const cleared = await searchState();
   assert.equal(cleared.value, '');
   assert.equal(cleared.clearHidden, true);

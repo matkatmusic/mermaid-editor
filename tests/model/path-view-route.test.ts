@@ -86,11 +86,11 @@ test('test_route_search_leaves_the_phone_answers_unchanged', async () => {
     // Click B_LONG so the phone holds an answer, then search a route through the other choice and draw again.
     await loadPathViewSource(ROUTE_SOURCE);
     await clickNodeWithMouse('B_LONG');
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const idsBefore = await listPhoneNodeIds();
     await findRouteIds('Q_CHOICE_ASK_YES');
     await executeExpression('render()');
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     assert.deepEqual(await listPhoneNodeIds(), idsBefore);
 });
 

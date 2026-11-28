@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerBrowserHooks, SERVER_PORT } from '../../browser-harness.ts';
-import { executeExpression, send, waitMilliseconds } from '../../cdp.ts';
+// import { executeExpression, send, waitMilliseconds } from '../../cdp.ts';
+import { executeExpression, send, waitForEditorAction, waitForExpression } from '../../cdp.ts';
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from '../../editor-helpers.ts';
 import { clickInspectorAction } from '../../inspector-helpers.ts';
 import { KeyName, Modifier, clickNodeWithMouse, pressKey } from '../../real-input.ts';
@@ -16,7 +17,7 @@ const NO_NODE_IDS = ['B_END', 'B_NO', 'B_START', 'Q_ASK', 'Q_CHOICE_ASK_NO'];
 async function loadFullDiagram() {
     await resetEditorFixture();
     await setEditorSource(PATH_VIEW_SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 async function turnToggleOn() {
@@ -26,7 +27,7 @@ async function turnToggleOn() {
 
 async function clickFilter(id: string) {
     await clickNodeWithMouse(id);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 async function selectBlock(id: string) {
@@ -35,7 +36,7 @@ async function selectBlock(id: string) {
 
 async function runInspectorAction(action: string) {
     await clickInspectorAction(action);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 function readJson(expression: string) {
@@ -77,12 +78,13 @@ async function renameSelectedBlock(namePart: string) {
         await send('Input.dispatchKeyEvent', { type: 'char', text: character, key: character });
     await pressKey(KeyName.Tab);
     await executeExpression('window.editorActionPromise');
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 async function dispatchShiftClick(id: string) {
     await executeExpression(`document.querySelector('#diagram [id*="flowchart-${id}-"]').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }))`);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
+    await waitForEditorAction();
 }
 
 test('test_block_click_with_the_downstream_toggle_off_only_selects_the_block', async () => {
@@ -255,7 +257,8 @@ test('test_downstream_view_turns_off_when_undo_takes_a_clicked_block_away', asyn
     await runInspectorAction('insert-static-after');
     await clickFilter('B_NEW_1');
     await executeExpression("document.getElementById('editorUndoBtn').click()");
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
+    await waitForEditorAction();
     await assertViewIsOff();
 });
 
@@ -321,10 +324,11 @@ test('test_reset_button_unlocks_the_source_editor', async () => {
 test('test_export_with_no_filter_leaves_the_source_editor_unlocked', async () => {
     await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/downstream-export.mmd`, { method: 'PUT', body: PATH_VIEW_SOURCE });
     await executeExpression("loadDiagram('downstream-export.mmd')");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickButtonWithMouse('#downstreamViewBtn');
     await executeExpression("document.getElementById('exportAllPathsBtn').click()");
-    await waitMilliseconds(1500);
+    // await waitMilliseconds(1500);
+    await waitForExpression("document.getElementById('status').textContent === 'Wrote 2 paths'");
     assert.equal(await executeExpression("document.getElementById('status').textContent"), 'Wrote 2 paths');
     assert.equal(await isSourceReadOnly(), false);
 });
@@ -353,7 +357,7 @@ test('test_delete_key_removes_a_decision_with_no_filter', async () => {
     await turnToggleOn();
     await clickNodeWithMouse('Q_ASK', Modifier.Meta);
     await pressKey(KeyName.Delete);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
     assert.ok(!(await readSource()).includes('Q_ASK{{'));
 });
 
@@ -373,7 +377,7 @@ test('test_right_click_opens_the_add_block_menu_with_no_filter', async () => {
     })())`));
     await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'right', clickCount: 1 });
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'right', clickCount: 1 });
-    await waitMilliseconds(200);
+    // await waitMilliseconds(200);
     assert.equal(await executeExpression("document.getElementById('viewportMenu').hidden"), false);
     await executeExpression("document.getElementById('viewportMenu').hidden = true");
 });
@@ -390,7 +394,7 @@ test('test_command_click_selects_the_block_and_does_not_filter', async () => {
     await turnToggleOn();
     await executeExpression('selectEditorNode(null)');
     await clickNodeWithMouse('B_YES', Modifier.Meta);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
     assert.deepEqual(await readJson('pathView.clickedIds'), []);
     await assertShown(ALL_NODE_IDS);
     assert.equal(await executeExpression("document.querySelectorAll('#diagram .editor-selected').length"), 1);

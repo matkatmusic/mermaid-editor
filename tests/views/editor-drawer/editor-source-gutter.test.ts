@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "../../browser-harness.ts";
-import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, waitForExpression, waitForRender } from "../../cdp.ts";
 import { SCROLL_FIXTURE_NAME, scrollFixtureSource } from "../../fixtures.ts";
 import { measureSourceLineBounds, openEditorDrawer } from "../../editor-helpers.ts";
 
@@ -12,7 +13,7 @@ const gutterNumbers = "Array.from(document.querySelectorAll('#sourceGutter span'
 test("test_gutter_shows_one_number_per_line_and_lines_up_with_the_first_row_of_a_wrapped_line", async () => {
   // Scenario: a loaded diagram shows numbers 1..N and each number sits at the top of its line.
   await executeExpression(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   // const lineCount = await executeExpression("codeBox.value.split('\\n').length");
   const lineCount = await executeExpression<number>("codeBox.value.split('\\n').length");
   // const texts = await executeExpression(`JSON.stringify(${gutterNumbers}.map((el) => el.textContent))`).then(JSON.parse);
@@ -34,9 +35,10 @@ test("test_gutter_shows_one_number_per_line_and_lines_up_with_the_first_row_of_a
 test("test_gutter_follows_the_code_box_scroll_and_updates_on_input", async () => {
   // Scenario: scrolling the textarea scrolls the gutter, and typing a new line adds a number.
   await executeExpression(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   await executeExpression("codeBox.scrollTop = 300");
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+  await waitForExpression("document.getElementById('sourceGutter').scrollTop === 300");
   assert.equal(await executeExpression("codeBox.scrollTop"), 300);
   assert.equal(await executeExpression("document.getElementById('sourceGutter').scrollTop"), 300);
 

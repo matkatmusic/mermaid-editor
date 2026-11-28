@@ -13,7 +13,7 @@ const TOLERANCE_PX = 1.5;
 async function loadSource(source: string) {
     await resetEditorFixture();
     await setEditorSource(source);
-    await waitMilliseconds(1500);
+    // await waitMilliseconds(1500);
 }
 type TextLineReport = { nodeId: string; text: string; problems: string[] };
 // For every text line of every block: the line box lies inside the shape box, and the browser really draws the ends of the line

@@ -15,7 +15,7 @@ async function openClassPickerWithManyClasses() {
     await setEditorSource(`${SEARCH_FIXTURE}\n${classLines.join("\n")}`);
     await selectEditorNode("B_MIDDLE");
     await executeExpression("document.getElementById('classPickerBtn').click()");
-    await waitMilliseconds(200);
+    // await waitMilliseconds(200);
 }
 
 // async function measureClassPickerList() {

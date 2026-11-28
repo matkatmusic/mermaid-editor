@@ -24,7 +24,7 @@ type Gaps = { left: number; right: number; top: number; bottom: number };
 async function loadSource(source: string) {
     await resetEditorFixture();
     await setEditorSource(source);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 async function readSourceLines(): Promise<string[]> {
@@ -91,7 +91,7 @@ async function readLineLeftEdges(id: string): Promise<{ first: number; last: num
 
 async function selectBlockWithMouse(id: string) {
     await clickNodeWithMouse(id);
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
 }
 
 test("test_the_inspector_shows_centre_and_centre_pressed_for_a_block_without_an_align_line", async () => {
@@ -155,13 +155,13 @@ test("test_undo_and_redo_of_an_align_click_restore_the_line_and_the_pressed_butt
     await clickAlignButtonWithMouse("justification", "right");
     assert.deepEqual(await readAlignLines(), ['  %% ==props==: {"blockId":"B_START","alignment":"center","justification":"right"}']);
     await executeExpression("window.applyEditorUndo(); window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     assert.deepEqual(await readAlignLines(), []);
     // An undo clears the selection, as for every other inspector edit; select the block again to read its buttons.
     await selectBlockWithMouse("B_START");
     assert.deepEqual((await readPressedButtons()).sort(), ["center", "center"]);
     await executeExpression("window.applyEditorRedo(); window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     assert.deepEqual(await readAlignLines(), ['  %% ==props==: {"blockId":"B_START","alignment":"center","justification":"right"}']);
     await selectBlockWithMouse("B_START");
     assert.deepEqual((await readPressedButtons()).sort(), ["center", "right"]);
@@ -220,21 +220,21 @@ test("test_an_unsized_block_with_two_lines_shows_the_justification", async () =>
 test("test_removing_a_node_removes_its_align_line", async () => {
     await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_END","alignment":"top","justification":"left"}\n%% ==props==: {"blockId":"B_START","alignment":"bottom","justification":"right"}`);
     await clickNodeWithMouse("B_END");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     await executeExpression("window.removeBlock(); window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     assert.deepEqual(await readAlignLines(), ['%% ==props==: {"blockId":"B_START","alignment":"bottom","justification":"right"}']);
 });
 
 test("test_renaming_a_node_renames_its_align_line", async () => {
     await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_END","alignment":"top","justification":"left"}`);
     await clickNodeWithMouse("B_END");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     await executeExpression("(() => { const input = document.getElementById('nodeNameInput'); input.focus(); input.select(); })()");
     for (const character of "FINISH")
         await send("Input.dispatchKeyEvent", { type: "char", text: character, key: character });
     await pressKey(KeyName.Tab);
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     assert.deepEqual(await readAlignLines(), ['%% ==props==: {"blockId":"B_FINISH","alignment":"top","justification":"left"}']);
 });

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+import { executeAndWaitForRender, executeExpression, send, waitMilliseconds } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { SEARCH_FIXTURE } from "../../fixtures.ts";
 
@@ -11,7 +12,7 @@ test("test_double_click_works_when_the_render_of_the_first_click_ends_between_th
   // Scenario: the first click re-renders the diagram; if the new drawing replaces the nodes while the second press is held, the browser sends no dblclick.
   await resetEditorFixture();
   await setEditorSource(SEARCH_FIXTURE);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   // Step: make every Mermaid render take 150 ms longer, so the render of the first click ends about 200 ms after that click.
   await executeExpression(`(() => {
     window.__originalMermaidRender = mermaid.render;
@@ -40,8 +41,9 @@ test("test_double_click_works_when_the_render_of_the_first_click_ends_between_th
   await waitMilliseconds(40);
   await pressMouse(2);
   await waitMilliseconds(300);
-  await releaseMouse(2);
-  await waitMilliseconds(600);
+  // await releaseMouse(2);
+  // await waitMilliseconds(600);
+  await executeAndWaitForRender(() => releaseMouse(2));
   // const selection = JSON.parse(await executeExpression(`JSON.stringify({
   const selection: { activeId: string; value: string; start: number | null; end: number | null } = JSON.parse(await executeExpression(`JSON.stringify({
     activeId: document.activeElement.id,

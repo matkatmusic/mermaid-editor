@@ -38,9 +38,9 @@ async function measureInspector(): Promise<{
 async function selectChoiceAndMeasure() {
   await resetEditorFixture();
   await setEditorSource(SOURCE);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   await clickNodeWithMouse("Q_CHOICE_ASK_YES");
-  await waitMilliseconds(300);
+  // await waitMilliseconds(300);
   return measureInspector();
 }
 
@@ -52,7 +52,7 @@ for (const drawerState of ["open", "closed"]) {
       await executeExpression("document.getElementById('drawer').classList.contains('closed') || document.getElementById('drawerToggle').click()");
     else if (isClosed)
       await executeExpression("document.getElementById('drawerToggle').click()");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     const measured = await selectChoiceAndMeasure();
     console.log(`MEASURED drawer ${drawerState}: ${JSON.stringify(measured)}`);
     // The type row and the Node Name box use the same font as the other labels.
@@ -104,9 +104,9 @@ for (const nodeId of ["Q_CHOICE_ASK_YES", "B_" + "LONG_".repeat(30) + "END"]) {
     // Step: select a block (a short id, then a very long id).
     await resetEditorFixture();
     await setEditorSource(SOURCE.replaceAll("B_END", nodeId.startsWith("B_") ? nodeId : "B_END"));
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickNodeWithMouse(nodeId);
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     // Step: measure the Node Name input, the result text and the inspector.
     // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
     const measured: { input: ItemBox; result: ItemBox; inspector: ItemBox; text: string } = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
@@ -130,9 +130,9 @@ async function selectNodeAndMeasureKindRow(id: string): Promise<{
 }> {
   await resetEditorFixture();
   await setEditorSource(SOURCE);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   await clickNodeWithMouse(id);
-  await waitMilliseconds(300);
+  // await waitMilliseconds(300);
   // return executeExpression(`JSON.stringify((() => {
   return executeExpression<string>(`JSON.stringify((() => {
     const box = (element) => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }; };

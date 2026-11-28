@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "../../browser-harness.ts";
-import { executeExpression, send, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, send, waitForExpression, waitForRender } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { clickNodeWithMouse, KeyName, pressKey } from "../../real-input.ts";
 
@@ -27,7 +28,7 @@ const SOURCE = [
 async function loadFixture() {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 async function readSourceLines(): Promise<string[]> {
@@ -41,7 +42,7 @@ async function typeIntoNodeTextAndPressEnter(id: string, text: string) {
     await send("Input.insertText", { text });
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 async function countShapePoints(id: string): Promise<number> {
@@ -75,7 +76,7 @@ test("test_rename_keeps_each_decision_in_its_own_shape", async () => {
         await send("Input.insertText", { text: id.replace("Q_", "") + "2" });
         await pressKey(KeyName.Enter);
         await executeExpression("window.editorActionPromise");
-        await waitMilliseconds(500);
+        // await waitMilliseconds(500);
         assert.ok((await readSourceLines()).includes(expectedLine), expectedLine);
     }
 });
@@ -85,7 +86,7 @@ test("test_a_new_decision_after_a_block_is_written_as_a_hexagon", async () => {
     await clickNodeWithMouse("B_END");
     await executeExpression("document.querySelector('#nodeInspectorActions [data-action=\"insert-decision-after\"]').click()");
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const newDecisionLines = (await readSourceLines()).filter((line) => line.includes('"New Decision"'));
     assert.equal(newDecisionLines.length, 1, newDecisionLines.join("|"));
     assert.match(newDecisionLines[0], /^  Q_[A-Za-z0-9_]+\{\{"New Decision"\}\}$/);
@@ -98,7 +99,8 @@ test("test_a_written_path_keeps_each_decision_in_its_own_shape", async () => {
         await waitForRender();
     }
     await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForExpression("document.getElementById('status').textContent.startsWith('Wrote ')");
     // const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json());
     const names = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json() as Promise<string[]>);
     const pathName = names.filter((name) => name.includes("-path-")).sort().pop()!;

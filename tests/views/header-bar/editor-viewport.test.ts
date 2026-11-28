@@ -13,7 +13,7 @@ test("test_inspector_keeps_the_diagram_scroll_position", async () => {
   // Scenario: selecting, committing with Enter, and dismissing never move #output's scroll position.
   // await executeExpression(`phoneToggle.checked = false; phoneToggle.dispatchEvent(new Event('change'));`);
   await executeExpression(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   // Step: the accountability diagram overflows #output, so scrolling is real.
   // const overflow = await executeExpression("JSON.stringify({sh: document.getElementById('output').scrollHeight, ch: document.getElementById('output').clientHeight})").then(JSON.parse);
   const overflow: { sh: number; ch: number } = await executeExpression<string>("JSON.stringify({sh: document.getElementById('output').scrollHeight, ch: document.getElementById('output').clientHeight})").then(JSON.parse);
@@ -41,7 +41,7 @@ test("test_save_persists_and_load_restores_editor_metadata_trailer", async () =>
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${SCROLL_FIXTURE_NAME}`, { method: "PUT", body: scrollFixtureSource });
   // await executeExpression(`phoneToggle.checked = false; phoneToggle.dispatchEvent(new Event('change'));`);
   await executeExpression(`loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   await executeExpression("document.getElementById('output').scrollLeft = 0; document.getElementById('output').scrollTop = 150; window.selectEditorNode('B_RAISE_ISSUE'); window.addBlockAfter(); window.editorActionPromise");
 
   const saved = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${SCROLL_FIXTURE_NAME}`).then((r) => r.text());
@@ -62,7 +62,7 @@ test("test_save_persists_and_load_restores_editor_metadata_trailer", async () =>
 
   // Step: a load restores the selected node and saved viewport, while Mermaid still renders the comment trailer.
   await executeExpression(`document.getElementById('output').scrollTop = 0; loadDiagram(${JSON.stringify(SCROLL_FIXTURE_NAME)})`);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
   assert.deepEqual(await inspectorFocus(), { activeId: '', selectedId: 'B_RAISE_ISSUE' });
   assert.equal(await getOutputScrollTop(), 150);
   await fetch(`http://localhost:${SERVER_PORT}/api/diagrams/${SCROLL_FIXTURE_NAME}`, { method: "PUT", body: scrollFixtureSource });

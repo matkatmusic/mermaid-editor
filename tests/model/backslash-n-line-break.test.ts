@@ -26,13 +26,13 @@ const DECISION_SOURCE = [
 async function loadSource(source: string) {
     await resetEditorFixture();
     await setEditorSource(source);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
 }
 
 test("test_phone_block_row_draws_a_literal_backslash_n_as_a_line_break", async () => {
     await loadSource(BLOCK_SOURCE);
     await clickNodeWithMouse("B_B");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     // const phone = JSON.parse(await executeExpression(`JSON.stringify((() => {
     const phone: { breaks: number; lines: string[]; text: string } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const block = document.querySelector('#phoneDiagram [data-node-id="B_A"]');
@@ -46,7 +46,7 @@ test("test_phone_block_row_draws_a_literal_backslash_n_as_a_line_break", async (
 test("test_phone_question_row_and_choice_buttons_draw_a_literal_backslash_n_as_a_line_break", async () => {
     await loadSource(DECISION_SOURCE);
     await clickNodeWithMouse("Q_ASK");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     // const phone = JSON.parse(await executeExpression(`JSON.stringify((() => {
     const phone: { questionBreaks: number; questionLines: string[]; buttonBreaks: number[]; buttonLines: string[][] } = JSON.parse(await executeExpression(`JSON.stringify((() => {
         const question = document.querySelector('#phoneDiagram .phone-question');
@@ -62,7 +62,7 @@ test("test_phone_question_row_and_choice_buttons_draw_a_literal_backslash_n_as_a
 test("test_destination_list_and_walk_back_window_show_a_literal_backslash_n_as_a_space", async () => {
     await loadSource(DECISION_SOURCE);
     await clickNodeWithMouse("B_END");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     const optionTexts: string[] = JSON.parse(await executeExpression("JSON.stringify([...document.querySelectorAll('#destinationSelect option')].map((option) => option.textContent))"));
     assert.ok(optionTexts.includes(`${FIRST_LINE} ${SECOND_LINE} (Q_ASK)`), optionTexts.join("|"));
     await executeExpression("document.getElementById('walkBackBtn').click()");
@@ -74,31 +74,31 @@ test("test_destination_list_and_walk_back_window_show_a_literal_backslash_n_as_a
 test("test_node_text_box_shows_a_literal_backslash_n_as_a_line_break", async () => {
     await loadSource(BLOCK_SOURCE);
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     assert.equal(await executeExpression("document.getElementById('nodeTextInput').value"), `${FIRST_LINE}\n${SECOND_LINE}`);
 });
 
 test("test_enter_without_a_change_leaves_a_literal_backslash_n_in_the_file", async () => {
     await loadSource(BLOCK_SOURCE);
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     const before = await executeExpression("codeBox.value");
     await executeExpression("document.getElementById('nodeTextInput').focus()");
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     assert.equal(await executeExpression("codeBox.value"), before);
 });
 
 test("test_an_edit_writes_the_line_break_back_as_backslash_n_not_br", async () => {
     await loadSource(BLOCK_SOURCE);
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     await executeExpression("(() => { const box = document.getElementById('nodeTextInput'); box.focus(); box.setSelectionRange(box.value.length, box.value.length); })()");
     await send("Input.insertText", { text: "!" });
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     // const lines: string[] = (await executeExpression("codeBox.value")).split("\n");
     const lines: string[] = (await executeExpression<string>("codeBox.value")).split("\n");
     assert.ok(lines.includes(`  B_A["${LABEL}!"]`), lines.join("|"));

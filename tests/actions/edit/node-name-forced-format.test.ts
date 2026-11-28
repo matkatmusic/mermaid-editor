@@ -12,9 +12,9 @@ const SOURCE = 'flowchart TD\n  B_A["Alpha"]\n  B_B["Beta"]\n  B_A --> B_B';
 async function selectBlockA() {
     await resetEditorFixture();
     await setEditorSource(SOURCE);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await clickNodeWithMouse("B_A");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
 }
 
 async function typeIntoNodeNameBox(text: string) {
@@ -44,7 +44,7 @@ test("test_enter_renames_the_node_to_capitals_with_underscores", async () => {
     await typeIntoNodeNameBox("my node");
     await pressKey(KeyName.Enter);
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const source: string = await executeExpression("codeBox.value");
     assert.ok(source.includes('  B_MY_NODE["Alpha"]'), source);
     assert.ok(!source.includes("B_A["), source);

@@ -1,5 +1,6 @@
 // import { executeExpression, waitMilliseconds } from './cdp.ts';
-import { executeExpression, send, waitMilliseconds } from './cdp.ts';
+// import { executeExpression, send, waitMilliseconds } from './cdp.ts';
+import { executeAndWaitForRender, executeExpression, send } from './cdp.ts';
 import { resetEditorFixture } from './editor-helpers.ts';
 
 // Two paths and one decision.
@@ -24,7 +25,7 @@ export const PATH_VIEW_SOURCE = [
 export async function loadPathViewSource(source: string = PATH_VIEW_SOURCE) {
     await resetEditorFixture();
     await executeExpression(`showOpenedFile('/tmp/path-view.mmd', ${JSON.stringify(source)})`);
-    await waitMilliseconds(1000);
+    // await waitMilliseconds(1000);
 }
 
 export async function readShownNodeIds(): Promise<string[]> {
@@ -50,7 +51,23 @@ export async function clickButtonWithMouse(selector: string) {
         const rect = element.getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     })())`));
+    // await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: center.x, y: center.y, button: 'left', clickCount: 1 });
+    // await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: center.x, y: center.y, button: 'left', clickCount: 1 });
+    await executeAndWaitForRender(async () => {
+        await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: center.x, y: center.y, button: 'left', clickCount: 1 });
+        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: center.x, y: center.y, button: 'left', clickCount: 1 });
+    });
+    // await waitMilliseconds(800);
+}
+
+// The same click for elements that start no render.
+export async function dispatchClickWithMouse(selector: string) {
+    const center: { x: number; y: number } = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
+        const element = document.querySelector(${JSON.stringify(selector)});
+        element.scrollIntoView({ block: 'center', inline: 'center' });
+        const rect = element.getBoundingClientRect();
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })())`));
     await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: center.x, y: center.y, button: 'left', clickCount: 1 });
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: center.x, y: center.y, button: 'left', clickCount: 1 });
-    await waitMilliseconds(800);
 }

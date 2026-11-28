@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, waitForExpression } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture } from "../../editor-helpers.ts";
 import { clickNodeWithMouse } from "../../real-input.ts";
 
@@ -28,7 +29,7 @@ async function openDiagramText(text: string) {
   await resetEditorFixture();
   await executeExpression("window.capturedErrors = []; window.addEventListener('error', (event) => window.capturedErrors.push(String(event.message))); window.addEventListener('unhandledrejection', (event) => window.capturedErrors.push('rejection: ' + String(event.reason && event.reason.message || event.reason)));");
   await executeExpression(`showOpenedFile('/tmp/phone-click-path.mmd', ${JSON.stringify(text)})`);
-  await waitMilliseconds(1000);
+  // await waitMilliseconds(1000);
 }
 
 async function listPhoneNodeIds(): Promise<string[]> {
@@ -42,7 +43,7 @@ async function readPhoneText(): Promise<string> {
 
 async function clickNodeAndWait(id: string) {
   await clickNodeWithMouse(id);
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
 }
 
 test("test_phone_shows_start_prompt_when_the_diagram_has_two_start_nodes_and_nothing_was_clicked", async () => {
@@ -83,7 +84,8 @@ test("test_phone_reset_is_enabled_after_a_start_block_is_chosen_and_brings_back_
   await clickNodeAndWait("B_LAUNCH");
   assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-reset-decisions]').disabled"), false);
   await executeExpression("document.querySelector('#phoneTopBar [data-reset-decisions]').click()");
-  await waitMilliseconds(800);
+  // await waitMilliseconds(800);
+  await waitForExpression("document.getElementById('phoneStartPrompt') !== null");
   assert.equal(await executeExpression("document.getElementById('phoneStartPrompt').textContent"), START_PROMPT);
   assert.equal(await executeExpression("document.querySelector('#phoneTopBar [data-reset-decisions]').disabled"), true);
 });
@@ -141,7 +143,8 @@ test("test_reset_decisions_returns_the_phone_to_the_start_prompt", async () => {
   await openDiagramText(TWO_START_NODES);
   await clickNodeAndWait("B_USE_GIVEN_JSONLS");
   await executeExpression("document.querySelector('#phoneDiagram button[data-reset-decisions]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+  await waitForExpression("document.getElementById('phoneStartPrompt') !== null");
   // The screen now also holds the greyed top bar.
   // assert.equal(await readPhoneText(), START_PROMPT);
   assert.equal(await executeExpression("document.getElementById('phoneStartPrompt').textContent"), START_PROMPT);

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, send, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, send, waitForEditorAction, waitForRender } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 import { clickNodeWithMouse, Modifier } from "../../real-input.ts";
 
@@ -32,7 +33,7 @@ interface Box {
 async function loadSource(source: string) {
     await resetEditorFixture();
     await setEditorSource(source);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 // The outer box of the hexagon shape in svg units, which are px at 100% zoom.
@@ -76,7 +77,7 @@ async function dragMouse(from: { x: number; y: number }, to: { x: number; y: num
     await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: to.x, y: to.y, button: "left", buttons: 0, clickCount: 1 });
     await executeExpression("window.editorActionPromise");
     await waitForRender();
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
 }
 
 test("test_a_sized_hexagon_renders_with_the_stored_size_as_its_outer_box", async () => {
@@ -176,7 +177,7 @@ test("test_a_hexagon_drag_cannot_go_below_the_minimum_and_undo_restores_the_size
     const after = await readHexagonSize("Q_A");
     assert.ok(Math.abs(after.height - 96) < 1.5, JSON.stringify(after));
     await executeExpression("window.applyEditorUndo(); window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     assert.equal(await readSizeLine("Q_A"), '%% ==props==: {"blockId":"Q_A","width":400,"height":120}');
 });
 
@@ -184,12 +185,12 @@ test("test_switching_a_hexagon_to_a_diamond_removes_its_size_line_in_one_history
     await loadSource(SOURCE);
     await clickNodeWithMouse("Q_A");
     await executeExpression("document.getElementById('decisionShapeSwitch').click(); window.editorActionPromise");
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
     const source: string = await executeExpression("codeBox.value");
     assert.ok(source.includes('  Q_A{"Does it work?"}'), source);
     assert.equal(await readSizeLine("Q_A"), undefined);
     await executeExpression("window.applyEditorUndo(); window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const restored: string = await executeExpression("codeBox.value");
     assert.ok(restored.includes('  Q_A{{"Does it work?"}}'), restored);
     assert.equal(await readSizeLine("Q_A"), '%% ==props==: {"blockId":"Q_A","width":400,"height":120}');
@@ -199,7 +200,7 @@ test("test_switching_a_diamond_to_a_hexagon_keeps_the_size_lines_of_other_nodes"
     await loadSource(`${BODY}\n%% ==props==: {"blockId":"Q_A","width":400,"height":120}\n%% ==props==: {"blockId":"B_START","width":300,"height":100}`);
     await clickNodeWithMouse("Q_D");
     await executeExpression("document.getElementById('decisionShapeSwitch').click(); window.editorActionPromise");
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
     assert.equal(await readSizeLine("Q_A"), '%% ==props==: {"blockId":"Q_A","width":400,"height":120}');
     assert.equal(await readSizeLine("B_START"), '%% ==props==: {"blockId":"B_START","width":300,"height":100}');
 });
@@ -212,6 +213,7 @@ test("test_a_cmd_press_on_a_hexagon_point_does_not_resize", async () => {
     await send("Input.dispatchMouseEvent", { type: "mousePressed", x: box.right - 2, y: middleY, button: "left", buttons: 1, clickCount: 1, modifiers: Modifier.Meta });
     await moveMouse(box.right - 2 + 60, middleY, 1);
     await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: box.right - 2 + 60, y: middleY, button: "left", buttons: 0, clickCount: 1, modifiers: Modifier.Meta });
-    await waitMilliseconds(400);
+    // await waitMilliseconds(400);
+    await waitForEditorAction();
     assert.equal(await readSizeLine("Q_A"), '%% ==props==: {"blockId":"Q_A","width":400,"height":120}');
 });

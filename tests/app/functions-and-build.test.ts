@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 // import { tmpdir } from "node:os";
 // import { join } from "node:path";
 import { registerBrowserHooks, SERVER_PORT } from "../browser-harness.ts";
-import { executeExpression, waitForRender, waitMilliseconds } from "../cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "../cdp.ts";
+import { executeAndWaitForRender, executeExpression, waitForRender } from "../cdp.ts";
 import { getNodeIds, openEditorDrawer, setEditorSource } from "../editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -37,8 +38,9 @@ test('test_functions_only_toggle_filters_both_views_to_functions_and_restores_on
   assert.deepEqual(await mainNodeIds(), ['B_DONE', 'B_MAIN', 'B_PARSE', 'B_SETUP']);
   assert.equal(await mainHasEdge('L_B_MAIN_B_SETUP_'), true);
   // Step: enable the functions-only toggle and let both views rerender.
-  await executeExpression("(() => { const toggle = document.getElementById('functionsOnlyToggle'); toggle.checked = true; toggle.dispatchEvent(new Event('change')); })()");
-  await waitMilliseconds(400);
+  // await executeExpression("(() => { const toggle = document.getElementById('functionsOnlyToggle'); toggle.checked = true; toggle.dispatchEvent(new Event('change')); })()");
+  // await waitMilliseconds(400);
+  await executeAndWaitForRender(() => executeExpression("(() => { const toggle = document.getElementById('functionsOnlyToggle'); toggle.checked = true; toggle.dispatchEvent(new Event('change')); })()"));
   assert.equal(await executeExpression('state.functionsOnly'), true);
   // Step: the main view now holds only the three function nodes.
   assert.deepEqual(await mainNodeIds(), ['B_DONE', 'B_MAIN', 'B_PARSE']);
@@ -52,8 +54,9 @@ test('test_functions_only_toggle_filters_both_views_to_functions_and_restores_on
   assert.deepEqual(await phoneNodeOrder(), ['B_MAIN', 'B_PARSE', 'B_DONE']);
   assert.equal(await mainHasEdge('L_B_PARSE_B_DONE_'), true);
   // Step: disable the functions-only toggle and let both views rerender.
-  await executeExpression("(() => { const toggle = document.getElementById('functionsOnlyToggle'); toggle.checked = false; toggle.dispatchEvent(new Event('change')); })()");
-  await waitMilliseconds(400);
+  // await executeExpression("(() => { const toggle = document.getElementById('functionsOnlyToggle'); toggle.checked = false; toggle.dispatchEvent(new Event('change')); })()");
+  // await waitMilliseconds(400);
+  await executeAndWaitForRender(() => executeExpression("(() => { const toggle = document.getElementById('functionsOnlyToggle'); toggle.checked = false; toggle.dispatchEvent(new Event('change')); })()"));
   assert.equal(await executeExpression('state.functionsOnly'), false);
   // Step: the original diagram is restored, non-function step and original edge included.
   assert.deepEqual(await mainNodeIds(), ['B_DONE', 'B_MAIN', 'B_PARSE', 'B_SETUP']);

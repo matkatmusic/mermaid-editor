@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, waitForExpression, waitForRender } from "../../cdp.ts";
 import { resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url);
@@ -49,7 +50,8 @@ test("test_phone_view_handles_a_diagram_with_no_edges", async () => {
   await executeExpression(
     "codeBox.value = 'flowchart TD\\n  B_ONLY_ONE_BOX[Only one box]'; codeBox.dispatchEvent(new Event('input'))"
   );
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+  await waitForExpression(`!!document.querySelector('#phoneDiagram [data-node-id="B_ONLY_ONE_BOX"]')`);
   // Step: no error is shown, and the single node still renders.
   const errorText = await executeExpression("document.getElementById('error').textContent");
   assert.equal(errorText, "");
@@ -97,7 +99,8 @@ test("test_syntax_error_keeps_last_good_diagram_and_shows_error_log", async () =
   await executeExpression(
     "codeBox.value = 'flowchart TD\\n  B_OK[ok]\\n  B_GOOD[good]\\n  B_OK --> '; codeBox.dispatchEvent(new Event('input'))"
   );
-  await waitMilliseconds(500);
+  // await waitMilliseconds(500);
+  await waitForExpression("document.getElementById('errorLog').classList.contains('open')");
   const stillHasSvg = await executeExpression("!!document.querySelector('#diagram svg')");
   assert.equal(stillHasSvg, true);
   const hasNodeB = await executeExpression('!!document.querySelector(\'#diagram [id*="flowchart-B_GOOD-"]\')');

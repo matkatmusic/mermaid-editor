@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
-import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
+import { executeAndWaitForScrollEnd, executeExpression, send, waitForTwoFrames } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -16,13 +17,14 @@ function buildChainSource(blockCount: number) {
 async function loadChain(blockCount: number) {
     await resetEditorFixture();
     await setEditorSource(buildChainSource(blockCount));
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
 }
 
 async function setOutputScrollTop(scrollTop: number | "max") {
     const value = scrollTop === "max" ? "output.scrollHeight" : String(scrollTop);
     await executeExpression(`(() => { const output = document.getElementById('output'); output.scrollTop = ${value}; })()`);
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
+    await waitForTwoFrames();
 }
 
 // Scrolls so the middle of one edge sits exactly on the bottom edge of the visible area.
@@ -33,7 +35,8 @@ async function scrollEdgeMiddleToBottomEdge(edgeDataId: string) {
         const rect = document.querySelector('#diagram path.flowchart-link[data-id="${edgeDataId}"]').getBoundingClientRect();
         output.scrollTop += rect.top + rect.height / 2 - visibleBottom;
     })()`);
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
+    await waitForTwoFrames();
 }
 
 interface HeadMeasure {
@@ -139,7 +142,7 @@ async function loadChainWithBackEdge(blockCount: number, backEdgeTargetIndex: nu
     const source = ["flowchart TD", ...ids.map((id) => `  ${id}["Block ${id}"]`), `  ${ids.join(" --> ")}`, `  ${ids[ids.length - 1]} --> ${ids[backEdgeTargetIndex]}`, ...ids.map((id) => `%% ==props==: {"blockId":"${id}","width":160,"height":72}`)].join("\n");
     await resetEditorFixture();
     await setEditorSource(source);
-    await waitMilliseconds(800);
+    // await waitMilliseconds(800);
 }
 
 // Presses and releases the left mouse button at the middle of the extra arrow head of one line.
@@ -172,8 +175,9 @@ test("test_clicking_an_arrow_head_of_a_line_that_goes_up_centers_the_end_block_a
     await setOutputScrollTop("max");
     assert.ok(findHead(await measureHeads(), "L_B_N23_B_N8_0"));
     // Step: click the extra arrow head with the real mouse.
-    await clickArrowHeadWithMouse("L_B_N23_B_N8_0");
-    await waitMilliseconds(1500);
+    // await clickArrowHeadWithMouse("L_B_N23_B_N8_0");
+    // await waitMilliseconds(1500);
+    await executeAndWaitForScrollEnd('#output', () => clickArrowHeadWithMouse("L_B_N23_B_N8_0")); // replaces the action line and the wait
     // Step: the end block B_N8 is in the middle of the visible area and no block is selected.
     assert.ok(await measureBlockDistanceFromCenter("B_N8") <= CENTERED_WITHIN_PX);
     assert.equal(await executeExpression("document.querySelectorAll('#diagram .editor-selected').length"), 0);
@@ -188,8 +192,9 @@ test("test_clicking_an_arrow_head_of_a_line_that_goes_down_centers_the_end_block
     // The horizontal overlay scrollbar covers the bottom 16 px of the output box and takes the mouse click, so it is hidden for this click.
     await executeExpression("document.getElementById('output').style.overflowX = 'hidden'");
     const distanceBeforeClick = await measureBlockDistanceFromCenter("B_N4");
-    await clickArrowHeadWithMouse("L_B_N3_B_N4_0");
-    await waitMilliseconds(1500);
+    // await clickArrowHeadWithMouse("L_B_N3_B_N4_0");
+    // await waitMilliseconds(1500);
+    await executeAndWaitForScrollEnd('#output', () => clickArrowHeadWithMouse("L_B_N3_B_N4_0")); // replaces the action line and the wait
     // Step: the end block B_N4 is in the middle of the visible area.
     const distance = await measureBlockDistanceFromCenter("B_N4");
     assert.ok(distance <= CENTERED_WITHIN_PX, `B_N4 is ${distance}px from the middle, was ${distanceBeforeClick}px before the click`);
@@ -212,7 +217,8 @@ test("test_command_clicking_the_visible_part_of_a_line_centers_the_start_block",
         const rect = document.querySelector('#diagram path.flowchart-link[data-id="L_B_N8_B_N9_0"]').getBoundingClientRect();
         output.scrollTop += rect.top + rect.height / 2 - visibleTop;
     })()`);
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
+    await waitForTwoFrames();
     assert.equal(await executeExpression(`document.querySelector('#diagram [id*="flowchart-B_N8-"]').getBoundingClientRect().bottom < document.getElementById('output').getBoundingClientRect().top`), true);
     // Step: find a point on the line that the mouse can hit.
     // const point = JSON.parse(await executeExpression(`JSON.stringify((() => {
@@ -227,8 +233,9 @@ test("test_command_clicking_the_visible_part_of_a_line_centers_the_start_block",
     })())`));
     assert.ok(point, "no point of the line can be clicked");
     // Step: Command-click that point; the start block B_N8 is in the middle of the visible area.
-    await commandClickWithMouse(point.x, point.y);
-    await waitMilliseconds(1500);
+    // await commandClickWithMouse(point.x, point.y);
+    // await waitMilliseconds(1500);
+    await executeAndWaitForScrollEnd('#output', () => commandClickWithMouse(point.x, point.y)); // replaces the action line and the wait
     const distance = await measureBlockDistanceFromCenter("B_N8");
     assert.ok(distance <= CENTERED_WITHIN_PX, `B_N8 is ${distance}px from the middle`);
 });
@@ -245,8 +252,9 @@ test("test_command_clicking_an_extra_arrow_head_centers_the_start_block", async 
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     })())`));
     // Step: Command-click the extra arrow head; the start block B_N3 is in the middle of the visible area.
-    await commandClickWithMouse(center.x, center.y);
-    await waitMilliseconds(1500);
+    // await commandClickWithMouse(center.x, center.y);
+    // await waitMilliseconds(1500);
+    await executeAndWaitForScrollEnd('#output', () => commandClickWithMouse(center.x, center.y)); // replaces the action line and the wait
     const distance = await measureBlockDistanceFromCenter("B_N3");
     assert.ok(distance <= CENTERED_WITHIN_PX, `B_N3 is ${distance}px from the middle`);
 });
@@ -255,7 +263,7 @@ test("test_after_a_zoom_out_the_extra_arrow_head_tip_is_inside_the_visible_area"
     await loadChain(14);
     await setOutputScrollTop("max");
     await executeExpression("document.getElementById('zoomOutBtn').click()");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     const report = await measureHeads();
     assert.ok(findHead(report, "L_B_N13_B_N0_0"), JSON.stringify(report.heads));
     for (const head of report.heads) {

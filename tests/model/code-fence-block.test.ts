@@ -14,7 +14,7 @@ const CODE_PADDING_PX = 4;
 async function loadSource(source: string) {
     await resetEditorFixture();
     await setEditorSource(source);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 function buildRectSource(label: string, extraLines: string[] = []) {
     return ["flowchart TD", `  B_ONE["${label}"]`, '  B_TWO["Two"]', "  B_ONE --> B_TWO", ...extraLines].join("\n");
@@ -154,7 +154,7 @@ test("test_single_backticks_still_draw_an_inline_code_span", async () => {
 test("test_the_phone_view_shows_the_same_left_justified_code_block", async () => {
     await loadSource(buildRectSource(CODE_LABEL));
     await clickNodeWithMouse("B_ONE");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     // const measured = JSON.parse(await executeExpression(`JSON.stringify((() => {
     const measured: PhoneMeasure = JSON.parse(await executeExpression<string>(`JSON.stringify((() => {
         const block = document.querySelector('#phoneDiagram [data-node-id="B_ONE"]');

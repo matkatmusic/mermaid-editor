@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "../../browser-harness.ts";
-import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+// import { executeExpression, waitForRender, waitMilliseconds } from "../../cdp.ts";
+import { executeExpression, waitForRender, waitForExpression } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, dispatchNodeClick } from "../../editor-helpers.ts";
 import { EDITOR_FIXTURE_NAME, SEARCH_FIXTURE } from "../../fixtures.ts";
 
@@ -23,7 +24,8 @@ test("test_clicking_a_node_writes_its_id_into_the_editor_text_and_the_saved_file
   await executeExpression("window.selectEditorNode('B_START'); window.selectEditorNode(null)");
   // Step: click the node Q_SECOND.
   await dispatchNodeClick("Q_SECOND");
-  await waitMilliseconds(700);
+  // await waitMilliseconds(700);
+  await waitForExpression(`fetch('/api/diagrams/${EDITOR_FIXTURE_NAME}').then((response) => response.text()).then((text) => text.includes('"lastSelectedNodeId":"Q_SECOND"'))`);
   // Step: the trailer in the drawer text names Q_SECOND.
   assert.equal(readTrailerNodeId(await executeExpression("codeBox.value")), "Q_SECOND");
   // Step: the file on disk names Q_SECOND too.
@@ -38,7 +40,7 @@ test("test_a_file_opened_by_path_restores_its_selected_node_and_scroll_position"
   const trailer = `\n%%%%====\n%% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE\n%% ${JSON.stringify({ lastSelectedNodeId: "B_SELF_LISTEN", outputScrollLeft: 0, outputScrollTop: 40, mainZoomPercent: 100 })}\n%%%%====`;
   // Step: show the text as a path-opened file.
   await executeExpression(`window.showOpenedFile('/tmp/restore-test.mmd', ${JSON.stringify(diagramText + trailer)})`);
-  await waitMilliseconds(1500);
+  // await waitMilliseconds(1500);
   // Step: the diagram can scroll at least 40 pixels, so the saved scroll is reachable.
   assert.equal(await executeExpression("document.getElementById('output').scrollHeight - document.getElementById('output').clientHeight >= 40"), true);
   // Step: the saved node is selected and the saved scroll is applied.

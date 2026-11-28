@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks, SERVER_PORT } from "../browser-harness.ts";
-import { executeExpression, send, waitForRender, waitMilliseconds } from "../cdp.ts";
+// import { executeExpression, send, waitForRender, waitMilliseconds } from "../cdp.ts";
+import { executeExpression, send, waitForExpression, waitForRender } from "../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../editor-helpers.ts";
 import { clickNodeWithMouse, KeyName, pressKey } from "../real-input.ts";
 
@@ -27,7 +28,7 @@ const MINIMUM_NODE_HEIGHT = 48 + 8;
 async function loadSource(source: string) {
     await resetEditorFixture();
     await setEditorSource(source);
-    await waitMilliseconds(600);
+    // await waitMilliseconds(600);
 }
 
 async function readNodeBox(id: string): Promise<{ width: number; height: number }> {
@@ -106,18 +107,18 @@ test("test_a_node_without_a_size_line_gives_mermaid_the_same_line_as_before", as
 test("test_set_node_size_writes_one_size_line_and_undo_takes_it_away", async () => {
     await loadSource(BODY);
     await executeExpression("window.setNodeSize('B_START', 400, 120); window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const lines = await readSourceLines();
     assert.equal(lines.filter((line) => line.includes("==props==")).length, 1);
     // const metadataIndex = lines.indexOf("%%%%====");
     // assert.ok(lines.indexOf("%% ==size==: B_START 400 120") < metadataIndex, lines.join("|"));
     assert.equal(lines[lines.indexOf('  B_START["Start"]') - 1], '  %% ==props==: {"blockId":"B_START","width":400,"height":120}', lines.join("|"));
     await executeExpression("window.setNodeSize('B_START', 500, 150); window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const resized = (await readSourceLines()).filter((line) => line.includes("==props=="));
     assert.deepEqual(resized, ['  %% ==props==: {"blockId":"B_START","width":500,"height":150}']);
     await executeExpression("window.applyEditorUndo(); window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const undone = (await readSourceLines()).filter((line) => line.includes("==props=="));
     assert.deepEqual(undone, ['  %% ==props==: {"blockId":"B_START","width":400,"height":120}']);
 });
@@ -125,9 +126,9 @@ test("test_set_node_size_writes_one_size_line_and_undo_takes_it_away", async () 
 test("test_removing_a_node_removes_its_size_line", async () => {
     await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_END","width":400,"height":120}\n%% ==props==: {"blockId":"B_START","width":300,"height":90}`);
     await clickNodeWithMouse("B_END");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     await executeExpression("window.removeBlock(); window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const sizeLines = (await readSourceLines()).filter((line) => line.includes("==props=="));
     assert.deepEqual(sizeLines, ['%% ==props==: {"blockId":"B_START","width":300,"height":90}']);
 });
@@ -135,13 +136,13 @@ test("test_removing_a_node_removes_its_size_line", async () => {
 test("test_renaming_a_node_renames_its_size_line", async () => {
     await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_END","width":400,"height":120}`);
     await clickNodeWithMouse("B_END");
-    await waitMilliseconds(300);
+    // await waitMilliseconds(300);
     await executeExpression("(() => { const input = document.getElementById('nodeNameInput'); input.focus(); input.select(); })()");
     for (const character of "FINISH")
         await send("Input.dispatchKeyEvent", { type: "char", text: character, key: character });
     await pressKey(KeyName.Tab);
     await executeExpression("window.editorActionPromise");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     const sizeLines = (await readSourceLines()).filter((line) => line.includes("==props=="));
     assert.deepEqual(sizeLines, ['%% ==props==: {"blockId":"B_FINISH","width":400,"height":120}']);
 });
@@ -150,7 +151,7 @@ test("test_searching_the_text_of_a_size_line_selects_its_node", async () => {
     await loadSource(`${BODY}\n%% ==props==: {"blockId":"B_END","width":400,"height":120}`);
     await executeExpression("window.selectEditorNode(null)");
     await executeExpression(`(() => { const input = document.getElementById('searchInput'); input.value = '"width":400,"height":120'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
     await waitForRender();
     assert.equal(await executeExpression("document.getElementById('selectedNode').textContent"), "B_END");
 });
@@ -160,7 +161,8 @@ test("test_a_written_path_copies_the_size_lines_of_the_nodes_in_the_path_only", 
     await executeExpression("document.querySelector('#phoneDiagram [data-choose=\"Q_CHOICE_A_Y\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
     await waitForRender();
     await executeExpression("document.querySelector('#phoneTopBar [data-write-path]').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-    await waitMilliseconds(500);
+    // await waitMilliseconds(500);
+    await waitForExpression(`document.getElementById('status').textContent.startsWith('Wrote ')`);
     // const names: string[] = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json());
     const names = await fetch(`http://localhost:${SERVER_PORT}/api/diagrams`).then((response) => response.json() as Promise<string[]>);
     const pathName = names.find((name) => name.includes("-path-"))!;
