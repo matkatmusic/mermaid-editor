@@ -4,7 +4,8 @@ import { registerBrowserHooks } from '../../browser-harness.ts';
 // import { executeExpression, waitMilliseconds } from '../../cdp.ts';
 import { executeExpression } from '../../cdp.ts';
 import { openEditorDrawer, resetEditorFixture } from '../../editor-helpers.ts';
-import { PATH_VIEW_SOURCE, clickButtonWithMouse, loadPathViewSource, readErrorLog, readShownEdgeIds, readShownNodeIds } from '../../path-view-helpers.ts';
+// import { PATH_VIEW_SOURCE, clickButtonWithMouse, loadPathViewSource, readErrorLog, readShownEdgeIds, readShownNodeIds } from '../../path-view-helpers.ts';
+import { PATH_VIEW_SOURCE, clickButtonWithMouse, dispatchClickWithMouse, loadPathViewSource, readErrorLog, readShownEdgeIds, readShownNodeIds } from '../../path-view-helpers.ts';
 // import { walkPaths } from '../path-view-model.ts';
 import { findNeighbourDigits, walkDigitPath } from '../../../source/model/path-view-model.ts';
 import type { PathDiagram } from '../../../source/model/path-view-model.ts';
@@ -172,7 +173,8 @@ test('test_opening_a_file_turns_the_view_off', async () => {
 test('test_new_diagram_turns_the_view_off', async () => {
     await turnViewOn();
     // #newBtn is inside the closed File menu, so open the menu first.
-    await clickButtonWithMouse('#fileMenu summary');
+    // await clickButtonWithMouse('#fileMenu summary');
+    await dispatchClickWithMouse('#fileMenu summary');
     await clickButtonWithMouse('#newBtn');
     await assertViewIsOff();
 });
