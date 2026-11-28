@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerBrowserHooks } from "../../browser-harness.ts";
 // import { executeExpression, send, waitMilliseconds } from "../../cdp.ts";
-import { executeAndWaitForScrollEnd, executeExpression, send, waitForTwoFrames } from "../../cdp.ts";
+// import { executeAndWaitForScrollEnd, executeExpression, send, waitForTwoFrames } from "../../cdp.ts";
+import { executeAndWaitForScrollEnd, executeExpression, send, waitForTwoFrames, waitMilliseconds } from "../../cdp.ts";
 import { openEditorDrawer, resetEditorFixture, setEditorSource } from "../../editor-helpers.ts";
 
 registerBrowserHooks(import.meta.url, openEditorDrawer);
@@ -192,9 +193,9 @@ test("test_clicking_an_arrow_head_of_a_line_that_goes_down_centers_the_end_block
     // The horizontal overlay scrollbar covers the bottom 16 px of the output box and takes the mouse click, so it is hidden for this click.
     await executeExpression("document.getElementById('output').style.overflowX = 'hidden'");
     const distanceBeforeClick = await measureBlockDistanceFromCenter("B_N4");
-    // await clickArrowHeadWithMouse("L_B_N3_B_N4_0");
-    // await waitMilliseconds(1500);
-    await executeAndWaitForScrollEnd('#output', () => clickArrowHeadWithMouse("L_B_N3_B_N4_0"));
+    await clickArrowHeadWithMouse("L_B_N3_B_N4_0");
+    await waitMilliseconds(1500);
+    // await executeAndWaitForScrollEnd('#output', () => clickArrowHeadWithMouse("L_B_N3_B_N4_0"));
     // Step: the end block B_N4 is in the middle of the visible area.
     const distance = await measureBlockDistanceFromCenter("B_N4");
     assert.ok(distance <= CENTERED_WITHIN_PX, `B_N4 is ${distance}px from the middle, was ${distanceBeforeClick}px before the click`);
